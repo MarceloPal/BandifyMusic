@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@keyframes adnFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.adn-fade-in { animation: adnFadeIn 0.25s ease; }
+
+/* ──────────────────────────────────────────────────────────────
+   Design Tokens — Bandify (Tema Claro)
+   Todos los colores, tipografías y tokens base centralizados aquí.
+────────────────────────────────────────────────────────────── */
+:root {
+  /* Paleta de fondo */
+  --color-bg:           #f5f3f0;   /* página principal — hueso cálido   */
+  --color-bg-surface:   #ffffff;   /* sidebar, topbar, cards             */
+  --color-bg-elevated:  #ebe9e6;   /* inputs, chips, avatares            */
+  --color-bg-hover:     #f0ede9;   /* hover sutil en filas y botones     */
+
+  /* Texto */
+  --color-text-primary:   #1a1a1a;  /* títulos y cuerpo                  */
+  --color-text-secondary: #555555;  /* subtítulos, metadatos             */
+  --color-text-muted:     #999999;  /* placeholders, timestamps          */
+
+  /* Bordes */
+  --color-border:       rgba(0, 0, 0, 0.08);
+  --color-border-hover: rgba(0, 0, 0, 0.16);
+
+  /* Acentos */
+  --color-accent-purple: #9333ea;
+  --color-accent-blue:   #3b82f6;
+  --color-accent-green:  #16a34a;
+  --color-accent-red:    #dc2626;
+
+  /* Botón primario (oscuro sobre claro) */
+  --color-btn-primary-bg:    #1a1a1a;
+  --color-btn-primary-text:  #ffffff;
+  --color-btn-primary-hover: #333333;
+
+  /* Tipografía */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+
+  /* Radios */
+  --radius-sm:   0.75rem;
+  --radius-md:   1rem;
+  --radius-lg:   1.5rem;
+  --radius-full: 9999px;
+
+  /* Sombras */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08);
+}
+
+@layer base {
+  /* ── Reset ── */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* ── Base ── */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: #09090b; /* zinc-950 — fallback dark */
+    color: #fafafa;       /* zinc-50 — fallback light text */
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* ── Links ── */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* ── Scrollbar personalizada (Webkit) ── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ── Selección de texto ── */
+::selection {
+  background: rgba(147, 51, 234, 0.18);
+  color: #1a1a1a;
+}
