@@ -1,126 +1,38 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'motion/react'
 import {
-  Music2, Upload, ChevronDown, Zap, Wind, Activity, Sparkles, Tag, Camera, Loader2,
-  MapPin, Briefcase, Calendar, Edit3, BarChart2,
+  Music2, Upload, Zap, Wind, Activity, Sparkles,
+  Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
-import { parseVector, parseMetadata, deriveStats, CHROMA_LABELS, OFICIOS, TAG_OPTIONS, deriveMood, detectKey, suggestGenres } from '../utils/audioHelpers'
+import {
+  parseVector, parseMetadata, deriveStats,
+  deriveMood, detectKey, suggestGenres,
+} from '../utils/audioHelpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import AudioPlayer from '../components/AudioPlayer'
 
 const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
-
-/* ─── sub-components ─── */
-
-function Badge({ text, color = 'gray' }) {
-  const colors = {
-    purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    blue:   'bg-blue-500/20   text-blue-300   border-blue-500/30',
-    green:  'bg-green-500/20  text-green-300  border-green-500/30',
-    gray:   'bg-white/10      text-zinc-300   border-white/10',
-  }
-  return (
-    <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${colors[color]}`}>
-      {text}
-    </span>
-  )
-}
-
-function StatPill({ label, value, unit = '' }) {
-  return (
-    <div className="flex-1 flex flex-col items-center gap-0.5 py-3 px-2 rounded-xl bg-white/5 border border-white/10">
-      <span className="text-purple-400 font-bold text-lg leading-none">
-        {value}<span className="text-xs font-semibold text-zinc-500 ml-0.5">{unit}</span>
-      </span>
-      <span className="text-zinc-500 text-xs font-medium uppercase tracking-wide">{label}</span>
-    </div>
-  )
-}
-
-function DescBar({ label, value, color }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-zinc-400 text-xs font-semibold">{label}</span>
-        <span className="text-zinc-500 text-xs tabular-nums">{value}%</span>
-      </div>
-      <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
-      </div>
-    </div>
-  )
-}
-
-function HpsBar({ label, pct, color }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-zinc-400 text-xs w-28 flex-shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-white/8 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="text-zinc-300 font-bold text-xs tabular-nums w-8 text-right">{pct}%</span>
-    </div>
-  )
-}
-
-function ChromaChart({ chroma }) {
-  const max = Math.max(...chroma, 0.01)
-  return (
-    <div className="flex items-end gap-1 h-16">
-      {chroma.map((val, i) => {
-        const pct = (val / max) * 100
-        return (
-          <div key={i} className="flex flex-col items-center gap-1 flex-1">
-            <div
-              className="w-full rounded-sm"
-              style={{
-                height: `${Math.max(3, Math.round(pct * 0.52))}px`,
-                background: pct > 70 ? '#a855f7' : pct > 40 ? '#7c3aed' : '#4c1d95',
-              }}
-            />
-            <span className="text-zinc-600 font-medium" style={{ fontSize: '8px', lineHeight: 1 }}>
-              {CHROMA_LABELS[i]}
-            </span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 /* ─── main component ─── */
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
   const navigate                    = useNavigate()
-  const [editing, setEditing]         = useState(false)
-  const [expanded, setExpanded]       = useState(false)
-  const [error, setError]             = useState('')
+  const [editingBio, setEditingBio] = useState(false)
+  const [bioValue, setBioValue]     = useState(user?.bio ?? '')
+  const [bioSaving, setBioSaving]   = useState(false)
+  const [activeCoverKey, setActiveCoverKey] = useState(null)
   const [photoUploading, setPhotoUploading]   = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const photoInputRef  = useRef(null)
   const bannerInputRef = useRef(null)
 
-  const { url: photoUrl }  = useImageUrl(user?.foto_url  ?? null)
-  const { url: bannerUrl } = useImageUrl(user?.banner_url ?? null)
+  const { url: photoUrl }      = useImageUrl(user?.foto_url   ?? null)
+  const { url: bannerUrl }     = useImageUrl(user?.banner_url ?? null)
+  const { url: activeCoverUrl} = useImageUrl(activeCoverKey)
 
-  const [bio,         setBio]         = useState(user?.bio         ?? '')
-  const [experiencia, setExperiencia] = useState(user?.experiencia ?? '')
-  const [selectedOficio, setSelectedOficio] = useState(
-    Array.isArray(user?.oficio) ? user.oficio : []
-  )
-  const [selectedTags, setSelectedTags] = useState(
-    Array.isArray(user?.user_tags) ? user.user_tags : []
-  )
-  const [instagram, setInstagram] = useState(user?.instagram_url ?? '')
-  const [spotify,   setSpotify]   = useState(user?.spotify_url   ?? '')
-  const [discord,   setDiscord]   = useState(user?.discord_url   ?? '')
-
-  // Audio listen URL para reproducir el demo
   const [audioUrl, setAudioUrl] = useState(null)
   useEffect(() => {
     if (!user?.s3_key || !token) { setAudioUrl(null); return }
@@ -134,64 +46,50 @@ export default function Profile() {
     return () => { cancelled = true }
   }, [user?.s3_key, token])
 
-  const updateMutation = useMutation({
-    mutationFn: async (body) => {
-      const res = await fetch(`${API_URL}/usuarios/perfil`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+  /* Obtiene la cover_key del demo activo buscando por s3_key */
+  useEffect(() => {
+    if (!user?.s3_key || !token) { setActiveCoverKey(null); return }
+    let cancelled = false
+    fetch(`${API_URL}/demos`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : [])
+      .then((demos) => {
+        if (cancelled) return
+        const active = demos.find((d) => d.s3_key === user.s3_key)
+        setActiveCoverKey(active?.cover_url ?? null)
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      return data
-    },
-    onSuccess: (data) => { updateUser(data); setEditing(false) },
-    onError:   (err)  => setError(err.message),
-  })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user?.s3_key, token])
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setError('')
-    const fd = new FormData(e.target)
-    const body = {}
-    for (const [key, value] of fd.entries()) { if (value) body[key] = value }
-    if (bio.trim())             body.bio           = bio.trim()
-    if (experiencia)            body.experiencia   = parseInt(experiencia)
-    if (selectedOficio.length)  body.oficio        = selectedOficio
-    if (selectedTags.length)    body.user_tags     = selectedTags
-    if (instagram.trim())       body.instagram_url = instagram.trim()
-    if (spotify.trim())         body.spotify_url   = spotify.trim()
-    if (discord.trim())         body.discord_url   = discord.trim()
-    if (Object.keys(body).length === 0) return
-    updateMutation.mutate(body)
+  const saveBio = async () => {
+    setBioSaving(true)
+    try {
+      const res = await fetch(`${API_URL}/usuarios/perfil`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ bio: bioValue.trim() }),
+      })
+      if (res.ok) { updateUser({ bio: bioValue.trim() }); setEditingBio(false) }
+    } finally { setBioSaving(false) }
   }
 
   const handlePhotoUpload = async (file) => {
     if (!file) return
     const ext = file.name.split('.').pop().toLowerCase()
-    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-      setError('Formato de imagen no válido. Usa JPG, PNG o WEBP.')
-      return
-    }
+    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return
     setPhotoUploading(true)
-    setError('')
     try {
       const urlRes = await fetch(`${API_URL}/images/upload-url?type=avatar&ext=${ext === 'jpeg' ? 'jpg' : ext}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const { uploadUrl, key } = await urlRes.json()
       await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file })
-      const perfRes = await fetch(`${API_URL}/usuarios/perfil`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      const r = await fetch(`${API_URL}/usuarios/perfil`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ foto_url: key }),
       })
-      if (perfRes.ok) updateUser({ foto_url: key })
-    } catch {
-      setError('No se pudo subir la foto. Intenta de nuevo.')
-    } finally {
-      setPhotoUploading(false)
-    }
+      if (r.ok) updateUser({ foto_url: key })
+    } finally { setPhotoUploading(false) }
   }
 
   const handleBannerUpload = async (file) => {
@@ -205,65 +103,67 @@ export default function Profile() {
       })
       const { uploadUrl, key } = await urlRes.json()
       await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file })
-      const perfRes = await fetch(`${API_URL}/usuarios/perfil`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      const r = await fetch(`${API_URL}/usuarios/perfil`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ banner_url: key }),
       })
-      if (perfRes.ok) updateUser({ banner_url: key })
-    } catch {
-      setError('No se pudo subir el banner. Intenta de nuevo.')
-    } finally {
-      setBannerUploading(false)
-    }
+      if (r.ok) updateUser({ banner_url: key })
+    } finally { setBannerUploading(false) }
   }
 
-  const toggleOficio = (o) => setSelectedOficio((prev) =>
-    prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
-  )
-  const toggleTag = (t) => setSelectedTags((prev) =>
-    prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
-  )
-
-  const v     = useMemo(() => parseVector(user?.audio_vector),    [user?.audio_vector])
-  const meta  = useMemo(() => parseMetadata(user?.audio_metadata), [user?.audio_metadata])
-  const stats = useMemo(() => v ? deriveStats(v, meta) : null,    [v, meta])
+  const v           = useMemo(() => parseVector(user?.audio_vector),     [user?.audio_vector])
+  const meta        = useMemo(() => parseMetadata(user?.audio_metadata), [user?.audio_metadata])
+  const stats       = useMemo(() => v ? deriveStats(v, meta) : null,     [v, meta])
+  const mood        = useMemo(() => stats ? deriveMood(stats) : null,    [stats])
+  const detectedKey = useMemo(() => stats ? detectKey(stats.chroma) : null, [stats])
+  const gens        = useMemo(() => stats ? suggestGenres(stats) : [],   [stats])
   const TextureIcon = stats ? (TEXTURE_ICONS[stats.texture.icon] ?? Activity) : null
 
   if (!user) return null
   const tieneAnalisis = Boolean(user?.s3_key)
   const oficioUser    = Array.isArray(user?.oficio)    ? user.oficio    : []
   const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
+  const allTags       = [...tagsUser, ...gens.filter((g) => !tagsUser.includes(g))]
 
   return (
-    /* Rompe el padding del layout y pone fondo oscuro en toda la página */
-    <div className="-mx-6 -mt-8 min-h-screen pb-12">
+    <div className="-mx-6 -mt-8 min-h-screen pb-16">
 
       {/* Hidden inputs */}
-      <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files[0])} />
-      <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleBannerUpload(e.target.files[0])} />
+      <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+        onChange={(e) => handlePhotoUpload(e.target.files[0])} />
+      <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+        onChange={(e) => handleBannerUpload(e.target.files[0])} />
 
-      {/* ── Banner hero ── */}
-      <div className="relative h-72 w-full group">
-        {/* Imagen o gradiente de fondo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-900 to-zinc-900">
+      {/* ── Banner full-width ── */}
+      <div className="relative w-full h-52 group/banner">
+        {/* Fondo del banner */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-900 to-zinc-900 overflow-hidden">
           {bannerUrl && (
-            <img src={bannerUrl} alt="banner" className="w-full h-full object-cover opacity-60" />
+            <img src={bannerUrl} alt="banner" className="w-full h-full object-cover opacity-70" />
           )}
         </div>
+        {/* Fade hacia abajo */}
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
+        {/* Botón cambiar banner */}
+        <button
+          onClick={() => bannerInputRef.current?.click()}
+          disabled={bannerUploading}
+          className="absolute top-3 right-3 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-white text-xs font-semibold border border-white/20 hover:bg-black/70"
+        >
+          {bannerUploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+          Cambiar banner
+        </button>
+      </div>
 
-        {/* Gradiente de fade hacia abajo */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent" />
-
-
-        {/* Avatar + nombre superpuesto en la parte baja del banner */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-5 flex items-end justify-between gap-4">
+      {/* ── Franja de identidad (rompe la línea del banner) ── */}
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="flex items-end justify-between gap-4 -mt-14 pb-5">
           <div className="flex items-end gap-4 min-w-0 flex-1">
             {/* Avatar */}
             <button
               onClick={() => photoInputRef.current?.click()}
               disabled={photoUploading}
-              className="group/avatar relative w-24 h-24 rounded-full overflow-hidden border-4 border-zinc-900 shadow-xl focus:outline-none flex-shrink-0"
+              className="group/avatar relative w-24 h-24 rounded-full overflow-hidden border-4 border-zinc-900 shadow-2xl focus:outline-none flex-shrink-0 z-10"
             >
               {photoUrl ? (
                 <img src={photoUrl} alt={user.nombre} className="w-full h-full object-cover" />
@@ -279,179 +179,177 @@ export default function Profile() {
               </div>
             </button>
 
-            {/* Nombre + oficio chips + stats line */}
-            <div className="pb-1 min-w-0 flex-1">
+            {/* Nombre + oficio + ciudad */}
+            <div className="pb-1 min-w-0 flex-1 pt-16">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-white text-3xl font-black tracking-tight leading-none drop-shadow">{user.nombre}</h1>
+                <h1 className="text-white text-2xl font-black tracking-tight leading-none">
+                  {user.nombre}
+                </h1>
                 {user.es_premium && (
                   <span className="bg-gradient-to-r from-amber-400 to-amber-600 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                     ✦ Premium
                   </span>
                 )}
               </div>
-
-              {/* Oficio chips */}
               {oficioUser.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {oficioUser.map((o) => (
-                    <span key={o} className="bg-white/15 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-0.5 rounded-full border border-white/20">
-                      {o}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-zinc-400 text-sm mt-0.5">
+                  {oficioUser.join(' · ')}
+                </p>
               )}
-
-              {/* Stats line — instrumento · ciudad · experiencia */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-zinc-300 text-xs">
-                {user.instrumento && (
-                  <span className="flex items-center gap-1"><Music2 size={11} /> {user.instrumento}</span>
-                )}
-                {user.ciudad && (
-                  <span className="flex items-center gap-1"><MapPin size={11} /> {user.ciudad}</span>
-                )}
-                {user.experiencia && (
-                  <span className="flex items-center gap-1">
-                    <Briefcase size={11} /> {user.experiencia} {user.experiencia === 1 ? 'año' : 'años'}
-                  </span>
-                )}
-              </div>
+              {user.ciudad && (
+                <p className="flex items-center gap-1 mt-0.5 text-zinc-500 text-xs">
+                  <MapPin size={10} /> {user.ciudad}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Botón editar */}
-          {!editing && (
-            <button
-              onClick={() => navigate('/settings')}
-              className="flex-shrink-0 mb-1 bg-white text-zinc-900 font-bold px-5 py-2 rounded-full text-sm hover:bg-zinc-200 transition-colors shadow-lg flex items-center gap-1.5"
-            >
-              <Edit3 size={13} />
-              Editar
-            </button>
-          )}
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-semibold transition-colors"
+          >
+            <Edit3 size={13} />
+            Editar perfil
+          </button>
         </div>
       </div>
 
-      {/* ── Quick ADN summary band (mood + tonalidad + géneros) ── */}
-      {stats && (() => {
-        const mood = deriveMood(stats)
-        const key  = detectKey(stats.chroma)
-        const gens = suggestGenres(stats)
-        return (
-          <div className="max-w-5xl mx-auto px-6 mt-5">
-            <div className="bg-zinc-800 rounded-2xl p-4 border border-white/8 flex flex-wrap items-center gap-2.5">
-              <div
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold text-white"
-                style={{ background: mood.color }}
-              >
-                {mood.label}
-              </div>
-              {key && (
-                <span className="px-3 py-1.5 rounded-full bg-white/8 border border-white/10 text-zinc-200 text-xs font-semibold">
-                  ♪ {key}
-                </span>
+      {/* ── Contenido en dos columnas ── */}
+      <div className="max-w-5xl mx-auto px-6 mt-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* ── Columna izquierda ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Sobre mí */}
+          <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Sobre mí</p>
+              {!editingBio && (
+                <button
+                  onClick={() => { setBioValue(user?.bio ?? ''); setEditingBio(true) }}
+                  className="flex items-center gap-1 text-zinc-600 hover:text-zinc-300 transition-colors text-xs"
+                >
+                  <Pencil size={11} />
+                  {user?.bio ? 'Editar' : 'Agregar'}
+                </button>
               )}
-              <span className="px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-semibold">
-                {stats.bpm} BPM
-              </span>
-              <div className="flex flex-wrap gap-1.5 ml-auto">
-                {gens.map((g) => (
-                  <span key={g} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/8 text-zinc-300 text-xs font-medium">
+            </div>
+            {editingBio ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={bioValue}
+                  onChange={(e) => setBioValue(e.target.value)}
+                  rows={3}
+                  placeholder="Cuéntanos sobre tu música y lo que buscas..."
+                  autoFocus
+                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveBio}
+                    disabled={bioSaving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    {bioSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    Guardar
+                  </button>
+                  <button
+                    onClick={() => setEditingBio(false)}
+                    className="px-3 py-1.5 text-zinc-400 hover:text-zinc-200 text-xs font-medium rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : user?.bio ? (
+              <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
+            ) : (
+              <p className="text-zinc-600 text-sm italic">Sin biografía aún.</p>
+            )}
+          </div>
+
+          {/* Vibra Musical — tags + géneros IA fusionados */}
+          {allTags.length > 0 && (
+            <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Vibra Musical</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tagsUser.map((t) => (
+                  <span key={t} className="bg-purple-500/15 text-purple-200 text-xs px-2.5 py-1 rounded-full border border-purple-500/30 font-semibold">
+                    #{t}
+                  </span>
+                ))}
+                {gens.filter((g) => !tagsUser.includes(g)).map((g) => (
+                  <span key={g} className="bg-white/5 text-zinc-400 text-xs px-2.5 py-1 rounded-full border border-white/10 font-medium">
                     #{g}
                   </span>
                 ))}
               </div>
+              {gens.length > 0 && (
+                <p className="text-zinc-600 text-[10px] mt-2">
+                  Los tags en gris son sugeridos por la IA de Bandify.
+                </p>
+              )}
             </div>
-          </div>
-        )
-      })()}
-
-      {/* ── Contenido ── */}
-      <div className="max-w-5xl mx-auto px-6 mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-
-        {/* Identidad artística — siempre visible (con empty state) */}
-        <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Tag size={13} className="text-purple-400" />
-            <p className="text-zinc-300 text-xs font-bold uppercase tracking-wide">Identidad Artística</p>
-          </div>
-          {user?.bio ? (
-            <p className="text-zinc-200 text-sm leading-relaxed mb-3">{user.bio}</p>
-          ) : (
-            <p className="text-zinc-500 text-sm italic mb-3">Cuéntanos sobre tu música y lo que buscas...</p>
           )}
-          {tagsUser.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {tagsUser.map((t) => (
-                <span key={t} className="bg-purple-500/15 text-purple-200 text-xs px-2.5 py-1 rounded-full border border-purple-500/30 font-semibold">
-                  #{t}
-                </span>
-              ))}
-            </div>
-          ) : !user?.bio && (
-            <button
-              onClick={() => {
-                setBio(user?.bio ?? '')
-                setExperiencia(user?.experiencia ?? '')
-                setSelectedOficio(Array.isArray(user?.oficio) ? user.oficio : [])
-                setSelectedTags(Array.isArray(user?.user_tags) ? user.user_tags : [])
-                setInstagram(user?.instagram_url ?? '')
-                setSpotify(user?.spotify_url ?? '')
-                setDiscord(user?.discord_url ?? '')
-                setEditing(true)
-              }}
-              className="text-purple-400 text-xs font-semibold hover:text-purple-300 transition-colors"
-            >
-              + Completa tu perfil
-            </button>
-          )}
+
+          {/* Redes sociales */}
+          <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Redes sociales</p>
+            {(user?.instagram_url || user?.spotify_url || user?.discord_url) ? (
+              <div className="flex flex-wrap gap-2">
+                {user.instagram_url && (
+                  <a href={user.instagram_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold transition-opacity hover:opacity-75"
+                    style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}>
+                    <IgIcon /> Instagram
+                  </a>
+                )}
+                {user.spotify_url && (
+                  <a href={user.spotify_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#1db954] hover:opacity-75 transition-opacity">
+                    <SpotifyIcon /> Spotify
+                  </a>
+                )}
+                {user.discord_url && (
+                  <a href={user.discord_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#5865f2] hover:opacity-75 transition-opacity">
+                    <DiscordIcon /> Discord
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-zinc-600 text-sm italic">
+                Aún no hay redes vinculadas.{' '}
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="text-purple-400 hover:text-purple-300 transition-colors not-italic"
+                >
+                  Agrégalas en Ajustes →
+                </button>
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Redes sociales */}
-        {(user?.instagram_url || user?.spotify_url || user?.discord_url) && (
-          <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Redes sociales</p>
-            <div className="flex flex-wrap gap-2">
-              {user.instagram_url && (
-                <a href={user.instagram_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}>
-                  <IgIcon /> Instagram
-                </a>
-              )}
-              {user.spotify_url && (
-                <a href={user.spotify_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#1db954] hover:opacity-80 transition-opacity">
-                  <SpotifyIcon /> Spotify
-                </a>
-              )}
-              {user.discord_url && (
-                <a href={user.discord_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#5865f2] hover:opacity-80 transition-opacity">
-                  <DiscordIcon /> Discord
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Mi ADN Musical */}
-        <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/50 rounded-2xl border border-white/8 overflow-hidden lg:col-span-2 shadow-lg shadow-purple-900/5">
+        {/* ── Columna derecha: Mis Demos ── */}
+        <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/50 rounded-2xl border border-white/8 overflow-hidden shadow-lg shadow-purple-900/5 self-start">
           <div className="p-5">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-violet-700 flex items-center justify-center shadow-md shadow-purple-900/30">
-                  <Music2 size={18} className="text-white" />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-violet-700 flex items-center justify-center shadow-md shadow-purple-900/30 flex-shrink-0">
+                  <Music2 size={16} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-white font-bold text-base leading-tight">Mi ADN Musical</p>
+                  <p className="text-white font-bold text-sm leading-tight">Mis Demos</p>
                   <p className="text-zinc-500 text-xs">Tu sonido analizado por IA</p>
                 </div>
               </div>
               {tieneAnalisis && stats && (
                 <Link
                   to="/mi-adn"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/8 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/12 text-xs font-semibold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/8 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/12 text-xs font-semibold transition-colors flex-shrink-0"
                 >
                   <BarChart2 size={12} />
                   Ver completo
@@ -461,34 +359,51 @@ export default function Profile() {
 
             {tieneAnalisis ? (
               <>
-                {/* Reproductor del demo — custom dark */}
-                {audioUrl && (
-                  <div className="bg-zinc-900/80 rounded-xl p-3 border border-white/8 mb-4">
-                    <p className="text-zinc-200 text-[11px] font-bold uppercase tracking-wider mb-2">
-                      Tu demo activo
-                    </p>
-                    <AudioPlayer key={audioUrl} src={audioUrl} />
+                {/* Reproductor — elemento central */}
+                {audioUrl ? (
+                  <div
+                    className="relative rounded-xl overflow-hidden mb-4 border border-white/8"
+                    style={activeCoverUrl ? {
+                      backgroundImage: `url(${activeCoverUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    } : {}}
+                  >
+                    {activeCoverUrl && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
+                    )}
+                    <div className={`relative z-10 p-4 ${!activeCoverUrl ? 'bg-zinc-900/80' : ''}`}>
+                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-2">Demo activo</p>
+                      <AudioPlayer key={audioUrl} src={audioUrl} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/60 rounded-xl p-4 border border-white/8 mb-4 text-center">
+                    <p className="text-zinc-600 text-xs">Cargando demo...</p>
                   </div>
                 )}
 
-                {/* Parámetros pills inline */}
+                {/* Línea de resumen técnico sutil */}
                 {stats && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <StatPill label="BPM"     value={stats.bpm}     />
-                    <StatPill label="Brillo"  value={stats.brillo}  unit="%" />
-                    <StatPill label="Energía" value={stats.energia} unit="%" />
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-zinc-400 text-sm mb-4">
+                    {mood && (
+                      <span className="flex items-center gap-1">
+                        <span style={{ color: mood.color }}>●</span>
+                        {mood.label}
+                      </span>
+                    )}
+                    {detectedKey && <span>♪ {detectedKey}</span>}
+                    <span>⏱ {stats.bpm} BPM</span>
+                    <span>⚡ {stats.energia}% Energía</span>
+                    {TextureIcon && (
+                      <span className="flex items-center gap-1">
+                        <TextureIcon size={13} className="text-zinc-500" />
+                        {stats.texture.label}
+                      </span>
+                    )}
                   </div>
                 )}
 
-                {/* Texture badge prominente */}
-                {stats && (
-                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                    {TextureIcon && <TextureIcon size={13} className="text-purple-400" />}
-                    <span className="text-zinc-300 text-xs font-semibold">
-                      Textura: <span className="text-white">{stats.texture.label}</span>
-                    </span>
-                  </div>
-                )}
               </>
             ) : (
               <div className="bg-zinc-900/60 rounded-xl p-6 border border-dashed border-white/10 flex flex-col items-center text-center gap-3">
@@ -507,224 +422,10 @@ export default function Profile() {
                 </Link>
               </div>
             )}
-
-            {tieneAnalisis && stats && (
-              <button
-                onClick={() => setExpanded((v) => !v)}
-                className="mt-4 flex items-center gap-1.5 text-purple-400 text-xs font-semibold hover:text-purple-300 transition-colors"
-              >
-                {expanded ? 'Ocultar' : 'Ver'} descriptores avanzados
-                <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.25 }}>
-                  <ChevronDown size={13} />
-                </motion.span>
-              </button>
-            )}
           </div>
-
-          <AnimatePresence initial={false}>
-            {expanded && stats && (
-              <motion.div
-                key="detalle"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div className="px-5 pb-5 border-t border-white/8 pt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Col izquierda */}
-                  <div>
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-3">Descriptores Sonoros</p>
-                    <div className="flex flex-col gap-3">
-                      <DescBar label="Densidad Rítmica"  value={stats.densidadRitmica}  color="#f97316" />
-                      <DescBar label="Brillo Espectral"  value={stats.brilloEspectral}  color="#06b6d4" />
-                      <DescBar label="Riqueza Armónica"  value={stats.riquezaArmonica}  color="#7c3aed" />
-                    </div>
-                  </div>
-
-                  {/* Col derecha */}
-                  <div className="flex flex-col gap-5">
-                    <div>
-                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-3">Ritmo vs. Melodía</p>
-                      <div className="flex flex-col gap-2.5">
-                        <HpsBar label="Melódico"  pct={stats.harmonyPct}    color="#7c3aed" />
-                        <HpsBar label="Percusivo" pct={stats.percussivePct} color="#f97316" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-3">Distribución de notas</p>
-                      <ChromaChart chroma={stats.chroma} />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* Datos del perfil */}
-        {!editing ? (
-          <div className="bg-zinc-800 rounded-2xl p-5 flex flex-col gap-4 border border-white/8 lg:col-span-2">
-            <InfoRow label="Correo electrónico"  value={user.email} />
-            <InfoRow
-              label="Fecha de nacimiento"
-              value={user.fecha_nacimiento
-                ? new Date(user.fecha_nacimiento).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
-                : 'No especificada'}
-            />
-            <InfoRow label="Instrumento" value={user.instrumento || 'No especificado'} />
-            <InfoRow label="Ciudad"      value={user.ciudad      || 'No especificada'} />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="bg-zinc-800 rounded-2xl p-5 flex flex-col gap-5 border border-white/8 lg:col-span-2">
-            <div className="flex flex-col gap-4">
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Datos básicos</p>
-              <EditField label="Nombre"              name="nombre"           defaultValue={user.nombre} />
-              <EditField label="Fecha de nacimiento" name="fecha_nacimiento" defaultValue={user.fecha_nacimiento?.slice(0, 10) ?? ''} type="date" />
-              <EditField label="Instrumento"         name="instrumento"      defaultValue={user.instrumento} />
-              <EditField label="Ciudad"              name="ciudad"           defaultValue={user.ciudad} />
-            </div>
-
-            <div className="flex flex-col gap-4 border-t border-white/8 pt-4">
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Identidad Artística</p>
-
-              <div>
-                <label className="block text-zinc-500 text-xs mb-1.5 uppercase tracking-wide font-medium">Bio</label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={3}
-                  placeholder="Cuéntanos sobre tu música y lo que buscas..."
-                  className="w-full bg-white/5 text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-zinc-600 resize-none border border-white/10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-500 text-xs mb-1.5 uppercase tracking-wide font-medium">Años de experiencia</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={60}
-                  value={experiencia}
-                  onChange={(e) => setExperiencia(e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-white/5 text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-zinc-600 border border-white/10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-500 text-xs mb-2 uppercase tracking-wide font-medium">Rol / Oficio</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {OFICIOS.map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => toggleOficio(o)}
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
-                        selectedOficio.includes(o)
-                          ? 'bg-purple-600 text-white border-purple-600'
-                          : 'bg-white/5 text-zinc-400 border-white/10 hover:border-white/25'
-                      }`}
-                    >
-                      {selectedOficio.includes(o) ? '✓ ' : ''}{o}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-zinc-500 text-xs mb-2 uppercase tracking-wide font-medium">Estilos musicales</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {TAG_OPTIONS.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => toggleTag(t)}
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
-                        selectedTags.includes(t)
-                          ? 'bg-white text-zinc-900 border-white'
-                          : 'bg-white/5 text-zinc-400 border-white/10 hover:border-white/25'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 border-t border-white/8 pt-4">
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Redes sociales</p>
-              <SocialField label="Instagram" placeholder="https://instagram.com/tuusuario"
-                value={instagram} onChange={setInstagram} accent="#e1306c" />
-              <SocialField label="Spotify"   placeholder="https://open.spotify.com/artist/..."
-                value={spotify}   onChange={setSpotify}   accent="#1db954" />
-              <SocialField label="Discord"   placeholder="https://discord.gg/tu-server o usuario#0000"
-                value={discord}   onChange={setDiscord}   accent="#5865f2" />
-            </div>
-
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => { setEditing(false); setError('') }}
-                className="flex-1 bg-white/8 text-zinc-300 font-semibold py-3 rounded-full text-sm hover:bg-white/12 transition-colors border border-white/10"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={updateMutation.isPending}
-                className="flex-1 bg-purple-600 text-white font-semibold py-3 rounded-full text-sm hover:bg-purple-500 transition-colors disabled:opacity-50"
-              >
-                {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </form>
-        )}
       </div>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div>
-      <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-medium">{label}</p>
-      <p className="text-zinc-200 text-sm">{value}</p>
-    </div>
-  )
-}
-
-function EditField({ label, name, defaultValue, type = 'text' }) {
-  return (
-    <div>
-      <label className="block text-zinc-500 text-xs mb-1.5 uppercase tracking-wide font-medium">{label}</label>
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue || ''}
-        className="w-full bg-white/5 text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-zinc-600 border border-white/10"
-      />
-    </div>
-  )
-}
-
-function SocialField({ label, placeholder, value, onChange, accent }) {
-  return (
-    <div>
-      <label className="block text-xs mb-1.5 font-medium" style={{ color: accent }}>
-        {label}
-      </label>
-      <input
-        type="url"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-white/5 text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-zinc-600 border border-white/10"
-      />
     </div>
   )
 }

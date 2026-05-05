@@ -560,6 +560,24 @@ export default function MiAdn() {
     pendingAutoPlayRef.current = true
   }
 
+  /* ── Top 3 compatibles filtrados por ciudad + tags del usuario ── */
+  const { data: compatibles = [] } = useQuery({
+    queryKey: ['compatibles', user?.ciudad, user?.user_tags],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limite: '3' })
+      if (user?.ciudad) params.set('ciudad', user.ciudad)
+      if (user?.user_tags?.length) params.set('tags', user.user_tags.join(','))
+      const res = await fetch(`${API_URL}/matching/buscar?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return []
+      const rows = await res.json()
+      return Array.isArray(rows) ? rows : []
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!token && !!stats,
+  })
+
   const TextureIcon = stats ? (TEXTURE_ICONS[stats.texture.icon] ?? Activity) : null
   const progressMsg = useProgressMessage(isProcessing)
 
@@ -921,6 +939,39 @@ export default function MiAdn() {
                   </p>
                 </AnaCard>
               </div>
+            </div>
+          )}
+
+          {/* ── Top 3 Músicos compatibles ── */}
+          {compatibles.length > 0 && (
+            <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Users size={15} className="text-purple-400" />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                    Músicos compatibles
+                  </p>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    Los 3 más afines a tu sonido{user?.ciudad ? ` en ${user.ciudad}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                {compatibles.map((m) => (
+                  <QuickMatchCard
+                    key={m.id}
+                    musico={m}
+                    onConnect={(musico) => navigate(`/messages?with=${musico.id}&nombre=${encodeURIComponent(musico.nombre)}`)}
+                    onOpenProfile={(musico) => setSelectedMusico(musico)}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => navigate('/explore')}
+                className="mt-4 w-full text-center text-purple-300 text-xs font-semibold hover:text-purple-200 transition-colors"
+              >
+                Ver todos en Explorar →
+              </button>
             </div>
           )}
 

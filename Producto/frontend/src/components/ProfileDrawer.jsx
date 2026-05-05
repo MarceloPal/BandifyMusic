@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
+import { useImageUrl } from '../hooks/useImageUrl'
 
 export default function ProfileDrawer({ musico, onClose }) {
   const { token }  = useAuth()
@@ -27,6 +28,9 @@ export default function ProfileDrawer({ musico, onClose }) {
   const [isPlaying,  setIsPlaying]  = useState(false)
   const [audioReady, setAudioReady] = useState(false)
   const [progress,   setProgress]   = useState(0)   // 0-100
+  const [imageError, setImageError] = useState(false)
+
+  const { url: photoUrl } = useImageUrl(musico?.foto_url ?? null)
 
   // Obtener URL firmada para reproducción cuando hay s3_key
   const { data: listenData, isLoading: isLoadingUrl } = useQuery({
@@ -55,9 +59,9 @@ export default function ProfileDrawer({ musico, onClose }) {
     return () => { el.removeEventListener('timeupdate', onTimeUpdate); el.removeEventListener('ended', onEnded) }
   }, [listenData?.url])
 
-  // Reset player when musico changes
+  // Reset player and avatar when musico changes
   useEffect(() => {
-    setIsPlaying(false); setProgress(0); setAudioReady(false)
+    setIsPlaying(false); setProgress(0); setAudioReady(false); setImageError(false)
   }, [musico?.id])
 
   const handlePlayPause = () => {
@@ -108,10 +112,11 @@ export default function ProfileDrawer({ musico, onClose }) {
 
           {/* Avatar + nombre + compatibilidad */}
           <div className="flex items-center gap-3">
-            {musico.foto_url ? (
+            {photoUrl && !imageError ? (
               <img
-                src={musico.foto_url}
+                src={photoUrl}
                 alt={musico.nombre}
+                onError={() => setImageError(true)}
                 className="w-14 h-14 rounded-full object-cover flex-shrink-0"
               />
             ) : (

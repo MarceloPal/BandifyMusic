@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
+import { useImageUrl } from '../hooks/useImageUrl'
 import { OFICIOS, TAG_OPTIONS } from '../utils/audioHelpers'
 import ProfileDrawer from '../components/ProfileDrawer'
 
@@ -57,6 +58,9 @@ function FilterChip({ label, onRemove, purple = false }) {
 
 // ── Tarjeta de músico ─────────────────────────────────────────────────────────
 function MusicianCard({ musico, rank, onClick }) {
+  const [imageError, setImageError] = useState(false)
+  const { url: photoUrl }           = useImageUrl(musico.foto_url ?? null)
+
   const oficio     = Array.isArray(musico.oficio)      ? musico.oficio      : []
   const user_tags  = Array.isArray(musico.user_tags)   ? musico.user_tags   : []
   const sharedTags = Array.isArray(musico.shared_tags) ? musico.shared_tags : []
@@ -73,9 +77,18 @@ function MusicianCard({ musico, rank, onClick }) {
       {/* Cabecera */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {getInitials(musico.nombre)}
-          </div>
+          {photoUrl && !imageError ? (
+            <img
+              src={photoUrl}
+              alt={musico.nombre}
+              onError={() => setImageError(true)}
+              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {getInitials(musico.nombre)}
+            </div>
+          )}
           <div>
             <p className="text-zinc-100 font-semibold text-sm leading-tight">{musico.nombre}</p>
             {musico.instrumento && (
