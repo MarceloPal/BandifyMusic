@@ -13,8 +13,9 @@ import Messages      from './pages/Messages'
 import Tocatas       from './pages/Tocatas'
 import Help          from './pages/Help'
 import Notifications from './pages/Notifications'
-import Settings      from './pages/Settings'
-import MainLayout    from './layouts/MainLayout'
+import Settings        from './pages/Settings'
+import ChangePassword  from './pages/ChangePassword'
+import MainLayout      from './layouts/MainLayout'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -36,6 +37,16 @@ export default function App() {
         element={
           <PrivateRoute>
             <Onboarding />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Cambiar contraseña — layout propio, pantalla completa */}
+      <Route
+        path="/cambiar-contrasena"
+        element={
+          <PrivateRoute>
+            <ChangePassword />
           </PrivateRoute>
         }
       />
