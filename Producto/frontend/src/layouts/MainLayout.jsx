@@ -55,9 +55,8 @@ export default function MainLayout() {
           </button>
           <Link
             to="/"
-            className="flex items-center gap-1.5 font-black text-white tracking-widest text-sm"
+            className="font-black text-white tracking-widest text-sm"
           >
-            <Music size={14} />
             BANDIFY
           </Link>
         </header>

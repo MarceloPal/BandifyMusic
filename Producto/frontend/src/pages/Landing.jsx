@@ -171,10 +171,9 @@ export default function Landing() {
           className="sticky top-0 z-20 flex items-center justify-between px-8 py-4 border-b border-white/10"
           style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', '--gooey-bg': '#000000' }}
         >
-          <div className="flex items-center gap-2 font-black text-sm tracking-widest text-white">
-            <Music size={15} />
+          <Link to="/" onClick={() => setView('home')} className="font-black text-sm tracking-widest text-white hover:opacity-80 transition-opacity">
             BANDIFY
-          </div>
+          </Link>
 
           <div className="hidden md:block">
             <GooeyNav
@@ -262,13 +261,6 @@ export default function Landing() {
               <p className="mt-7 text-white/25 text-sm">+500 músicos independientes en Chile</p>
             </section>
 
-            {!user && (
-              <section className="px-8 py-16 text-center">
-                <h2 className="text-3xl font-bold text-white mb-3">¿Listo para encontrar tu banda?</h2>
-                <p className="text-white/50 text-sm mb-7">Es gratis y tarda menos de 2 minutos.</p>
-                <WhiteBtn to="/auth" className="px-9 py-4">Crear mi perfil gratis</WhiteBtn>
-              </section>
-            )}
           </>
         )}
 
@@ -322,9 +314,9 @@ export default function Landing() {
               <h2 className="text-2xl font-bold text-white mb-7 text-center">Cómo funciona</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {[
-                  { num: '01', titulo: 'Sube tu demo',        desc: 'Carga un .mp3 o .wav. Nuestra IA analiza 27 características de tu música.' },
-                  { num: '02', titulo: 'Crea tu ADN Musical', desc: 'Perfil único basado en timbre, ritmo y energía. Sin formularios, sin etiquetas.' },
-                  { num: '03', titulo: 'Conecta y colabora',  desc: 'Encuentra músicos compatibles y empieza a conversar directamente.' },
+                  { num: '01', titulo: 'Descubre tu ADN Musical',    desc: 'Sube un audio (.mp3 o .wav) y deja que nuestra IA analice el corazón de tu sonido. Obtendrás un perfil único basado en tu ritmo y energía, sin tener que rellenar aburridos formularios.' },
+                  { num: '02', titulo: 'Conecta con tu Banda Ideal', desc: 'Nuestro algoritmo te muestra músicos que realmente vibran en tu misma sintonía. Olvídate de las etiquetas; contacta directamente con colaboradores compatibles para empezar a crear.' },
+                  { num: '03', titulo: 'Encuentra tu Próximo Escenario', desc: 'No solo creas música, también la vives. Explora tocatas, conciertos y eventos locales en Chile para tocar o descubrir nuevos sonidos. ¡La escena musical completa en un solo lugar!' },
                 ].map((step) => (
                   <div key={step.num} className="bg-white/5 rounded-2xl p-6 border border-white/8">
                     <p className="text-5xl font-black text-white/8 mb-3">{step.num}</p>
@@ -337,7 +329,7 @@ export default function Landing() {
           </section>
         )}
 
-        <Footer />
+        <Footer onLogoClick={() => setView('home')} />
       </div>
     </div>
   )
