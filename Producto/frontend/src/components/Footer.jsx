@@ -19,8 +19,8 @@ const NAV_COLUMNS = [
   {
     title: 'Legal',
     links: [
-      { label: 'Términos de servicio',   to: '/' },
-      { label: 'Política de privacidad', to: '/' },
+      { label: 'Términos y Condiciones', to: '/terms' },
+      { label: 'Política de privacidad', to: '/privacy' },
     ],
   },
   {
