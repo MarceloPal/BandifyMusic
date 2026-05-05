@@ -15,6 +15,7 @@ import Help          from './pages/Help'
 import Notifications from './pages/Notifications'
 import Settings        from './pages/Settings'
 import ChangePassword  from './pages/ChangePassword'
+import NoticiasPage    from './pages/Noticias'
 import MainLayout      from './layouts/MainLayout'
 
 function PrivateRoute({ children }) {
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/help"          element={<Help />}          />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings"      element={<Settings />}      />
+        <Route path="/noticias"      element={<NoticiasPage />}  />
       </Route>
 
       {/* Catch-all */}

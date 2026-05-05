@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   ChevronDown, BarChart2, User, Compass,
   MessageCircle, CalendarDays, HelpCircle,
-  Bell, Settings, LogOut,
+  Bell, Settings, LogOut, Newspaper,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { getInitials } from '../utils/helpers'
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { icon: MessageCircle, label: 'Mensajes',        path: '/messages'      },
   { icon: CalendarDays,  label: 'Tocatas',         path: '/tocatas'       },
   { icon: Bell,          label: 'Notificaciones',  path: '/notifications' },
+  { icon: Newspaper,     label: 'Noticias',        path: '/noticias'      },
   { icon: HelpCircle,    label: 'Ayuda',           path: '/help'          },
   { icon: Settings,      label: 'Ajustes',         path: '/settings'      },
 ]
