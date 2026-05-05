@@ -14,7 +14,11 @@
 
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM    = process.env.RESEND_FROM     || 'Bandify <noreply@bandify.cl>';
 const APP_URL = process.env.FRONTEND_URL    || 'https://bandify.cl';
@@ -90,7 +94,7 @@ async function sendAdnReadyEmail({ to, nombre }) {
     ${btnHtml(`${APP_URL}/mi-adn`, 'Ver mi ADN musical →')}`;
 
   try {
-    await resend.emails.send({ from: FROM, to, subject: 'Tu ADN musical Hi-Fi está listo ✦', html: wrapHtml('ADN listo', body) });
+    await getResend().emails.send({ from: FROM, to, subject: 'Tu ADN musical Hi-Fi está listo ✦', html: wrapHtml('ADN listo', body) });
     console.log(`[MAILER] ✓ ADN-ready email → ${to}`);
   } catch (err) {
     console.error(`[MAILER] Error enviando ADN-ready a ${to}:`, err.message);
@@ -122,7 +126,7 @@ async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
     ${btnHtml(`${APP_URL}/messages`, 'Responder →')}`;
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from:    FROM,
       to,
       subject: `💬 ${de_nombre} te escribió en Bandify`,
@@ -158,7 +162,7 @@ async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
     </p>`;
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from:    FROM,
       to,
       subject: 'Restablece tu contraseña de Bandify',

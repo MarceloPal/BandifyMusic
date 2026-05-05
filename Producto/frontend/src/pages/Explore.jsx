@@ -25,8 +25,8 @@ import ProfileDrawer from '../components/ProfileDrawer'
 const FETCH_LIMIT = 20
 
 // Insensible a mayúsculas y tildes: "Santiago" ≡ "sántiago" ≡ "SANTIAGO"
-function normalizeStr(s = '') {
-  return s
+function normalizeStr(s) {
+  return (s ?? '')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
