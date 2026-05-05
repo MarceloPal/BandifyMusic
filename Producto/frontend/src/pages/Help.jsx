@@ -3,28 +3,28 @@ import { HelpCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react'
 
 const FAQS = [
   {
-    q: '¿Cómo funciona el análisis de audio?',
-    a: 'Sube un archivo .mp3 o .wav desde el Dashboard. Nuestra IA extrae 27 características de tu demo (timbre, ritmo, energía, etc.) y crea un vector de "ADN Musical" único para ti.',
+    q: '¿Cómo funciona el análisis?',
+    a: 'Solo sube tu demo en .mp3 o .wav. Nuestra inteligencia artificial escuchará tu música y creará un "ADN Musical" único basado en tu ritmo, energía y estilo sonoro.',
   },
   {
-    q: '¿Cómo se calculan los matches?',
-    a: 'Comparamos tu vector de ADN Musical con el de los demás usuarios usando similitud coseno. Los músicos con mayor compatibilidad aparecen primero en la página Explorar.',
+    q: '¿Cómo encuentro músicos similares?',
+    a: 'Comparamos tu ADN con el de otros artistas. Los que mejor encajen con tu sonido aparecerán primero en tu lista de recomendaciones.',
   },
   {
-    q: '¿Puedo subir un nuevo audio para actualizar mi perfil?',
-    a: 'Sí. Cada vez que subas un nuevo demo en el Dashboard, el análisis anterior se reemplaza automáticamente. Tu ADN Musical quedará actualizado en segundos.',
+    q: '¿Cómo actualizo mi sonido?',
+    a: 'Simplemente sube una nueva canción. Tu ADN se actualizará automáticamente para reflejar tu estilo actual.',
   },
   {
-    q: '¿Qué formatos de audio acepta Bandify?',
-    a: 'Actualmente aceptamos .mp3 y .wav con un tamaño máximo de 20 MB. Recomendamos demos de entre 30 segundos y 3 minutos para un análisis más preciso.',
+    q: '¿Qué archivos puedo subir?',
+    a: 'Aceptamos archivos .mp3 y .wav de hasta 20 MB. Te recomendamos subir canciones de entre 30 segundos y 3 minutos para obtener mejores resultados.',
   },
   {
-    q: '¿Mis datos están seguros?',
-    a: 'Tus archivos de audio se almacenan en AWS S3 con acceso privado. Solo Bandify puede acceder a ellos para el análisis. Tu información personal nunca se comparte con terceros.',
+    q: '¿Mi música está protegida?',
+    a: 'Sí. Tus canciones se guardan de forma privada en servidores seguros de Amazon (AWS). Solo se usan para el análisis de tu perfil y nadie más podrá descargarlas sin tu permiso.',
   },
   {
-    q: '¿Cómo puedo contactar a otro músico?',
-    a: 'En la página Explorar, haz clic en "Conectar" en la tarjeta de cualquier músico. Esto abrirá un chat directo en la sección Mensajes.',
+    q: '¿Cómo hablo con alguien?',
+    a: 'En la sección Explorar, dale a "Conectar" y se abrirá un chat directo para que empiecen a colaborar.',
   },
 ]
 

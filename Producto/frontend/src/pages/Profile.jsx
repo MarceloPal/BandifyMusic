@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Music2, Upload, ChevronDown, Zap, Wind, Activity, Sparkles, Tag, Camera, Loader2,
@@ -96,6 +96,7 @@ function ChromaChart({ chroma }) {
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
+  const navigate                    = useNavigate()
   const [editing, setEditing]         = useState(false)
   const [expanded, setExpanded]       = useState(false)
   const [error, setError]             = useState('')
@@ -254,15 +255,6 @@ export default function Profile() {
         {/* Gradiente de fade hacia abajo */}
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent" />
 
-        {/* Botón cambiar banner */}
-        <button
-          onClick={() => bannerInputRef.current?.click()}
-          disabled={bannerUploading}
-          className="absolute top-4 right-4 flex items-center gap-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
-        >
-          {bannerUploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
-          {bannerUploading ? 'Subiendo...' : 'Cambiar banner'}
-        </button>
 
         {/* Avatar + nombre superpuesto en la parte baja del banner */}
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-5 flex items-end justify-between gap-4">
@@ -329,16 +321,7 @@ export default function Profile() {
           {/* Botón editar */}
           {!editing && (
             <button
-              onClick={() => {
-                setBio(user?.bio ?? '')
-                setExperiencia(user?.experiencia ?? '')
-                setSelectedOficio(Array.isArray(user?.oficio) ? user.oficio : [])
-                setSelectedTags(Array.isArray(user?.user_tags) ? user.user_tags : [])
-                setInstagram(user?.instagram_url ?? '')
-                setSpotify(user?.spotify_url ?? '')
-                setDiscord(user?.discord_url ?? '')
-                setEditing(true)
-              }}
+              onClick={() => navigate('/settings')}
               className="flex-shrink-0 mb-1 bg-white text-zinc-900 font-bold px-5 py-2 rounded-full text-sm hover:bg-zinc-200 transition-colors shadow-lg flex items-center gap-1.5"
             >
               <Edit3 size={13} />
