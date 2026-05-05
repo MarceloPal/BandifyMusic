@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react'
 import {
   Bell, Shield, User, Mail, Lock, AlertTriangle, ChevronRight,
-  Camera, ImagePlus, Check, Loader2,
+  Camera, ImagePlus, Check, Loader2, CreditCard,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
-import { TAG_OPTIONS } from '../utils/audioHelpers'
+import { TAG_OPTIONS, OFICIOS } from '../utils/audioHelpers'
 
 /* ─── Toggle ─────────────────────────────────────────────────── */
 function Toggle({ checked, onChange }) {
@@ -48,10 +48,13 @@ function PanelPerfil({ user, token, updateUser }) {
   const { url: avatarUrl } = useImageUrl(user?.foto_url   ?? null)
   const { url: bannerUrl } = useImageUrl(user?.banner_url ?? null)
 
-  const [nombre,      setNombre]      = useState(user?.nombre      || '')
-  const [ciudad,      setCiudad]      = useState(user?.ciudad      || '')
-  const [instrumento, setInstrumento] = useState(user?.instrumento || '')
-  const [tags,        setTags]        = useState(() =>
+  const [nombre,  setNombre]  = useState(user?.nombre  || '')
+  const [ciudad,  setCiudad]  = useState(user?.ciudad  || '')
+  const [fechaNac, setFechaNac] = useState(user?.fecha_nacimiento?.slice(0, 10) || '')
+  const [oficio,  setOficio]  = useState(() =>
+    Array.isArray(user?.oficio) ? user.oficio : []
+  )
+  const [tags,    setTags]    = useState(() =>
     Array.isArray(user?.user_tags) ? user.user_tags : []
   )
   const [instagram,   setInstagram]   = useState(user?.instagram_url || '')
@@ -66,6 +69,9 @@ function PanelPerfil({ user, token, updateUser }) {
 
   const toggleTag = (tag) =>
     setTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
+
+  const toggleOficio = (o) =>
+    setOficio((prev) => prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o])
 
   /* Sube imagen a S3 y devuelve la key */
   const uploadImage = async (file, type) => {
@@ -103,10 +109,10 @@ function PanelPerfil({ user, token, updateUser }) {
       const res = await fetch(`${API_URL}/usuarios/perfil`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ nombre, ciudad, instrumento, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord }),
+        body:    JSON.stringify({ nombre, ciudad, fecha_nacimiento: fechaNac || null, oficio, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord }),
       })
       if (res.ok) {
-        updateUser({ nombre, ciudad, instrumento, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord })
+        updateUser({ nombre, ciudad, fecha_nacimiento: fechaNac || null, oficio, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord })
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
       }
@@ -165,14 +171,13 @@ function PanelPerfil({ user, token, updateUser }) {
       <form onSubmit={handleSave} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { label: 'Nombre',       value: nombre,      set: setNombre,      placeholder: 'Tu nombre artístico' },
-            { label: 'Ciudad',       value: ciudad,      set: setCiudad,      placeholder: 'Ej: Santiago'        },
-            { label: 'Instrumento',  value: instrumento, set: setInstrumento, placeholder: 'Ej: Guitarra'        },
-          ].map(({ label, value, set, placeholder }) => (
+            { label: 'Nombre', value: nombre, set: setNombre, placeholder: 'Tu nombre artístico', type: 'text' },
+            { label: 'Ciudad', value: ciudad, set: setCiudad, placeholder: 'Ej: Santiago',         type: 'text' },
+          ].map(({ label, value, set, placeholder, type }) => (
             <div key={label}>
               <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">{label}</label>
               <input
-                type="text"
+                type={type}
                 value={value}
                 onChange={(e) => set(e.target.value)}
                 placeholder={placeholder}
@@ -180,6 +185,36 @@ function PanelPerfil({ user, token, updateUser }) {
               />
             </div>
           ))}
+          <div>
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Fecha de nacimiento</label>
+            <input
+              type="date"
+              value={fechaNac}
+              onChange={(e) => setFechaNac(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40 [color-scheme:dark]"
+            />
+          </div>
+        </div>
+
+        {/* Oficio */}
+        <div>
+          <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Oficio</label>
+          <div className="flex flex-wrap gap-1.5">
+            {OFICIOS.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggleOficio(o)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  oficio.includes(o)
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-white/20 hover:text-zinc-200'
+                }`}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Tags */}
@@ -476,6 +511,64 @@ function PanelSeguridad() {
   )
 }
 
+function PanelSuscripcion() {
+  return (
+    <>
+      <h2 className="text-xl font-bold text-white mb-1">Información de suscripción</h2>
+      <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+        Gestiona tu plan, administra métodos de pago y revisa tu historial de compras.
+      </p>
+
+      {/* ── Plan actual ── */}
+      <div className="mb-8">
+        <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2">Plan actual</p>
+        <p className="text-white text-lg font-bold mb-1">Plan Gratuito</p>
+        <p className="text-zinc-400 text-sm leading-relaxed max-w-md">
+          Únete a Premium para subir demos ilimitados, obtener análisis de IA avanzados
+          y destacar en el radar.
+        </p>
+      </div>
+
+      {/* ── Tarjeta Premium ── */}
+      <div
+        className="rounded-2xl border border-zinc-800 p-8 mb-10"
+        style={{ background: 'radial-gradient(ellipse at top left, rgba(124,58,237,0.15) 0%, #18181b 60%)' }}
+      >
+        <p className="text-white text-xl font-bold mb-3">Mejora a Premium</p>
+        <p className="text-zinc-300 text-sm leading-relaxed mb-6 max-w-md">
+          Sube demos ilimitados, obtén análisis detallados, destaca tu perfil y organiza
+          tocatas sin límites. ¡Desde <span className="text-white font-semibold">CLP 2.990/mes</span>!
+        </p>
+        <button
+          type="button"
+          className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold tracking-wide rounded-xl transition-colors"
+        >
+          VER OPCIONES DE PLAN
+        </button>
+      </div>
+
+      {/* ── Historial de pedidos ── */}
+      <div className="border-t border-zinc-800 pt-8">
+        <p className="text-white text-base font-semibold mb-3">Historial de pedidos</p>
+        <p className="text-zinc-400 text-sm leading-relaxed max-w-lg">
+          Para información sobre los impuestos aplicados o tus tickets de tocatas, revisa los{' '}
+          <a href="#" className="text-purple-400 hover:underline transition-colors">
+            Detalles del Pedido
+          </a>
+          . Si tienes alguna pregunta, por favor contacta con{' '}
+          <a
+            href="mailto:soporte@bandify.cl"
+            className="text-purple-400 hover:underline transition-colors"
+          >
+            Soporte al Cliente
+          </a>
+          .
+        </p>
+      </div>
+    </>
+  )
+}
+
 /* ─── Estructura del menú ────────────────────────────────────── */
 const NAV_SECTIONS = [
   {
@@ -498,6 +591,12 @@ const NAV_SECTIONS = [
       { id: 'seguridad', label: 'Seguridad', icon: Shield },
     ],
   },
+  {
+    group: 'FACTURACIÓN',
+    items: [
+      { id: 'suscripcion', label: 'Suscripción', icon: CreditCard },
+    ],
+  },
 ]
 
 /* ─── Página principal ───────────────────────────────────────── */
@@ -513,6 +612,7 @@ export default function Settings() {
       case 'email':          return <PanelEmail  user={user} />
       case 'contrasena':     return <PanelContrasena />
       case 'seguridad':      return <PanelSeguridad />
+      case 'suscripcion':    return <PanelSuscripcion />
       default:               return null
     }
   }
