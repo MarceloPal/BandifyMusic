@@ -11,7 +11,7 @@ const HIDE_FOOTER_ON = ['/messages']
 export default function MainLayout() {
   const { pathname }                   = useLocation()
   const [sidebarOpen, setSidebarOpen]  = useState(false)
-  const { token, updateUser }          = useAuth()
+  const { token, updateUser, user }     = useAuth()
 
   useEffect(() => {
     if (!token) return
@@ -24,7 +24,7 @@ export default function MainLayout() {
   /* Cierra el drawer al navegar en mobile */
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
-  const showFooter  = !HIDE_FOOTER_ON.includes(pathname)
+  const showFooter  = !HIDE_FOOTER_ON.includes(pathname) && !user
   const isMessages  = pathname === '/messages'
 
   return (
