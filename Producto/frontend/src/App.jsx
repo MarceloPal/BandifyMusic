@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 
-import Landing       from './pages/Landing'
+import Landing        from './pages/Landing'
+import PrivacyPolicy  from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
 import Auth          from './pages/Auth'
 import Onboarding    from './pages/Onboarding'
 import MiAdn         from './pages/MiAdn'
@@ -23,8 +25,10 @@ export default function App() {
   return (
     <Routes>
       {/* Rutas públicas */}
-      <Route path="/"     element={<Landing />} />
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/"        element={<Landing />} />
+      <Route path="/auth"    element={<Auth />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms"   element={<TermsOfService />} />
 
       {/* Onboarding — requiere sesión pero layout propio (oscuro) */}
       <Route
