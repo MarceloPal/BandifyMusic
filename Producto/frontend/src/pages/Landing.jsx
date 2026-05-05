@@ -191,10 +191,10 @@ export default function Landing() {
 
           {user ? (
             <Link
-              to="/mi-adn"
+              to="/profile"
               className="px-4 py-2 rounded-full border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-colors"
             >
-              Mi ADN
+              Mi perfil
             </Link>
           ) : (
             <div className="flex items-center gap-2">

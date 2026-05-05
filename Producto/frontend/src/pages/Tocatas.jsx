@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X, Upload,
-  Loader2, Mail, User, ChevronRight, ImagePlus, Trash2,
+  Loader2, User, ChevronRight, ImagePlus, Trash2, Ticket,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
@@ -197,14 +197,14 @@ function TocataDetailModal({ tocata, onClose }) {
             </div>
           </div>
 
-          {/* Contact CTA — solo si no soy el organizador */}
-          {!isOrganizador && (tocata.contacto_email || tocata.organizador_email) && (
+          {/* Tickets CTA — solo si no soy el organizador */}
+          {!isOrganizador && (
             <a
-              href={`mailto:${tocata.contacto_email || tocata.organizador_email}?subject=Consulta sobre ${encodeURIComponent(tocata.nombre)}`}
+              href={`/messages?to=${tocata.organizador_id}`}
               className="flex items-center justify-center gap-2 w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
             >
-              <Mail size={16} />
-              Contactar al organizador
+              <Ticket size={16} />
+              Comprar entradas
             </a>
           )}
 

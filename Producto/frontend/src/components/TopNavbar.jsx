@@ -10,8 +10,8 @@ import { getInitials } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 
 const NAV_ITEMS = [
-  { icon: BarChart2,     label: 'Mi ADN',         path: '/mi-adn'        },
   { icon: User,          label: 'Mi Perfil',       path: '/profile'       },
+  { icon: BarChart2,     label: 'Mi ADN',          path: '/mi-adn'        },
   { icon: Compass,       label: 'Explorar',        path: '/explore'       },
   { icon: MessageCircle, label: 'Mensajes',        path: '/messages'      },
   { icon: CalendarDays,  label: 'Tocatas',         path: '/tocatas'       },

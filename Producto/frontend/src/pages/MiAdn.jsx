@@ -293,7 +293,7 @@ export default function MiAdn() {
 
   /* adn view toggle */
   const [simpleView, setSimpleView] = useState(
-    () => localStorage.getItem('adn-view') === 'simple'
+    () => localStorage.getItem('adn-view') !== 'tecnico'
   )
   const toggleView = () => {
     const next = !simpleView
