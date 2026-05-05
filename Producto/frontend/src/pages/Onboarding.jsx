@@ -190,8 +190,7 @@ export default function Onboarding() {
 
         {/* Navbar mínima */}
         <nav className="flex items-center justify-between px-8 py-4 border-b border-white/10">
-          <div className="flex items-center gap-2 font-black text-sm tracking-widest text-white">
-            <Music size={15} />
+          <div className="font-black text-sm tracking-widest text-white">
             BANDIFY
           </div>
           <button

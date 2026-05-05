@@ -43,7 +43,6 @@ export default function Sidebar({ isOpen, onClose }) {
           onClick={onClose}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <Music size={14} className="text-white" />
           <span className="font-black text-white tracking-widest text-sm">BANDIFY</span>
         </Link>
       </div>

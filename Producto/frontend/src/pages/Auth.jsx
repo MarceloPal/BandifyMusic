@@ -106,8 +106,7 @@ export default function Auth() {
 
         <nav className="flex items-center px-8 py-4 border-b border-white/10"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)' }}>
-          <Link to="/" className="flex items-center gap-2 font-black text-sm tracking-widest text-white">
-            <Music size={15} />
+          <Link to="/" className="font-black text-sm tracking-widest text-white">
             BANDIFY
           </Link>
         </nav>
