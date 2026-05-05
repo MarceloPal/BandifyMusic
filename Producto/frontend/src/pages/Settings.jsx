@@ -10,14 +10,22 @@ import { useImageUrl } from '../hooks/useImageUrl'
 import { TAG_OPTIONS } from '../utils/audioHelpers'
 
 /* ─── Toggle ─────────────────────────────────────────────────── */
-function Toggle({ defaultChecked = false }) {
-  const [on, setOn] = useState(defaultChecked)
+function Toggle({ checked, onChange }) {
   return (
     <button
-      onClick={() => setOn((v) => !v)}
-      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${on ? 'bg-purple-600' : 'bg-zinc-700'}`}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex w-11 h-6 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${
+        checked ? 'bg-purple-600' : 'bg-zinc-700'
+      }`}
     >
-      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+      <span
+        className={`inline-block w-5 h-5 mt-0.5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        }`}
+      />
     </button>
   )
 }
@@ -246,76 +254,173 @@ function PanelPerfil({ user, token, updateUser }) {
   )
 }
 
+const NOTIF_ITEMS = [
+  {
+    id:          'mensajes',
+    label:       'Mensajes directos',
+    description: 'Recibe una notificación cada vez que un músico te envíe un mensaje nuevo.',
+  },
+  {
+    id:          'novedades',
+    label:       'Novedades de Bandify',
+    description: 'Actualizaciones importantes, cambios en tu ADN Musical y noticias de la plataforma.',
+  },
+  {
+    id:          'eventos',
+    label:       'Ofertas de eventos y tocatas',
+    description: 'No te pierdas ninguna de las ofertas exclusivas y preventas de tickets en Bandify.',
+  },
+  {
+    id:          'boletin',
+    label:       'Boletines de noticias',
+    description: 'Mantente al día con las últimas noticias de la comunidad y resúmenes semanales suscribiéndote a nuestro boletín.',
+  },
+  {
+    id:          'promociones',
+    label:       'Actualizaciones promocionales',
+    description: 'Recibe información sobre promociones generales, servicios para músicos y ofertas de nuestros socios.',
+  },
+]
+
 function PanelNotificaciones() {
+  const [prefs, setPrefs] = useState(() =>
+    Object.fromEntries(NOTIF_ITEMS.map((item) => [item.id, false]))
+  )
+
+  const allOn  = NOTIF_ITEMS.every((item) => prefs[item.id])
+  const allOff = NOTIF_ITEMS.every((item) => !prefs[item.id])
+
+  const toggleMaster = (val) =>
+    setPrefs(Object.fromEntries(NOTIF_ITEMS.map((item) => [item.id, val])))
+
+  const toggleOne = (id, val) =>
+    setPrefs((prev) => ({ ...prev, [id]: val }))
+
   return (
     <>
       <h2 className="text-xl font-bold text-white mb-1">Notificaciones</h2>
       <p className="text-zinc-500 text-sm mb-6">Elige qué alertas quieres recibir.</p>
+
+      {/* ── Toggle maestro ── */}
+      <div className="flex items-start justify-between gap-4 pb-5 mb-2 border-b border-white/10">
+        <div className="min-w-0 flex-1">
+          <p className="text-zinc-100 text-sm font-semibold">Todas las notificaciones</p>
+          <p className="text-zinc-500 text-xs mt-0.5 leading-relaxed">
+            Activa o desactiva todas las preferencias de notificaciones a la vez.
+          </p>
+        </div>
+        <Toggle checked={allOn} onChange={toggleMaster} />
+      </div>
+
+      {/* ── Opciones individuales ── */}
       <div>
-        <SettingRow label="Nuevos matches"       description="Músicos compatibles con tu ADN"          action={<Toggle defaultChecked={true}  />} />
-        <SettingRow label="Mensajes directos"    description="Notificaciones de mensajes nuevos"        action={<Toggle defaultChecked={true}  />} />
-        <SettingRow label="Tocatas cercanas"     description="Eventos en tu ciudad"                     action={<Toggle defaultChecked={false} />} />
-        <SettingRow label="Novedades de Bandify" description="Actualizaciones y noticias"               action={<Toggle defaultChecked={false} />} />
+        {NOTIF_ITEMS.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-start justify-between gap-4 py-4 border-b border-white/6 last:border-0"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-zinc-100 text-sm font-medium">{item.label}</p>
+              <p className="text-zinc-500 text-xs mt-0.5 leading-relaxed">{item.description}</p>
+            </div>
+            <Toggle
+              checked={prefs[item.id]}
+              onChange={(val) => toggleOne(item.id, val)}
+            />
+          </div>
+        ))}
       </div>
     </>
   )
 }
 
 function PanelEmail({ user }) {
+  const [linkSent, setLinkSent] = useState(false)
+
   return (
     <>
-      <h2 className="text-xl font-bold text-white mb-1">Correo electrónico</h2>
-      <p className="text-zinc-500 text-sm mb-6">Cambia el correo asociado a tu cuenta.</p>
-      <div>
-        <SettingRow label="Correo actual" action={<span className="text-zinc-400 text-sm">{user?.email || '—'}</span>} />
+      <h2 className="text-xl font-bold text-white mb-1">Cambiar correo</h2>
+      <p className="text-zinc-500 text-sm mb-8">
+        Cambia la dirección de correo que utilizas para acceder y recibir información de Bandify.
+      </p>
+
+      {/* Correo actual */}
+      <div className="mb-6">
+        <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2">Correo actual</p>
+        <p className="text-zinc-100 text-sm font-medium">{user?.email || '—'}</p>
       </div>
-      <form className="mt-5 flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
-        <div>
-          <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nuevo correo</label>
-          <input
-            type="email"
-            placeholder="nuevo@correo.com"
-            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-          />
+
+      {/* Texto instructivo */}
+      <p className="text-zinc-400 text-sm leading-relaxed mb-6">
+        Cuando pulses sobre el botón a continuación se te enviará un enlace seguro a la bandeja
+        de entrada de tu correo con instrucciones sobre cómo cambiar tu correo.
+      </p>
+
+      {/* Aviso de éxito */}
+      {linkSent && (
+        <div className="flex items-start gap-3 mb-5 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/8">
+          <Check size={15} className="text-green-400 mt-0.5 flex-shrink-0" />
+          <p className="text-green-300 text-sm leading-relaxed">
+            ¡Estupendo! Revisa la bandeja de entrada de tu correo para encontrar las instrucciones
+            con las que completar el proceso.
+          </p>
         </div>
-        <button
-          type="submit"
-          className="self-start px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl transition-colors"
+      )}
+
+      {/* Botón */}
+      <button
+        type="button"
+        disabled={linkSent}
+        onClick={() => setLinkSent(true)}
+        className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors mb-8"
+      >
+        Enviar enlace de cambio de correo
+      </button>
+
+      {/* Ayuda */}
+      <p className="text-zinc-600 text-xs">
+        ¿Tienes problemas?{' '}
+        <a
+          href="mailto:soporte@bandify.cl"
+          className="text-purple-400 hover:text-purple-300 transition-colors"
         >
-          Actualizar correo
-        </button>
-      </form>
+          Contáctanos en Soporte al cliente
+        </a>
+        .
+      </p>
     </>
   )
 }
 
 function PanelContrasena() {
+  const navigate = useNavigate()
+
   return (
     <>
-      <h2 className="text-xl font-bold text-white mb-1">Contraseña</h2>
-      <p className="text-zinc-500 text-sm mb-6">Actualiza tu contraseña de acceso.</p>
-      <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
-        {[
-          { label: 'Contraseña actual',       placeholder: '••••••••', id: 'actual'    },
-          { label: 'Nueva contraseña',         placeholder: '••••••••', id: 'nueva'     },
-          { label: 'Confirmar nueva contraseña', placeholder: '••••••••', id: 'confirmar' },
-        ].map(({ label, placeholder, id }) => (
-          <div key={id}>
-            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">{label}</label>
-            <input
-              type="password"
-              placeholder={placeholder}
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-            />
-          </div>
-        ))}
-        <button
-          type="submit"
-          className="self-start px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl transition-colors mt-1"
+      <h2 className="text-xl font-bold text-white mb-1">Cambiar contraseña</h2>
+      <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+        Cambiar tu contraseña cerrará tu sesión en otros dispositivos. Tendrás que ingresar
+        en ellos tu nueva contraseña para acceder de nuevo a tu cuenta.
+      </p>
+
+      <button
+        type="button"
+        onClick={() => navigate('/cambiar-contrasena')}
+        className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl transition-colors mb-8"
+      >
+        Restablecer contraseña
+      </button>
+
+      <p className="text-zinc-600 text-xs">
+        ¿Tienes problemas?{' '}
+        <a
+          href="mailto:soporte@bandify.cl"
+          className="text-purple-400 hover:text-purple-300 transition-colors"
         >
-          Cambiar contraseña
-        </button>
-      </form>
+          Contáctanos en Soporte al cliente
+        </a>
+        .
+      </p>
     </>
   )
 }
