@@ -96,10 +96,14 @@ export default function Messages() {
     sendMutation.mutate(newMessage.trim())
   }
 
-  // Marca mensajes como leídos cada vez que se abre una conversación,
-  // sin importar si llegó por URL params o por clic en la lista
+  // Mensajes sin leer en la conversación activa (recibidos por el usuario actual)
+  const sinLeerEnConv = messages.filter(
+    (m) => !m.leido && m.para_id === user?.id
+  ).length
+
+  // Marca como leídos cuando: se abre la conversación O llegan nuevos mensajes sin leer
   useEffect(() => {
-    if (!selectedUser?.id || !token) return
+    if (!selectedUser?.id || !token || sinLeerEnConv === 0) return
     fetch(`${API_URL}/notificaciones/leer`, {
       method:  'PATCH',
       headers: { Authorization: `Bearer ${token}` },
@@ -107,7 +111,7 @@ export default function Messages() {
       queryClient.invalidateQueries({ queryKey: ['notificaciones'] })
       queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
     }).catch(() => {})
-  }, [selectedUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedUser?.id, sinLeerEnConv]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectConv = (conv) => {
     setSelectedUser({ id: conv.partner_id, nombre: conv.partner_nombre })
