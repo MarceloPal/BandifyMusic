@@ -8,7 +8,7 @@
  * con el flag yo_respondi.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { Send, MessageCircle, Inbox } from 'lucide-react'
@@ -96,20 +96,22 @@ export default function Messages() {
     sendMutation.mutate(newMessage.trim())
   }
 
+  // Marca mensajes como leídos cada vez que se abre una conversación,
+  // sin importar si llegó por URL params o por clic en la lista
+  useEffect(() => {
+    if (!selectedUser?.id || !token) return
+    fetch(`${API_URL}/notificaciones/leer`, {
+      method:  'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['notificaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+    }).catch(() => {})
+  }, [selectedUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSelectConv = (conv) => {
     setSelectedUser({ id: conv.partner_id, nombre: conv.partner_nombre })
     if (!conv.yo_respondi) setTab('mensajes')
-
-    // Si hay mensajes sin leer, marcarlos como leídos y refrescar el badge del navbar
-    if (conv.sin_leer > 0) {
-      fetch(`${API_URL}/notificaciones/leer`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['notificaciones'] })
-        queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
-      }).catch(() => {})
-    }
   }
 
   return (
