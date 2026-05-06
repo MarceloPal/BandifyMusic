@@ -1,5 +1,4 @@
 const express = require('express');
-const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -50,7 +49,7 @@ function mapEvento(ev) {
 //   clasificacion   (default: Music)
 //   pagina          (default: 0, base 0 según API de TM)
 //   limite          (default: 20, máx 50)
-router.get('/', authMiddleware, async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const apiKey = process.env.TICKETMASTER_API_KEY;
     if (!apiKey) {
