@@ -4,9 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { MapPin, ArrowLeft, Sparkles, Music, CalendarDays } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
-import Footer from '../components/Footer'
-import GooeyNav from '../components/GooeyNav'
-import SoftAurora from '../components/SoftAurora'
+import Footer      from '../components/Footer'
+import GooeyNav    from '../components/GooeyNav'
+import SoftAurora  from '../components/SoftAurora'
+import TocatasBoard from '../components/TocatasBoard'
 
 function formatFechaCorta(isoDate) {
   if (!isoDate) return ''
@@ -128,17 +129,6 @@ const VIEW_FROM_INDEX = ['noticias', 'tocatas', 'como']
 export default function Landing() {
   const { user }        = useAuth()
   const [view, setView] = useState('home')
-
-  const { data: proximasTocatas = [], isLoading: tocatasLoading } = useQuery({
-    queryKey: ['tocatas-publicas'],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/tocatas/publicas?limite=6`)
-      if (!res.ok) return []
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: view === 'tocatas',
-  })
 
   const { data: noticiasData } = useQuery({
     queryKey: ['landing-noticias'],
@@ -298,27 +288,9 @@ export default function Landing() {
 
         {/* ════ Vista: TOCATAS ════ */}
         {view === 'tocatas' && (
-          <section className="flex-1 px-8 py-14">
-            <div className="max-w-5xl mx-auto">
-              <BackButton onClick={() => setView('home')} />
-              <h2 className="text-2xl font-bold text-white mb-7">
-                Próximas Tocatas
-              </h2>
-              {tocatasLoading ? (
-                <p className="text-white/40 text-sm">Cargando eventos...</p>
-              ) : proximasTocatas.length === 0 ? (
-                <div className="bg-white/5 rounded-2xl p-10 border border-white/8 flex flex-col items-center gap-3 text-center">
-                  <CalendarDays size={28} className="text-white/30" />
-                  <p className="text-white/70 font-semibold text-sm">Aún no hay tocatas publicadas</p>
-                  <p className="text-white/40 text-xs">
-                    Inicia sesión y sé el primero en publicar un evento.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {proximasTocatas.map((t) => <TocataPreviewCard key={t.id} tocata={t} />)}
-                </div>
-              )}
+          <section className="flex-1 py-10 overflow-x-hidden">
+            <div className="max-w-5xl mx-auto px-8">
+              <TocatasBoard isHome limit={6} onBack={() => setView('home')} />
             </div>
           </section>
         )}
