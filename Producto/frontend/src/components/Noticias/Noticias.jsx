@@ -35,9 +35,10 @@ export default function Noticias() {
   const [filtro, setFiltro] = useState('música')
 
   const { data, isLoading, isError } = useQuery({
-    queryKey:  ['noticias', filtro],
-    queryFn:   () => fetchNoticias(filtro),
-    staleTime: 5 * 60 * 1000,
+    queryKey:           ['noticias', filtro],
+    queryFn:            () => fetchNoticias(filtro),
+    staleTime:          0,
+    refetchOnWindowFocus: false,
   })
 
   const articles = data?.articles ?? []
