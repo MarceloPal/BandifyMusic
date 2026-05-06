@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X, Upload,
   Loader2, User, ChevronRight, ImagePlus, Trash2, Ticket,
+  ExternalLink, Clock,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
@@ -527,6 +528,89 @@ function CreateTocataModal({ onClose, onCreated }) {
   )
 }
 
+/* ── Card de evento Ticketmaster ── */
+function EventoCard({ evento }) {
+  const precioLabel = evento.precio_min != null
+    ? `Desde $${Number(evento.precio_min).toLocaleString('es-CL')}`
+    : null
+
+  return (
+    <a
+      href={evento.url ?? '#'}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative overflow-hidden rounded-2xl border border-white/8 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all text-left w-full bg-zinc-800 flex flex-col"
+    >
+      {/* Imagen */}
+      <div className="h-44 relative overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-700 flex-shrink-0">
+        {evento.imagen ? (
+          <img
+            src={evento.imagen}
+            alt={evento.nombre}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-600">
+            <Music2 size={32} />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+        {evento.genero && evento.genero !== 'Undefined' && (
+          <div className="absolute top-3 left-3">
+            <span className="bg-white/90 backdrop-blur-sm text-zinc-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              {evento.genero}
+            </span>
+          </div>
+        )}
+
+        <div className="absolute bottom-3 left-3">
+          <span className="text-white text-xs font-bold drop-shadow">
+            {formatFechaShort(evento.fecha)}
+          </span>
+        </div>
+
+        <div className="absolute top-3 right-3">
+          <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <ExternalLink size={9} />
+            Ticketmaster
+          </span>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="p-4 flex flex-col gap-1.5 flex-1">
+        <h3 className="text-zinc-100 font-bold text-base leading-tight line-clamp-2">{evento.nombre}</h3>
+
+        {evento.artistas?.length > 0 && (
+          <p className="text-zinc-400 text-xs truncate">
+            {evento.artistas.join(' · ')}
+          </p>
+        )}
+
+        <div className="flex items-center gap-1.5 text-zinc-400 text-xs">
+          <MapPin size={11} className="flex-shrink-0" />
+          <span className="truncate">
+            {[evento.recinto, evento.ciudad].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+
+        {evento.hora && (
+          <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
+            <Clock size={11} className="flex-shrink-0" />
+            <span>{evento.hora.slice(0, 5)}</span>
+          </div>
+        )}
+
+        {precioLabel && (
+          <p className="text-purple-400 text-xs font-semibold mt-auto pt-1">{precioLabel}</p>
+        )}
+      </div>
+    </a>
+  )
+}
+
 /* ─── main page ─── */
 
 export default function Tocatas() {
@@ -534,7 +618,7 @@ export default function Tocatas() {
   const [selectedTocata, setSelectedTocata] = useState(null)
   const [showCreate, setShowCreate]         = useState(false)
 
-  /* Fetch tocatas */
+  /* Fetch tocatas de la comunidad */
   const { data: tocatas = [], isLoading, isError } = useQuery({
     queryKey: ['tocatas'],
     queryFn: async () => {
@@ -547,6 +631,21 @@ export default function Tocatas() {
     staleTime: 3 * 60 * 1000,
     enabled: !!token,
   })
+
+  /* Fetch eventos de Ticketmaster */
+  const { data: tmData, isLoading: tmLoading } = useQuery({
+    queryKey: ['eventos-ticketmaster'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/eventos?limite=20`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return { eventos: [] }
+      return res.json()
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled: !!token,
+  })
+  const eventos = tmData?.eventos ?? []
 
   const handleCreated = (tocata) => {
     setShowCreate(false)
@@ -619,6 +718,36 @@ export default function Tocatas() {
           ))}
         </div>
       )}
+
+      {/* ── Eventos Ticketmaster ── */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-5">
+          <div>
+            <h2 className="text-white font-bold text-lg flex items-center gap-2">
+              <Ticket size={18} className="text-purple-400" />
+              Eventos en Chile
+            </h2>
+            <p className="text-zinc-500 text-xs mt-0.5">Música en vivo · vía Ticketmaster</p>
+          </div>
+        </div>
+
+        {tmLoading ? (
+          <div className="flex items-center justify-center py-16 gap-3 text-zinc-500">
+            <Loader2 size={22} className="animate-spin" />
+            <span className="text-sm">Buscando eventos...</span>
+          </div>
+        ) : eventos.length === 0 ? (
+          <div className="bg-zinc-800 rounded-2xl p-8 border border-white/8 text-center">
+            <p className="text-zinc-400 text-sm">No se encontraron eventos musicales próximos en Chile.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {eventos.map((ev) => (
+              <EventoCard key={ev.id} evento={ev} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
