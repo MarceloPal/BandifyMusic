@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Check, ArrowLeft, Loader2 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
 
 function Field({ label, value, onChange, placeholder = '••••••••' }) {
@@ -22,7 +24,8 @@ function Field({ label, value, onChange, placeholder = '••••••••
 }
 
 export default function ChangePassword() {
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
+  const { token }   = useAuth()
 
   const [actual,     setActual]     = useState('')
   const [nueva,      setNueva]      = useState('')
@@ -32,18 +35,15 @@ export default function ChangePassword() {
   const [success,    setSuccess]    = useState(false)
   const [error,      setError]      = useState('')
 
-  /* ── Paso 1: validar contraseña actual ── */
-  const handleVerify = async (e) => {
+  /* ── Paso 1: avanzar al paso 2 (la contraseña actual se valida en el backend al guardar) ── */
+  const handleVerify = (e) => {
     e.preventDefault()
     setError('')
     if (!actual.trim()) return
-    setLoading(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setLoading(false)
     setIsVerified(true)
   }
 
-  /* ── Paso 2: guardar nueva contraseña ── */
+  /* ── Paso 2: guardar nueva contraseña en el backend ── */
   const handleSave = async (e) => {
     e.preventDefault()
     setError('')
@@ -56,9 +56,23 @@ export default function ChangePassword() {
       return
     }
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 900))
-    setLoading(false)
-    setSuccess(true)
+    try {
+      const res = await fetch(`${API_URL}/usuarios/cambiar-password`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ passwordActual: actual, passwordNueva: nueva }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Error al cambiar la contraseña. Intenta de nuevo.')
+        return
+      }
+      setSuccess(true)
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
