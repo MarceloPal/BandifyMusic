@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt  = require('bcryptjs');
 const pool = require('../db/index');
 const authMiddleware = require('../middleware/auth');
 
@@ -169,6 +170,40 @@ router.put('/perfil', authMiddleware, async (req, res, next) => {
       [req.usuario.id]
     );
     res.json(rows[0] || {});
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /usuarios/cambiar-password
+router.put('/cambiar-password', authMiddleware, async (req, res, next) => {
+  try {
+    const { passwordActual, passwordNueva } = req.body;
+
+    if (!passwordActual || !passwordNueva) {
+      return res.status(400).json({ error: 'passwordActual y passwordNueva son obligatorios' });
+    }
+    if (passwordNueva.length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+
+    const result = await pool.query(
+      'SELECT password_hash FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const valido = await bcrypt.compare(passwordActual, result.rows[0].password_hash);
+    if (!valido) {
+      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    const passwordHash = await bcrypt.hash(passwordNueva, 10);
+    await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [passwordHash, req.usuario.id]);
+
+    res.json({ ok: true });
   } catch (error) {
     next(error);
   }
