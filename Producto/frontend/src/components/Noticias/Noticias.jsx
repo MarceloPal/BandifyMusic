@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Newspaper } from 'lucide-react'
+import { API_URL } from '../../utils/helpers'
 import './Noticias.css'
 
 const FILTROS = [
@@ -11,7 +12,7 @@ const FILTROS = [
 ]
 
 async function fetchNoticias(q) {
-  const res = await fetch(`/api/noticias?q=${encodeURIComponent(q)}`)
+  const res = await fetch(`${API_URL}/api/noticias?q=${encodeURIComponent(q)}`)
   if (!res.ok) throw new Error('Error cargando noticias')
   return res.json()
 }
@@ -67,7 +68,7 @@ export default function Noticias() {
 
       {isError && (
         <p className="noticias-error">
-          No se pudieron cargar las noticias. Verifica que NEWS_API_KEY esté configurada en el backend.
+          No se pudieron cargar las noticias. Intenta de nuevo más tarde.
         </p>
       )}
 
