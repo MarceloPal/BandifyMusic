@@ -98,8 +98,18 @@ export default function Messages() {
 
   const handleSelectConv = (conv) => {
     setSelectedUser({ id: conv.partner_id, nombre: conv.partner_nombre })
-    // Si era una solicitud, cambiar al tab de mensajes (ahora responderemos)
     if (!conv.yo_respondi) setTab('mensajes')
+
+    // Si hay mensajes sin leer, marcarlos como leídos y refrescar el badge del navbar
+    if (conv.sin_leer > 0) {
+      fetch(`${API_URL}/notificaciones/leer`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['notificaciones'] })
+        queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+      }).catch(() => {})
+    }
   }
 
   return (
