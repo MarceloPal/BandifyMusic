@@ -17,42 +17,42 @@ function formatFechaCorta(isoDate) {
 
 // ── Mock data ─────────────────────────────────────────────────
 
-const NOTICIAS = [
-  {
-    id: 1,
-    categoria: 'Industria',
-    titulo: 'El streaming beneficia cada vez más a los artistas independientes en Latinoamérica',
-    extracto: 'Un informe de IFPI muestra que los ingresos por streaming para músicos indie crecieron un 34% en 2025.',
-    fecha: '12 abr 2026',
-  },
-  {
-    id: 2,
-    categoria: 'Tecnología',
-    titulo: 'IA generativa: ¿aliada o amenaza para los músicos?',
-    extracto: 'Cómo los nuevos modelos de generación de audio están cambiando la industria y qué oportunidades abren para los creadores.',
-    fecha: '9 abr 2026',
-  },
-  {
-    id: 3,
-    categoria: 'Chile',
-    titulo: 'Santiago se consolida como hub musical en el Cono Sur',
-    extracto: 'Nuevos fondos del Ministerio de las Culturas apoyan a más de 300 músicos emergentes con producción y distribución internacional.',
-    fecha: '5 abr 2026',
-  },
-]
 
 // ── Sub-componentes ───────────────────────────────────────────
 
 function NoticiaCard({ noticia }) {
   return (
-    <article className="bg-white/5 rounded-2xl p-5 flex flex-col gap-3 border border-white/8 hover:bg-white/8 hover:-translate-y-0.5 transition-all cursor-pointer">
-      <span className="text-xs font-semibold text-purple-300 bg-purple-500/15 border border-purple-400/20 px-2.5 py-1 rounded-full w-fit">
-        {noticia.categoria}
-      </span>
-      <h3 className="text-white font-bold text-sm leading-snug">{noticia.titulo}</h3>
-      <p className="text-white/50 text-xs leading-relaxed flex-1">{noticia.extracto}</p>
-      <p className="text-white/30 text-xs">{noticia.fecha}</p>
-    </article>
+    <a
+      href={noticia.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="bg-white/5 rounded-2xl overflow-hidden flex flex-col border border-white/8 hover:bg-white/8 hover:-translate-y-0.5 transition-all"
+    >
+      {noticia.urlToImage && (
+        <img
+          src={noticia.urlToImage}
+          alt={noticia.title}
+          className="w-full aspect-video object-cover"
+          loading="lazy"
+        />
+      )}
+      <div className="p-5 flex flex-col gap-2 flex-1">
+        <span className="text-xs font-semibold text-purple-300 bg-purple-500/15 border border-purple-400/20 px-2.5 py-1 rounded-full w-fit">
+          {noticia.source?.name}
+        </span>
+        <h3 className="text-white font-bold text-sm leading-snug">{noticia.title}</h3>
+        {noticia.description && (
+          <p className="text-white/50 text-xs leading-relaxed flex-1">{noticia.description}</p>
+        )}
+        <p className="text-white/30 text-xs">
+          {noticia.publishedAt
+            ? new Date(noticia.publishedAt).toLocaleDateString('es-CL', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              })
+            : ''}
+        </p>
+      </div>
+    </a>
   )
 }
 
@@ -139,6 +139,18 @@ export default function Landing() {
     staleTime: 5 * 60 * 1000,
     enabled: view === 'tocatas',
   })
+
+  const { data: noticiasData, isLoading: noticiasLoading } = useQuery({
+    queryKey: ['landing-noticias'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/noticias?q=música`)
+      if (!res.ok) return { articles: [] }
+      return res.json()
+    },
+    staleTime: 0,
+    enabled: view === 'noticias',
+  })
+  const noticias = noticiasData?.articles ?? []
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col" style={{ position: 'relative' }}>
@@ -272,9 +284,13 @@ export default function Landing() {
               <h2 className="text-2xl font-bold text-white mb-7">
                 Noticias para Músicos
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {NOTICIAS.map((n) => <NoticiaCard key={n.id} noticia={n} />)}
-              </div>
+              {noticiasLoading ? (
+                <p className="text-white/40 text-sm">Cargando noticias...</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {noticias.map((n, i) => <NoticiaCard key={i} noticia={n} />)}
+                </div>
+              )}
             </div>
           </section>
         )}
