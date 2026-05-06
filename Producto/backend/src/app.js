@@ -14,6 +14,7 @@ const imagesRoutes   = require('./routes/images');
 const demosRoutes    = require('./routes/demos');
 const notificacionesRoutes = require('./routes/notificaciones');
 const noticiasRoutes       = require('./routes/noticias');
+const eventosRoutes        = require('./routes/eventos');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/images',  imagesRoutes);
 app.use('/demos',   demosRoutes);
 app.use('/notificaciones', notificacionesRoutes);
 app.use('/api/noticias',  noticiasRoutes);
+app.use('/api/eventos',   eventosRoutes);
 
 app.get('/health', (req, res) => {
   res.json({
