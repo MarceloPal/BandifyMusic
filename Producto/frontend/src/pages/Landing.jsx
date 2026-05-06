@@ -148,7 +148,6 @@ export default function Landing() {
       return res.json()
     },
     staleTime: 10 * 60 * 1000,
-    enabled: view === 'noticias',
   })
   const noticias = noticiasData?.articles ?? []
 
