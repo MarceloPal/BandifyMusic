@@ -5,8 +5,9 @@ import {
   MessageCircle, CalendarDays, HelpCircle,
   Bell, Settings, LogOut, Newspaper,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth }     from '../context/AuthContext'
-import { getInitials } from '../utils/helpers'
+import { getInitials, API_URL } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 
 const NAV_ITEMS = [
@@ -22,11 +23,25 @@ const NAV_ITEMS = [
 ]
 
 export default function TopNavbar() {
-  const { logout, user }          = useAuth()
+  const { logout, user, token }   = useAuth()
   const navigate                  = useNavigate()
   const { url: photoUrl }         = useImageUrl(user?.foto_url ?? null)
   const [open, setOpen]           = useState(false)
   const dropdownRef               = useRef(null)
+
+  const { data: notifs = [] } = useQuery({
+    queryKey:       ['notificaciones'],
+    queryFn:        async () => {
+      const res = await fetch(`${API_URL}/notificaciones`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return res.ok ? res.json() : []
+    },
+    enabled:        !!token,
+    refetchInterval: 30_000,
+    staleTime:      0,
+  })
+  const unread = notifs.filter((n) => !n.leida).length
 
   const handleLogout = () => { logout(); navigate('/') }
 
@@ -58,18 +73,23 @@ export default function TopNavbar() {
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           aria-label="Menú de usuario"
         >
-          {/* Avatar */}
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={user?.nombre}
-              className="w-8 h-8 rounded-full object-cover border border-white/20"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold border border-white/20">
-              {getInitials(user?.nombre)}
-            </div>
-          )}
+          {/* Avatar con punto de notificación */}
+          <div className="relative">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={user?.nombre}
+                className="w-8 h-8 rounded-full object-cover border border-white/20"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold border border-white/20">
+                {getInitials(user?.nombre)}
+              </div>
+            )}
+            {unread > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-zinc-950" />
+            )}
+          </div>
           <ChevronDown
             size={14}
             className={`text-white/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
@@ -102,7 +122,10 @@ export default function TopNavbar() {
                   }
                 >
                   <Icon size={14} className="flex-shrink-0" />
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {path === '/notifications' && unread > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                  )}
                 </NavLink>
               ))}
             </div>
