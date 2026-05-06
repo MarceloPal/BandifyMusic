@@ -140,14 +140,14 @@ export default function Landing() {
     enabled: view === 'tocatas',
   })
 
-  const { data: noticiasData, isLoading: noticiasLoading } = useQuery({
+  const { data: noticiasData } = useQuery({
     queryKey: ['landing-noticias'],
     queryFn: async () => {
       const res = await fetch(`${API_URL}/api/noticias?q=música`)
       if (!res.ok) return { articles: [] }
       return res.json()
     },
-    staleTime: 0,
+    staleTime: 10 * 60 * 1000,
     enabled: view === 'noticias',
   })
   const noticias = noticiasData?.articles ?? []
@@ -284,8 +284,10 @@ export default function Landing() {
               <h2 className="text-2xl font-bold text-white mb-7">
                 Noticias para Músicos
               </h2>
-              {noticiasLoading ? (
+              {!noticiasData ? (
                 <p className="text-white/40 text-sm">Cargando noticias...</p>
+              ) : noticias.length === 0 ? (
+                <p className="text-white/40 text-sm">No hay noticias disponibles en este momento.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {noticias.map((n, i) => <NoticiaCard key={i} noticia={n} />)}
