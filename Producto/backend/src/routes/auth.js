@@ -26,13 +26,13 @@ router.post('/registro', async (req, res, next) => {
     const resultado = await pool.query(
       `INSERT INTO usuarios (nombre, email, password_hash, instrumento, ciudad, fecha_nacimiento)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, nombre, email, instrumento, ciudad, fecha_nacimiento`,
+       RETURNING id, nombre, email, instrumento, ciudad, fecha_nacimiento, role`,
       [nombre, email, password_hash, instrumento || null, ciudad || null, fecha_nacimiento || null]
     );
 
     const usuario = resultado.rows[0];
     const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, nombre: usuario.nombre },
+      { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -54,7 +54,7 @@ router.post('/login', async (req, res, next) => {
 
     const resultado = await pool.query(
       `SELECT u.id, u.nombre, u.email, u.password_hash, u.instrumento, u.ciudad,
-              u.fecha_nacimiento, COALESCE(u.es_premium, false) AS es_premium,
+              u.fecha_nacimiento, u.role, COALESCE(u.es_premium, false) AS es_premium,
               p.s3_key, p.foto_url
        FROM usuarios u
        LEFT JOIN perfiles p ON p.usuario_id = u.id
@@ -70,7 +70,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, nombre: usuario.nombre },
+      { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

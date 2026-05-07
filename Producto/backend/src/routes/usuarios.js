@@ -13,7 +13,7 @@ router.get('/perfil', authMiddleware, async (req, res, next) => {
     // Intentar con todas las columnas (pueden no existir si no corrió migración)
     try {
       resultado = await pool.query(
-        `SELECT u.id, u.nombre, u.email, u.instrumento, u.ciudad,
+        `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
                 u.fecha_nacimiento, u.created_at,
                 p.s3_key, p.audio_vector, p.audio_metadata,
                 p.user_tags, p.oficio, p.experiencia, p.bio, p.foto_url, p.banner_url,
@@ -29,7 +29,7 @@ router.get('/perfil', authMiddleware, async (req, res, next) => {
       if (colErr.code === '42703') {
         // Alguna columna no existe aún — fallback sin columnas nuevas
         resultado = await pool.query(
-          `SELECT u.id, u.nombre, u.email, u.instrumento, u.ciudad,
+          `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
                   u.fecha_nacimiento, u.created_at,
                   p.s3_key, p.audio_vector, NULL::jsonb AS audio_metadata,
                   NULL::jsonb AS user_tags, NULL::jsonb AS oficio,

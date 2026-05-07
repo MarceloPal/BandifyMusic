@@ -13,12 +13,26 @@ const authMiddleware = (req, res, next) => {
       if (err) {
         return res.status(401).json({ error: 'Token expirado o inválido' });
       }
-      req.usuario = { id: payload.id, email: payload.email, nombre: payload.nombre };
+      req.usuario = {
+        id: payload.id,
+        email: payload.email,
+        nombre: payload.nombre,
+        role: payload.role || 'user'
+      };
       next();
     });
   } catch (error) {
     next(error);
   }
 };
+
+const requireAdmin = (req, res, next) => {
+  if (!req.usuario || req.usuario.role !== 'admin') {
+    return res.status(403).json({ error: 'Acceso denegado: se requieren permisos de administrador' });
+  }
+  next();
+};
+
+authMiddleware.requireAdmin = requireAdmin;
 
 module.exports = authMiddleware;

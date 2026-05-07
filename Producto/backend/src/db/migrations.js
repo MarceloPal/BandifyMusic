@@ -58,6 +58,36 @@ async function runMigrations() {
       used        BOOLEAN     NOT NULL DEFAULT false,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
+    // Roles de usuario (admin, user)
+    'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT \'user\'',
+    // Tabla de tickets (si no existe)
+    `CREATE TABLE IF NOT EXISTS tickets (
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      event_id     UUID        NOT NULL,
+      buyer_id     UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      price_clp    INTEGER     NOT NULL CHECK (price_clp >= 0),
+      purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // Tabla de reportes (moderación)
+    `CREATE TABLE IF NOT EXISTS reportes (
+      id            SERIAL PRIMARY KEY,
+      emisor_id     UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+      tipo_contenido VARCHAR(50) NOT NULL,
+      contenido_id  UUID NOT NULL,
+      motivo        TEXT NOT NULL,
+      estado        VARCHAR(20) DEFAULT 'pendiente',
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    // Tabla de noticias propias
+    `CREATE TABLE IF NOT EXISTS noticias (
+      id            SERIAL PRIMARY KEY,
+      titulo        VARCHAR(255) NOT NULL,
+      contenido     TEXT NOT NULL,
+      imagen_url    TEXT,
+      fuente        VARCHAR(100) DEFAULT 'Bandify',
+      autor_id      UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`,
   ];
 
   for (const sql of stmts) {

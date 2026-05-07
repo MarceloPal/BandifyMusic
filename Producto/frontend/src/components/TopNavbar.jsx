@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   ChevronDown, BarChart2, User, Compass,
   MessageCircle, CalendarDays, HelpCircle,
-  Bell, Settings, LogOut, Newspaper,
+  Bell, Settings, LogOut, Newspaper, Shield,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth }     from '../context/AuthContext'
@@ -128,6 +128,23 @@ export default function TopNavbar() {
                   )}
                 </NavLink>
               ))}
+
+              {user?.role === 'admin' && (
+                <NavLink
+                  to="/admin"
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors border-t border-white/5 mt-1 ${
+                      isActive
+                        ? 'text-indigo-400 bg-indigo-500/10 font-medium'
+                        : 'text-indigo-300 hover:text-white hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <Shield size={14} className="flex-shrink-0" />
+                  <span className="flex-1">Panel Admin</span>
+                </NavLink>
+              )}
             </div>
 
             {/* Cerrar sesión */}
