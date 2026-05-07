@@ -60,7 +60,7 @@ function HeroSlider({ eventos }) {
   if (!ev) return null
 
   return (
-    <div className="relative w-full overflow-hidden select-none" style={{ height: '340px' }}>
+    <div className="relative w-full overflow-hidden select-none" style={{ height: 'clamp(420px, 60vh, 700px)' }}>
       <div className="absolute inset-0">
         {ev.imagen ? (
           <img
@@ -642,7 +642,23 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         <CreateTocataModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
       )}
 
-      {/* ── Header ── */}
+      {/* ── Hero Slider: primero, breakout full-width, esquinas cuadradas ── */}
+      {eventos.length > 0 && !isLoading && (
+        <div
+          className="mb-8"
+          style={{
+            width: '100vw',
+            position: 'relative',
+            left: '50%',
+            marginLeft: '-50vw',
+            marginTop: '-2rem',   /* cancela el py-8 del MainLayout container */
+          }}
+        >
+          <HeroSlider eventos={eventos} />
+        </div>
+      )}
+
+      {/* ── Header: debajo del carrusel, dentro de los márgenes normales ── */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           {onBack && (
@@ -670,16 +686,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
           </button>
         )}
       </div>
-
-      {/* ── Hero Slider breakout full-width ── */}
-      {eventos.length > 0 && !isLoading && (
-        <div
-          className="mb-8"
-          style={{ width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw' }}
-        >
-          <HeroSlider eventos={eventos} />
-        </div>
-      )}
 
       {/* ── Tabs — solo en vista completa ── */}
       {!isHome && (
