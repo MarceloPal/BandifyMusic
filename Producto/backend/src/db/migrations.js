@@ -58,6 +58,9 @@ async function runMigrations() {
       used        BOOLEAN     NOT NULL DEFAULT false,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
+    // Tocatas con venta de entradas vía MercadoPago
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',
   ];
 
   for (const sql of stmts) {
