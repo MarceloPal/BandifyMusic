@@ -104,6 +104,35 @@ async function runMigrations() {
     // Tocatas con venta de entradas vía MercadoPago
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',
+    // Fix FK constraints: reemplazar sin CASCADE por con CASCADE en jobs y audio_jobs
+    // (necesario para poder eliminar usuarios desde el panel de admin)
+    `DO $$
+     BEGIN
+       IF EXISTS (
+         SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name = 'jobs_usuario_id_fkey'
+           AND constraint_type = 'FOREIGN KEY'
+       ) THEN
+         ALTER TABLE jobs DROP CONSTRAINT jobs_usuario_id_fkey;
+         ALTER TABLE jobs ADD CONSTRAINT jobs_usuario_id_fkey
+           FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF EXISTS (
+         SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name = 'audio_jobs_usuario_id_fkey'
+           AND constraint_type = 'FOREIGN KEY'
+       ) AND EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_name = 'audio_jobs' AND column_name = 'usuario_id'
+       ) THEN
+         ALTER TABLE audio_jobs DROP CONSTRAINT audio_jobs_usuario_id_fkey;
+         ALTER TABLE audio_jobs ADD CONSTRAINT audio_jobs_usuario_id_fkey
+           FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
   ];
 
   for (const sql of stmts) {

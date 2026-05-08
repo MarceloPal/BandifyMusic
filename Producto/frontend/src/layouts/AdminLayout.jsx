@@ -3,15 +3,16 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   Shield, TrendingUp, Users, Calendar,
-  Newspaper, Megaphone, LogOut, Menu, X,
+  Newspaper, Megaphone, LogOut, Menu, X, DollarSign,
 } from 'lucide-react'
 
 const TABS = [
-  { id: 'stats',     label: 'Métricas',  icon: TrendingUp },
-  { id: 'usuarios',  label: 'Usuarios',  icon: Users      },
-  { id: 'tocatas',   label: 'Tocatas',   icon: Calendar   },
-  { id: 'noticias',  label: 'Noticias',  icon: Newspaper  },
-  { id: 'megaphone', label: 'Anuncios',  icon: Megaphone  },
+  { id: 'stats',     label: 'Métricas',  icon: TrendingUp  },
+  { id: 'usuarios',  label: 'Usuarios',  icon: Users       },
+  { id: 'tocatas',   label: 'Tocatas',   icon: Calendar    },
+  { id: 'noticias',  label: 'Noticias',  icon: Newspaper   },
+  { id: 'ventas',    label: 'Ventas',    icon: DollarSign  },
+  { id: 'megaphone', label: 'Anuncios',  icon: Megaphone   },
 ]
 
 export default function AdminLayout() {
