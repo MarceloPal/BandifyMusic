@@ -6,7 +6,8 @@ import {
 import { 
   Users, User, Ticket, Calendar, AlertTriangle, TrendingUp, 
   Shield, Search, Trash2, MapPin, Newspaper, Plus, Image as ImageIcon,
-  CheckCircle, XCircle, Edit2, Save, X
+  CheckCircle, XCircle, Edit2, Save, X, Megaphone, Send, Link as LinkIcon,
+  CheckSquare, Square
 } from 'lucide-react';
 import { API_URL } from '../utils/helpers';
 
@@ -28,6 +29,11 @@ const Admin = () => {
   // Estado para edición de usuario
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState({ nombre: '', email: '', role: '', es_premium: false, es_verificado: false });
+
+  // Estado para notificación masiva
+  const [massNotif, setMassNotif] = useState({ titulo: '', descripcion: '', link: '' });
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState([]); // Para el Megáfono
 
   const fetchStats = async () => {
     try {
@@ -195,6 +201,45 @@ const Admin = () => {
     } catch (err) { alert('Error al eliminar noticia'); }
   };
 
+  const handleSendMassNotif = async (e) => {
+    e.preventDefault();
+    const isFiltered = selectedUserIds.length > 0;
+    const confirmMsg = isFiltered 
+      ? `¿Estás seguro? Esto enviará una notificación a los ${selectedUserIds.length} usuarios seleccionados.`
+      : '¿Estás seguro? Esto enviará una notificación a TODOS los usuarios.';
+    
+    if (!window.confirm(confirmMsg)) return;
+    
+    setSendingNotif(true);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/notificaciones-masivas`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...massNotif,
+          usuario_ids: isFiltered ? selectedUserIds : null
+        })
+      });
+      if (response.ok) {
+        alert('¡Mensaje enviado con éxito!');
+        setMassNotif({ titulo: '', descripcion: '', link: '' });
+        setSelectedUserIds([]);
+      } else {
+        alert('Error al enviar notificación');
+      }
+    } catch (err) { alert('Error de conexión'); }
+    finally { setSendingNotif(false); }
+  };
+
+  const toggleUserSelection = (id) => {
+    setSelectedUserIds(prev => 
+      prev.includes(id) ? prev.filter(uid => uid !== id) : [...prev, id]
+    );
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -254,6 +299,7 @@ const Admin = () => {
           <TabButton active={activeTab === 'usuarios'} onClick={() => setActiveTab('usuarios')} icon={<Users size={16}/>} label="Usuarios" />
           <TabButton active={activeTab === 'tocatas'} onClick={() => setActiveTab('tocatas')} icon={<Calendar size={16}/>} label="Tocatas" />
           <TabButton active={activeTab === 'noticias'} onClick={() => setActiveTab('noticias')} icon={<Newspaper size={16}/>} label="Noticias" />
+          <TabButton active={activeTab === 'megaphone'} onClick={() => setActiveTab('megaphone')} icon={<Megaphone size={16}/>} label="Anuncios" />
         </div>
       </header>
 
@@ -371,7 +417,7 @@ const Admin = () => {
       {/* Modal de Edición de Usuario */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-gray-800 flex justify-between items-center">
               <h3 className="text-xl font-bold text-white">Editar Músico</h3>
               <button onClick={() => setEditingUser(null)} className="text-gray-500 hover:text-white"><X size={20}/></button>
@@ -379,53 +425,23 @@ const Admin = () => {
             <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-400 uppercase">Nombre</label>
-                <input 
-                  type="text" 
-                  value={userForm.nombre}
-                  onChange={e => setUserForm({...userForm, nombre: e.target.value})}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none"
-                />
+                <input type="text" value={userForm.nombre} onChange={e => setUserForm({...userForm, nombre: e.target.value})} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-400 uppercase">Email</label>
-                <input 
-                  type="email" 
-                  value={userForm.email}
-                  onChange={e => setUserForm({...userForm, email: e.target.value})}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none"
-                />
+                <input type="email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase">Rol</label>
-                  <select 
-                    value={userForm.role}
-                    onChange={e => setUserForm({...userForm, role: e.target.value})}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white outline-none"
-                  >
+                  <select value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value})} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white outline-none">
                     <option value="user">Usuario (Músico)</option>
                     <option value="admin">Administrador</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-3 justify-center">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={userForm.es_premium}
-                      onChange={e => setUserForm({...userForm, es_premium: e.target.checked})}
-                      className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-0"
-                    />
-                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Premium</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={userForm.es_verificado}
-                      onChange={e => setUserForm({...userForm, es_verificado: e.target.checked})}
-                      className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-0"
-                    />
-                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Verificado ✅</span>
-                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group"><input type="checkbox" checked={userForm.es_premium} onChange={e => setUserForm({...userForm, es_premium: e.target.checked})} className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-0"/><span className="text-sm text-gray-300 group-hover:text-white transition-colors">Premium</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer group"><input type="checkbox" checked={userForm.es_verificado} onChange={e => setUserForm({...userForm, es_verificado: e.target.checked})} className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-0"/><span className="text-sm text-gray-300 group-hover:text-white transition-colors">Verificado ✅</span></label>
                 </div>
               </div>
               <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 transition-all">
@@ -442,13 +458,7 @@ const Admin = () => {
             <h2 className="text-xl font-semibold text-white">Explorar Tocatas</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
-              <input 
-                type="text" 
-                placeholder="Buscar por nombre, género o organizador..." 
-                value={tocataSearch}
-                onChange={(e) => setTocataSearch(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors w-72"
-              />
+              <input type="text" placeholder="Buscar por nombre, género o organizador..." value={tocataSearch} onChange={(e) => setTocataSearch(e.target.value)} className="bg-gray-800 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors w-72" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -479,80 +489,171 @@ const Admin = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-white">Gestión de Noticias Locales</h2>
-            <button 
-              onClick={() => setShowNewsForm(!showNewsForm)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
-            >
-              {showNewsForm ? "Cerrar Editor" : "Redactar Noticia"}
-            </button>
+            <button onClick={() => setShowNewsForm(!showNewsForm)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20">{showNewsForm ? "Cerrar Editor" : "Redactar Noticia"}</button>
           </div>
-
           {showNewsForm && (
             <form onSubmit={handleCreateNews} className="bg-gray-900/80 border border-indigo-500/30 p-6 rounded-2xl space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Título</label><input required type="text" value={newNews.titulo} onChange={e => setNewNews(prev => ({...prev, titulo: e.target.value}))} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagen URL</label><input type="url" value={newNews.imagen_url} onChange={e => setNewNews(prev => ({...prev, imagen_url: e.target.value}))} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" /></div>
+              </div>
+              <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contenido</label><textarea required rows={4} value={newNews.contenido} onChange={e => setNewNews(prev => ({...prev, contenido: e.target.value}))} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none resize-none" /></div>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all">Publicar Noticia</button>
+            </form>
+          )}
+          <div className="grid grid-cols-1 gap-4">
+            {noticias.map(n => (
+              <div key={n.id} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex gap-4 items-center group hover:border-gray-700 transition-all">
+                <img src={n.urlToImage || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-xl object-cover" alt="" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-bold truncate">{n.title}</h3>
+                  <p className="text-gray-400 text-sm line-clamp-2 mt-1">{n.description}</p>
+                </div>
+                <button onClick={() => handleDeleteNews(n.id)} className="p-3 text-gray-600 hover:text-red-400 transition-colors"><Trash2 size={20} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'megaphone' && (
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <Megaphone className="text-amber-500" />
+              Notificación Segmentada (El Megáfono)
+            </h2>
+            <p className="text-gray-400">Envía un aviso directo a la campana de todos los usuarios o solo a los que selecciones.</p>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Columna 1: Formulario */}
+            <div className="xl:col-span-1 space-y-6">
+              <form onSubmit={handleSendMassNotif} className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Título de la Noticia</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Título del Anuncio</label>
                   <input 
                     required
                     type="text" 
-                    placeholder="Ej: ¡Nuevo festival en Santiago!"
-                    value={newNews.titulo}
-                    onChange={e => setNewNews(prev => ({...prev, titulo: e.target.value}))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 transition-colors outline-none"
+                    placeholder="Ej: ¡Actualización importante!"
+                    value={massNotif.titulo}
+                    onChange={e => setMassNotif({...massNotif, titulo: e.target.value})}
+                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">URL de la Imagen</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://images.unsplash.com/..."
-                    value={newNews.imagen_url}
-                    onChange={e => setNewNews(prev => ({...prev, imagen_url: e.target.value}))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 transition-colors outline-none"
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Mensaje</label>
+                  <textarea 
+                    required
+                    rows={4}
+                    placeholder="Escribe aquí los detalles..."
+                    value={massNotif.descripcion}
+                    onChange={e => setMassNotif({...massNotif, descripcion: e.target.value})}
+                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none resize-none"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contenido</label>
-                <textarea 
-                  required
-                  placeholder="Escribe el cuerpo de la noticia aquí..."
-                  rows={4}
-                  value={newNews.contenido}
-                  onChange={e => setNewNews(prev => ({...prev, contenido: e.target.value}))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-indigo-500 transition-colors outline-none resize-none"
-                />
-              </div>
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all">
-                Publicar Noticia en Bandify
-              </button>
-            </form>
-          )}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Enlace (Link)</label>
+                  <input 
+                    type="text" 
+                    placeholder="/noticias"
+                    value={massNotif.link}
+                    onChange={e => setMassNotif({...massNotif, link: e.target.value})}
+                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none"
+                  />
+                </div>
 
-          <div className="grid grid-cols-1 gap-4">
-            {noticias.length > 0 ? (
-              noticias.map(n => (
-                <div key={n.id} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex gap-4 items-center group hover:border-gray-700 transition-all">
-                  <img src={n.urlToImage || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-xl object-cover" alt="" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-bold truncate">{n.title}</h3>
-                    <p className="text-gray-400 text-sm line-clamp-2 mt-1">{n.description}</p>
-                    <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                      <span>{n.source?.name}</span>
-                      <span>•</span>
-                      <span>{new Date(n.publishedAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => handleDeleteNews(n.id)} className="p-3 text-gray-600 hover:text-red-400 transition-colors">
-                    <Trash2 size={20} />
+                <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20">
+                  <p className="text-xs text-amber-200 font-bold mb-1 uppercase tracking-tighter">Destinatarios:</p>
+                  <p className="text-sm text-white font-medium">
+                    {selectedUserIds.length > 0 
+                      ? `Enviando a ${selectedUserIds.length} seleccionados` 
+                      : 'Enviando a TODOS los usuarios'}
+                  </p>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={sendingNotif}
+                  className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-amber-500/10 uppercase tracking-widest text-sm"
+                >
+                  {sendingNotif ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div> : <><Send size={18} /> Lanzar Mensaje</>}
+                </button>
+              </form>
+            </div>
+
+            {/* Columna 2: Selector de Usuarios */}
+            <div className="xl:col-span-1 space-y-6">
+              <div className="bg-gray-900/50 border border-gray-800 rounded-3xl flex flex-col h-[580px]">
+                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-900/20">
+                  <h3 className="text-white font-bold text-sm">Seleccionar Usuarios</h3>
+                  <button 
+                    onClick={() => setSelectedUserIds([])}
+                    className="text-[10px] uppercase font-bold text-indigo-400 hover:text-white transition-colors"
+                  >
+                    Limpiar selección
                   </button>
                 </div>
-              ))
-            ) : (
-              <div className="py-12 text-center text-gray-500 italic bg-gray-900/30 rounded-2xl border border-dashed border-gray-800">
-                Aún no has publicado noticias locales.
+                <div className="p-4 border-b border-gray-800">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-3 h-3" />
+                    <input 
+                      type="text" 
+                      placeholder="Filtrar por nombre..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="w-full bg-gray-800/50 border border-gray-700 rounded-xl pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                  {filteredUsuarios.map(u => (
+                    <div 
+                      key={u.id} 
+                      onClick={() => toggleUserSelection(u.id)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all mb-1 ${
+                        selectedUserIds.includes(u.id) ? 'bg-indigo-500/20 border border-indigo-500/30' : 'hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      {selectedUserIds.includes(u.id) ? <CheckSquare size={16} className="text-indigo-400" /> : <Square size={16} className="text-gray-600" />}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{u.nombre}</p>
+                        <p className="text-[10px] text-gray-500 truncate">{u.email}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Columna 3: Vista Previa */}
+            <div className="xl:col-span-1 space-y-6">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Vista previa final</h3>
+              <div className="bg-zinc-950 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                    <Megaphone size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-white font-bold text-sm">{massNotif.titulo || 'Título de ejemplo'}</h4>
+                    <p className="text-zinc-400 text-xs leading-relaxed">{massNotif.descripcion || 'Aquí aparecerá el cuerpo del mensaje...'}</p>
+                    <p className="text-[10px] text-zinc-600 font-bold uppercase pt-2">Ahora mismo • SISTEMA</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3 text-indigo-400">
+                  <Users size={18} />
+                  <span className="text-xs font-bold uppercase">Tips de uso</span>
+                </div>
+                <ul className="text-xs text-gray-500 space-y-3 list-disc pl-4">
+                  <li>Si no seleccionas a nadie, el sistema asume que quieres mandárselo a <strong>toda la comunidad</strong>.</li>
+                  <li>Puedes usar el buscador para encontrar músicos específicos rápidamente.</li>
+                  <li>Los usuarios verán un punto rojo de notificación apenas envíes el mensaje.</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}
