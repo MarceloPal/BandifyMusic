@@ -512,7 +512,7 @@ const Admin = () => {
       />
       <Toast toast={toast} />
 
-      <div className="p-6 space-y-8 pb-20">
+      <div className="space-y-8 pb-20">
 
         {/* ── Stats ── */}
         {activeTab === 'stats' && (
