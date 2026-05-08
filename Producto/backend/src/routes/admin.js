@@ -155,4 +155,27 @@ router.patch('/reportes/:id', authMiddleware, requireAdmin, async (req, res, nex
   }
 });
 
+// POST /api/admin/notificaciones-masivas
+// Envía un aviso a TODOS los usuarios registrados
+router.post('/notificaciones-masivas', authMiddleware, requireAdmin, async (req, res, next) => {
+  try {
+    const { titulo, descripcion, link } = req.body;
+    if (!titulo || !descripcion) {
+      return res.status(400).json({ error: 'Título y descripción son obligatorios' });
+    }
+
+    // Insertar para cada usuario una notificación (esto es escalable para comunidades medianas)
+    // En sistemas gigantes se usaría una tabla de 'anuncios_globales' y un join, 
+    // pero para Bandify esto da una experiencia de usuario más personalizada (leída/no leída individual)
+    await pool.query(`
+      INSERT INTO notificaciones (usuario_id, titulo, descripcion, tipo, link)
+      SELECT id, $1, $2, 'sistema', $3 FROM usuarios
+    `, [titulo, descripcion, link || null]);
+
+    res.json({ message: 'Notificación enviada a todos los usuarios' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

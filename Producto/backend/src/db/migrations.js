@@ -90,6 +90,17 @@ async function runMigrations() {
       autor_id      UUID REFERENCES usuarios(id) ON DELETE SET NULL,
       created_at    TIMESTAMPTZ DEFAULT NOW()
     )`,
+    // Tabla de notificaciones físicas (avisos, anuncios)
+    `CREATE TABLE IF NOT EXISTS notificaciones (
+      id            SERIAL PRIMARY KEY,
+      usuario_id    UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+      titulo        VARCHAR(255) NOT NULL,
+      descripcion   TEXT NOT NULL,
+      tipo          VARCHAR(50) DEFAULT 'sistema',
+      leida         BOOLEAN DEFAULT false,
+      link          TEXT,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`,
     // Tocatas con venta de entradas vía MercadoPago
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',
