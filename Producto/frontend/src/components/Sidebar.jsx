@@ -2,7 +2,7 @@ import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   BarChart2, User, Compass,
   MessageCircle, CalendarDays, HelpCircle, LogOut, Music,
-  Bell, Settings, Newspaper,
+  Bell, Settings, Newspaper, Shield,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { getInitials } from '../utils/helpers'
@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
-        {navItems.map(({ icon: Icon, label, path, end }) => (
+        {navItems.map(({ icon: NavIcon, label, path, end }) => (
           <NavLink
             key={path}
             to={path}
@@ -89,10 +89,27 @@ export default function Sidebar({ isOpen, onClose }) {
               }`
             }
           >
-            <Icon size={16} />
+            <NavIcon size={16} />
             {label}
           </NavLink>
         ))}
+
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[15px] font-semibold transition-colors mt-2 border border-purple-500/30 ${
+                isActive
+                  ? 'bg-purple-600 text-white'
+                  : 'text-purple-400 hover:bg-purple-500/10'
+              }`
+            }
+          >
+            <Shield size={16} />
+            Panel Admin
+          </NavLink>
+        )}
       </nav>
 
       {/* Logout */}

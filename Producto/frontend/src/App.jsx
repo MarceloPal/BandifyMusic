@@ -16,11 +16,19 @@ import Notifications from './pages/Notifications'
 import Settings        from './pages/Settings'
 import ChangePassword  from './pages/ChangePassword'
 import NoticiasPage    from './pages/Noticias'
+import Admin           from './pages/Admin'
 import MainLayout      from './layouts/MainLayout'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
   return token ? children : <Navigate to="/auth" replace />
+}
+
+function AdminRoute({ children }) {
+  const { token, user } = useAuth()
+  if (!token) return <Navigate to="/auth" replace />
+  if (user?.role !== 'admin') return <Navigate to="/" replace />
+  return children
 }
 
 export default function App() {
@@ -69,6 +77,14 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings"      element={<Settings />}      />
         <Route path="/noticias"      element={<NoticiasPage />}  />
+        <Route 
+          path="/admin"         
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          } 
+        />
       </Route>
 
       {/* Catch-all */}
