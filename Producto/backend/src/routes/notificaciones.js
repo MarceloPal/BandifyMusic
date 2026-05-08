@@ -57,8 +57,32 @@ router.get('/', authMiddleware, async (req, res, next) => {
       [miId]
     );
 
+    // ── 4. Notificaciones físicas de la DB (anuncios, sistema) ───────────────
+    const fisicas = await pool.query(
+      `SELECT id, titulo, descripcion, tipo, leida, link, created_at
+       FROM notificaciones
+       WHERE usuario_id = $1
+       ORDER BY created_at DESC
+       LIMIT 15`,
+      [miId]
+    );
+
     // ── Agregar y formatear ──────────────────────────────────────────────────
     const items = [];
+
+    // ... (mensajes, tocatas, demos se agregan igual)
+
+    for (const f of fisicas.rows) {
+      items.push({
+        id:          `db-${f.id}`,
+        tipo:        f.tipo,
+        titulo:      f.titulo,
+        descripcion: f.descripcion,
+        tiempo:      f.created_at,
+        leida:       f.leida,
+        link:        f.link || null,
+      });
+    }
 
     for (const m of mensajes.rows) {
       const preview = m.contenido.length > 80 ? m.contenido.slice(0, 80) + '…' : m.contenido;
