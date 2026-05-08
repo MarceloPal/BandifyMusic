@@ -64,11 +64,34 @@ router.get('/stats', authMiddleware, requireAdmin, async (req, res, next) => {
 router.get('/usuarios', authMiddleware, requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT id, nombre, email, role, es_premium, created_at, ciudad, instrumento
+      SELECT id, nombre, email, role, es_premium, es_verificado, created_at, ciudad, instrumento
       FROM usuarios
       ORDER BY created_at DESC
     `);
     res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/admin/usuarios/:id
+// Permite al administrador editar datos clave del usuario
+router.patch('/usuarios/:id', authMiddleware, requireAdmin, async (req, res, next) => {
+  try {
+    const { nombre, email, role, es_premium, es_verificado } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE usuarios 
+       SET nombre = $1, email = $2, role = $3, es_premium = $4, es_verificado = $5
+       WHERE id = $6 RETURNING *`,
+      [nombre, email, role, es_premium, es_verificado, req.params.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json(result.rows[0]);
   } catch (error) {
     next(error);
   }

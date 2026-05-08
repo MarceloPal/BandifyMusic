@@ -6,7 +6,7 @@ import {
 import { 
   Users, User, Ticket, Calendar, AlertTriangle, TrendingUp, 
   Shield, Search, Trash2, MapPin, Newspaper, Plus, Image as ImageIcon,
-  CheckCircle, XCircle
+  CheckCircle, XCircle, Edit2, Save, X
 } from 'lucide-react';
 import { API_URL } from '../utils/helpers';
 
@@ -24,6 +24,10 @@ const Admin = () => {
   const [tocataSearch, setTocataSearch] = useState('');
   const [showNewsForm, setShowNewsForm] = useState(false);
   const [newNews, setNewNews] = useState({ titulo: '', contenido: '', imagen_url: '', fuente: 'Bandify' });
+
+  // Estado para edición de usuario
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState({ nombre: '', email: '', role: '', es_premium: false, es_verificado: false });
 
   const fetchStats = async () => {
     try {
@@ -81,6 +85,38 @@ const Admin = () => {
     } catch (err) { alert('Error al eliminar usuario'); }
   };
 
+  const handleEditUser = (user) => {
+    setEditingUser(user.id);
+    setUserForm({
+      nombre: user.nombre,
+      email: user.email,
+      role: user.role,
+      es_premium: user.es_premium,
+      es_verificado: user.es_verificado || false
+    });
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_URL}/api/admin/usuarios/${editingUser}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(userForm)
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setUsuarios(prev => prev.map(u => u.id === editingUser ? { ...u, ...updated } : u));
+        setEditingUser(null);
+      } else {
+        alert('Error al actualizar usuario');
+      }
+    } catch (err) { alert('Error de conexión'); }
+  };
+
   const handleDeleteTocata = async (id) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar esta tocata?')) return;
     try {
@@ -106,7 +142,7 @@ const Admin = () => {
         body: JSON.stringify({ estado: nuevoEstado })
       });
       if (response.ok) {
-        fetchStats(); // Recargar para ver el cambio de estado
+        fetchStats();
       } else {
         alert('Error al actualizar el reporte');
       }
@@ -291,7 +327,7 @@ const Admin = () => {
               <thead className="bg-gray-800/50 text-gray-400 uppercase text-[10px] tracking-widest font-bold">
                 <tr>
                   <th className="px-6 py-4">Usuario</th>
-                  <th className="px-6 py-4">Rol / Nivel</th>
+                  <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4">Ubicación</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
@@ -305,7 +341,10 @@ const Admin = () => {
                           {(u.nombre || 'U').substring(0,2)}
                         </div>
                         <div>
-                          <p className="text-white font-medium">{u.nombre}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-white font-medium">{u.nombre}</p>
+                            {u.es_verificado && <CheckCircle size={14} className="text-blue-400" fill="currentColor" fillOpacity={0.2} />}
+                          </div>
                           <p className="text-gray-500 text-xs">{u.email}</p>
                         </div>
                       </div>
@@ -317,13 +356,82 @@ const Admin = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-400"><div className="flex items-center gap-1"><MapPin size={12}/>{u.ciudad || 'No especificada'}</div></td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDeleteUsuario(u.id)} className="text-gray-500 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button onClick={() => handleEditUser(u)} className="text-gray-500 hover:text-indigo-400 transition-colors p-2" title="Editar Usuario"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDeleteUsuario(u.id)} className="text-gray-500 hover:text-red-400 transition-colors p-2" title="Eliminar Usuario"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición de Usuario */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white">Editar Músico</h3>
+              <button onClick={() => setEditingUser(null)} className="text-gray-500 hover:text-white"><X size={20}/></button>
+            </div>
+            <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase">Nombre</label>
+                <input 
+                  type="text" 
+                  value={userForm.nombre}
+                  onChange={e => setUserForm({...userForm, nombre: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase">Email</label>
+                <input 
+                  type="email" 
+                  value={userForm.email}
+                  onChange={e => setUserForm({...userForm, email: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase">Rol</label>
+                  <select 
+                    value={userForm.role}
+                    onChange={e => setUserForm({...userForm, role: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white outline-none"
+                  >
+                    <option value="user">Usuario (Músico)</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-3 justify-center">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={userForm.es_premium}
+                      onChange={e => setUserForm({...userForm, es_premium: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-0"
+                    />
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Premium</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={userForm.es_verificado}
+                      onChange={e => setUserForm({...userForm, es_verificado: e.target.checked})}
+                      className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-0"
+                    />
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Verificado ✅</span>
+                  </label>
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 transition-all">
+                <Save size={18} /> Guardar Cambios
+              </button>
+            </form>
           </div>
         </div>
       )}
