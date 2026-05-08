@@ -203,4 +203,38 @@ router.post('/notificaciones-masivas', authMiddleware, requireAdmin, async (req,
   }
 });
 
+// GET /api/admin/ventas
+// Obtiene el historial de todos los tickets vendidos con detalles de monto y categoría
+router.get('/ventas', authMiddleware, requireAdmin, async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        ti.id,
+        ti.price_clp as monto,
+        ti.purchased_at as fecha,
+        u.nombre as comprador_nombre,
+        u.email as comprador_email,
+        t.nombre as evento_nombre,
+        t.genero as categoria
+      FROM tickets ti
+      JOIN usuarios u ON u.id = ti.buyer_id
+      JOIN tocatas t ON t.id = ti.event_id
+      ORDER BY ti.purchased_at DESC
+    `);
+    
+    // Calcular ingresos totales para el resumen
+    const ingresosTotales = result.rows.reduce((sum, row) => sum + (parseInt(row.monto) || 0), 0);
+    
+    res.json({
+      tickets: result.rows,
+      resumen: {
+        total_ventas: result.rowCount,
+        ingresos_totales: ingresosTotales
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
