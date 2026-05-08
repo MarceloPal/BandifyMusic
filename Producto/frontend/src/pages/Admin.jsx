@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
   Users, User, Ticket, Calendar, AlertTriangle, TrendingUp,
-  Shield, Search, Trash2, MapPin, Newspaper, Image as ImageIcon,
+  Search, Trash2, MapPin, Image as ImageIcon,
   CheckCircle, XCircle, Edit2, Save, X, Megaphone, Send,
   CheckSquare, Square, CheckCheck
 } from 'lucide-react';
@@ -24,17 +25,6 @@ const formatFecha = (raw) => {
 /* ─────────────────────────────────────────
    Sub-components
 ───────────────────────────────────────── */
-const TabButton = ({ active, onClick, icon, label }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-      active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white'
-    }`}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
 
 const MetricCard = ({ title, value, icon, color }) => (
   <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-2xl flex items-center gap-4 transition-all hover:border-gray-700">
@@ -145,7 +135,8 @@ const ConfirmModal = ({ modal, onConfirm, onCancel }) => {
 ───────────────────────────────────────── */
 const Admin = () => {
   const { token } = useAuth();
-  const [activeTab, setActiveTab]   = useState('stats');
+  // activeTab viene del AdminLayout via outlet context
+  const { activeTab } = useOutletContext();
   const [stats, setStats]           = useState(null);
   const [usuarios, setUsuarios]     = useState([]);
   const [tocatas, setTocatas]       = useState([]);
@@ -522,23 +513,6 @@ const Admin = () => {
       <Toast toast={toast} />
 
       <div className="p-6 space-y-8 pb-20">
-        {/* ── Header ── */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-              <Shield className="text-indigo-500" />
-              Panel de Administración
-            </h1>
-            <p className="text-gray-400">Control central de la plataforma Bandify</p>
-          </div>
-          <div className="flex bg-gray-900/80 p-1 rounded-xl border border-gray-800 self-start md:self-center overflow-x-auto">
-            <TabButton active={activeTab === 'stats'}     onClick={() => setActiveTab('stats')}     icon={<TrendingUp size={16}/>} label="Métricas"  />
-            <TabButton active={activeTab === 'usuarios'}  onClick={() => setActiveTab('usuarios')}  icon={<Users size={16}/>}      label="Usuarios"  />
-            <TabButton active={activeTab === 'tocatas'}   onClick={() => setActiveTab('tocatas')}   icon={<Calendar size={16}/>}   label="Tocatas"   />
-            <TabButton active={activeTab === 'noticias'}  onClick={() => setActiveTab('noticias')}  icon={<Newspaper size={16}/>}  label="Noticias"  />
-            <TabButton active={activeTab === 'megaphone'} onClick={() => setActiveTab('megaphone')} icon={<Megaphone size={16}/>}  label="Anuncios"  />
-          </div>
-        </header>
 
         {/* ── Stats ── */}
         {activeTab === 'stats' && (
