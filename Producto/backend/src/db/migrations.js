@@ -60,6 +60,8 @@ async function runMigrations() {
     )`,
     // Roles de usuario (admin, user)
     'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT \'user\'',
+    // Sello de verificación
+    'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS es_verificado BOOLEAN DEFAULT false',
     // Tabla de tickets (si no existe)
     `CREATE TABLE IF NOT EXISTS tickets (
       id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
