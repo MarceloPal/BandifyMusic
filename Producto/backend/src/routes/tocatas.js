@@ -26,6 +26,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
       `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.ciudad, t.direccion,
               t.genero, t.lat, t.lng, t.created_at,
               t.afiche_url, t.contacto_email,
+              t.precio, t.cantidad_disponible,
               u.id AS organizador_id, u.nombre AS organizador_nombre,
               u.email AS organizador_email
        FROM tocatas t
@@ -37,21 +38,6 @@ router.get('/', authMiddleware, async (req, res, next) => {
 
     res.json(resultado.rows);
   } catch (error) {
-    // Si afiche_url o contacto_email no existen aún, fallback sin ellas
-    if (error.code === '42703') {
-      try {
-        const resultado = await pool.query(
-          `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.ciudad, t.direccion,
-                  t.genero, t.lat, t.lng, t.created_at,
-                  NULL AS afiche_url, NULL AS contacto_email,
-                  u.id AS organizador_id, u.nombre AS organizador_nombre,
-                  u.email AS organizador_email
-           FROM tocatas t JOIN usuarios u ON u.id = t.organizador_id
-           ORDER BY t.fecha ASC`
-        );
-        return res.json(resultado.rows);
-      } catch (e2) { return next(e2); }
-    }
     next(error);
   }
 });
@@ -175,6 +161,7 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
       `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.ciudad, t.direccion,
               t.genero, t.lat, t.lng, t.created_at,
               t.afiche_url, t.contacto_email,
+              t.precio, t.cantidad_disponible,
               u.id AS organizador_id, u.nombre AS organizador_nombre,
               u.email AS organizador_email, u.instrumento AS organizador_instrumento
        FROM tocatas t
