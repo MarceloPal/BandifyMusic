@@ -44,7 +44,11 @@ export default function Auth() {
     },
     onSuccess: ({ isLogin: wasLogin, ...data }) => {
       login(data.token, data.usuario)
-      navigate(wasLogin ? '/mi-adn' : '/onboarding')
+      if (data.usuario?.role === 'admin') {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate(wasLogin ? '/mi-adn' : '/onboarding')
+      }
     },
     onError: (err) => setError(err.message),
   })

@@ -18,6 +18,7 @@ import ChangePassword  from './pages/ChangePassword'
 import NoticiasPage    from './pages/Noticias'
 import Admin           from './pages/Admin'
 import MainLayout      from './layouts/MainLayout'
+import AdminLayout     from './layouts/AdminLayout'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -77,14 +78,18 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings"      element={<Settings />}      />
         <Route path="/noticias"      element={<NoticiasPage />}  />
-        <Route 
-          path="/admin"         
-          element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          } 
-        />
+      </Route>
+
+      {/* Admin — layout propio, completamente fuera de MainLayout */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<Admin />} />
       </Route>
 
       {/* Catch-all */}
