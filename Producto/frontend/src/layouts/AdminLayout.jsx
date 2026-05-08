@@ -33,7 +33,7 @@ export default function AdminLayout() {
   const initials = (user?.nombre || 'AD').substring(0, 2).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex">
+    <div className="min-h-screen flex bg-zinc-950">
 
       {/* ── Overlay móvil ── */}
       {sidebarOpen && (
@@ -47,10 +47,11 @@ export default function AdminLayout() {
           Sidebar
       ══════════════════════ */}
       <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800
+        w-64 flex-shrink-0 h-screen sticky top-0 bg-gray-900 border-r border-gray-800
         flex flex-col z-30 transition-transform duration-300
-        lg:static lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+        fixed lg:static
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
 
         {/* Logo */}
@@ -119,7 +120,7 @@ export default function AdminLayout() {
       {/* ══════════════════════
           Contenido principal
       ══════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-0 min-h-screen">
 
         {/* Top bar móvil */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
@@ -141,7 +142,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Outlet — recibe activeTab y setActiveTab vía contexto */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto p-8">
           <Outlet context={{ activeTab, setActiveTab }} />
         </main>
       </div>
