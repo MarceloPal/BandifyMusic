@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../db/index');
 const authMiddleware = require('../middleware/auth');
+const { MercadoPagoConfig, Preference } = require('mercadopago');
+
+const mpClient = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
 
 const router = express.Router();
 
@@ -56,33 +59,73 @@ router.get('/', authMiddleware, async (req, res, next) => {
 // POST /tocatas
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
-    const { nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email } = req.body;
+    const { nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible } = req.body;
 
     if (!nombre || !fecha || !ciudad) {
       return res.status(400).json({ error: 'nombre, fecha y ciudad son obligatorios' });
     }
 
-    let resultado;
-    try {
-      resultado = await pool.query(
-        `INSERT INTO tocatas (organizador_id, nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING *`,
-        [req.usuario.id, nombre, descripcion || null, fecha, ciudad, direccion || null,
-         genero || null, lat || null, lng || null, afiche_url || null, contacto_email || null]
-      );
-    } catch (colErr) {
-      if (colErr.code === '42703') {
-        resultado = await pool.query(
-          `INSERT INTO tocatas (organizador_id, nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING *`,
-          [req.usuario.id, nombre, descripcion || null, fecha, ciudad, direccion || null, genero || null, lat || null, lng || null]
-        );
-      } else throw colErr;
-    }
+    const resultado = await pool.query(
+      `INSERT INTO tocatas (organizador_id, nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING *`,
+      [req.usuario.id, nombre, descripcion || null, fecha, ciudad, direccion || null,
+       genero || null, lat || null, lng || null, afiche_url || null, contacto_email || null,
+       precio ? Number(precio) : null, cantidad_disponible ? parseInt(cantidad_disponible) : null]
+    );
 
     res.status(201).json(resultado.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /tocatas/:id/checkout — genera preferencia de pago MercadoPago
+router.post('/:id/checkout', authMiddleware, async (req, res, next) => {
+  try {
+    const { cantidad = 1 } = req.body;
+    const qty = Math.max(1, parseInt(cantidad) || 1);
+
+    const resultado = await pool.query(
+      `SELECT t.id, t.nombre, t.precio, t.cantidad_disponible,
+              u.nombre AS organizador_nombre
+       FROM tocatas t
+       JOIN usuarios u ON u.id = t.organizador_id
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+
+    if (resultado.rows.length === 0) return res.status(404).json({ error: 'Tocata no encontrada' });
+
+    const tocata = resultado.rows[0];
+
+    if (!tocata.precio) return res.status(400).json({ error: 'Esta tocata no tiene entradas a la venta' });
+
+    if (tocata.cantidad_disponible !== null && qty > tocata.cantidad_disponible) {
+      return res.status(400).json({ error: `Solo quedan ${tocata.cantidad_disponible} entradas disponibles` });
+    }
+
+    const preference = new Preference(mpClient);
+    const response = await preference.create({
+      body: {
+        items: [{
+          id: tocata.id,
+          title: `Entrada: ${tocata.nombre}`,
+          quantity: qty,
+          unit_price: parseFloat(tocata.precio),
+          currency_id: 'CLP',
+        }],
+        back_urls: {
+          success:  `${process.env.FRONTEND_URL}/tocatas?pago=exitoso`,
+          failure:  `${process.env.FRONTEND_URL}/tocatas?pago=error`,
+          pending:  `${process.env.FRONTEND_URL}/tocatas?pago=pendiente`,
+        },
+        auto_return: 'approved',
+        external_reference: tocata.id,
+      },
+    });
+
+    res.json({ init_point: response.init_point });
   } catch (error) {
     next(error);
   }

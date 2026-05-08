@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X,
@@ -302,8 +302,31 @@ function TocataDetailModal({ tocata, onClose }) {
   const queryClient = useQueryClient()
   const { url: afficheUrl } = useImageUrl(tocata.afiche_url ?? null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [cantidad, setCantidad]                 = useState(1)
+  const [checkoutLoading, setCheckoutLoading]   = useState(false)
+  const [checkoutError, setCheckoutError]       = useState('')
 
   const isOrganizador = user?.id && tocata.organizador_id === user.id
+  const tieneEntradas = tocata.precio != null && Number(tocata.precio) > 0
+
+  const handleComprar = async () => {
+    setCheckoutError('')
+    setCheckoutLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/tocatas/${tocata.id}/checkout`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ cantidad }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setCheckoutError(data.error || 'Error al generar el pago'); return }
+      window.open(data.init_point, '_blank', 'noopener,noreferrer')
+    } catch {
+      setCheckoutError('No se pudo conectar con el servidor.')
+    } finally {
+      setCheckoutLoading(false)
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -383,10 +406,47 @@ function TocataDetailModal({ tocata, onClose }) {
             </div>
           </div>
 
-          {!isOrganizador && (
-            <a href={`/messages?to=${tocata.organizador_id}`} className="flex items-center justify-center gap-2 w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-purple-500 transition-colors">
-              <Ticket size={16} />
-              Comprar entradas
+          {!isOrganizador && tieneEntradas && (
+            <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-zinc-500 font-medium">Precio por entrada</p>
+                  <p className="text-white font-black text-xl">${Number(tocata.precio).toLocaleString('es-CL')}</p>
+                  {tocata.cantidad_disponible != null && (
+                    <p className="text-zinc-500 text-xs">{tocata.cantidad_disponible} disponibles</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCantidad((c) => Math.max(1, c - 1))}
+                    className="w-8 h-8 rounded-full bg-zinc-700 text-white font-bold text-lg flex items-center justify-center hover:bg-zinc-600 transition-colors"
+                  >−</button>
+                  <span className="text-white font-bold text-base w-5 text-center">{cantidad}</span>
+                  <button
+                    onClick={() => setCantidad((c) => tocata.cantidad_disponible != null ? Math.min(tocata.cantidad_disponible, c + 1) : c + 1)}
+                    className="w-8 h-8 rounded-full bg-zinc-700 text-white font-bold text-lg flex items-center justify-center hover:bg-zinc-600 transition-colors"
+                  >+</button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-zinc-400 text-sm px-1">
+                <span>Total</span>
+                <span className="text-white font-semibold">${(Number(tocata.precio) * cantidad).toLocaleString('es-CL')}</span>
+              </div>
+              {checkoutError && <p className="text-red-400 text-xs text-center">{checkoutError}</p>}
+              <button
+                onClick={handleComprar}
+                disabled={checkoutLoading}
+                className="flex items-center justify-center gap-2 w-full bg-[#009EE3] hover:bg-[#0087c5] disabled:opacity-60 text-white font-bold py-3.5 rounded-2xl text-sm transition-colors"
+              >
+                {checkoutLoading ? <Loader2 size={16} className="animate-spin" /> : <Ticket size={16} />}
+                {checkoutLoading ? 'Redirigiendo...' : 'Pagar con MercadoPago'}
+              </button>
+            </div>
+          )}
+
+          {!isOrganizador && !tieneEntradas && (
+            <a href={`/messages?with=${tocata.organizador_id}&nombre=${encodeURIComponent(tocata.organizador_nombre)}`} className="flex items-center justify-center gap-2 w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-purple-500 transition-colors">
+              Contactar organizador
             </a>
           )}
 
@@ -426,6 +486,7 @@ function CreateTocataModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     nombre: '', fecha: '', ciudad: '', direccion: '',
     descripcion: '', genero: '', contacto_email: '',
+    precio: '', cantidad_disponible: '',
   })
   const [afficheKey, setAfficheKey]         = useState(null)
   const [affichePreview, setAffichePreview] = useState(null)
@@ -453,7 +514,12 @@ function CreateTocataModal({ onClose, onCreated }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const body = { ...form, afiche_url: afficheKey || undefined }
+      const body = {
+        ...form,
+        afiche_url:          afficheKey || undefined,
+        precio:              form.precio              ? Number(form.precio)              : undefined,
+        cantidad_disponible: form.cantidad_disponible ? parseInt(form.cantidad_disponible) : undefined,
+      }
       const res = await fetch(`${API_URL}/tocatas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -549,6 +615,36 @@ function CreateTocataModal({ onClose, onCreated }) {
             <input type="email" value={form.contacto_email} onChange={(e) => set('contacto_email', e.target.value)} placeholder="contacto@ejemplo.com" className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
           </div>
 
+          {/* Venta de entradas */}
+          <div className="border-t border-white/8 pt-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Venta de entradas (opcional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-zinc-500 block mb-1.5">Precio por entrada (CLP)</label>
+                <input
+                  type="number" min="0" step="100"
+                  value={form.precio}
+                  onChange={(e) => set('precio', e.target.value)}
+                  placeholder="Ej: 5000"
+                  className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-zinc-500 block mb-1.5">Entradas disponibles</label>
+                <input
+                  type="number" min="1" step="1"
+                  value={form.cantidad_disponible}
+                  onChange={(e) => set('cantidad_disponible', e.target.value)}
+                  placeholder="Ej: 100"
+                  className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                />
+              </div>
+            </div>
+            {form.precio && (
+              <p className="text-zinc-500 text-xs mt-2">Los pagos se procesarán vía MercadoPago.</p>
+            )}
+          </div>
+
           {createMutation.isError && <p className="text-red-500 text-sm px-1">{createMutation.error?.message}</p>}
 
           <button type="submit" disabled={createMutation.isPending || afficheLoading} className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-purple-500 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
@@ -577,10 +673,21 @@ const TABS = [
 ══════════════════════════════════════════════ */
 
 export default function TocatasBoard({ isHome = false, limit = 6, onBack = null }) {
-  const { token } = useAuth()
+  const { token }                           = useAuth()
+  const [searchParams, setSearchParams]     = useSearchParams()
   const [selectedTocata, setSelectedTocata] = useState(null)
   const [showCreate, setShowCreate]         = useState(false)
   const [filtroActivo, setFiltroActivo]     = useState('todo')
+  const [pagoStatus, setPagoStatus]         = useState(() => searchParams.get('pago') || null)
+
+  useEffect(() => {
+    if (!pagoStatus) return
+    const t = setTimeout(() => {
+      setPagoStatus(null)
+      setSearchParams((p) => { p.delete('pago'); return p })
+    }, 5000)
+    return () => clearTimeout(t)
+  }, [pagoStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Tocatas de la comunidad:
      - isHome usa el endpoint público (sin auth) limitado a 6
@@ -633,6 +740,21 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
 
   return (
     <div className="w-full">
+
+      {/* Banner de estado de pago */}
+      {pagoStatus && (
+        <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-sm font-semibold shadow-xl border flex items-center gap-2 ${
+          pagoStatus === 'exitoso'
+            ? 'bg-green-500/15 border-green-500/30 text-green-300'
+            : pagoStatus === 'error'
+            ? 'bg-red-500/15 border-red-500/30 text-red-300'
+            : 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300'
+        }`}>
+          {pagoStatus === 'exitoso' && '¡Pago exitoso! Revisa tu email para la confirmación.'}
+          {pagoStatus === 'error'   && 'El pago no se pudo completar. Intenta de nuevo.'}
+          {pagoStatus === 'pendiente' && 'Pago pendiente de confirmación.'}
+        </div>
+      )}
 
       {/* Modals */}
       {selectedTocata && (
