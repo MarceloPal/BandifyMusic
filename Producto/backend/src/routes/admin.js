@@ -114,12 +114,29 @@ router.get('/tocatas', authMiddleware, requireAdmin, async (req, res, next) => {
 });
 
 // DELETE /api/admin/usuarios/:id
+// Usa una transacción para eliminar primero las tablas sin ON DELETE CASCADE
 router.delete('/usuarios/:id', authMiddleware, requireAdmin, async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+
+    const id = req.params.id;
+
+    // Tablas que referencian usuarios sin CASCADE automático
+    await client.query('DELETE FROM jobs       WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM audio_jobs WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM perfiles   WHERE usuario_id = $1', [id]);
+
+    // El resto tiene ON DELETE CASCADE o SET NULL definido en migrations
+    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
     res.json({ message: 'Usuario eliminado con éxito' });
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 });
 
