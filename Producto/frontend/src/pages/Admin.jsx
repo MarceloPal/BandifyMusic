@@ -7,7 +7,7 @@ import {
   Users, User, Ticket, Calendar, AlertTriangle, TrendingUp, 
   Shield, Search, Trash2, MapPin, Newspaper, Plus, Image as ImageIcon,
   CheckCircle, XCircle, Edit2, Save, X, Megaphone, Send, Link as LinkIcon,
-  CheckSquare, Square
+  CheckSquare, Square, DollarSign, Tag, Clock
 } from 'lucide-react';
 import { API_URL } from '../utils/helpers';
 
@@ -18,11 +18,13 @@ const Admin = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [tocatas, setTocatas] = useState([]);
   const [noticias, setNoticias] = useState([]);
+  const [ventasData, setVentasData] = useState({ tickets: [], resumen: { total_ventas: 0, ingresos_totales: 0 } });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   const [userSearch, setUserSearch] = useState('');
   const [tocataSearch, setTocataSearch] = useState('');
+  const [ventaSearch, setVentaSearch] = useState('');
   const [showNewsForm, setShowNewsForm] = useState(false);
   const [newNews, setNewNews] = useState({ titulo: '', contenido: '', imagen_url: '', fuente: 'Bandify' });
 
@@ -33,7 +35,7 @@ const Admin = () => {
   // Estado para notificación masiva
   const [massNotif, setMassNotif] = useState({ titulo: '', descripcion: '', link: '' });
   const [sendingNotif, setSendingNotif] = useState(false);
-  const [selectedUserIds, setSelectedUserIds] = useState([]); // Para el Megáfono
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
 
   const fetchStats = async () => {
     try {
@@ -74,6 +76,17 @@ const Admin = () => {
       if (!response.ok) throw new Error('Error al cargar noticias');
       const data = await response.json();
       setNoticias(data.articles.filter(a => a.isLocal));
+    } catch (err) { setError(err.message); }
+  };
+
+  const fetchVentas = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/ventas`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Error al cargar ventas');
+      const data = await response.json();
+      setVentasData(data);
     } catch (err) { setError(err.message); }
   };
 
@@ -152,9 +165,7 @@ const Admin = () => {
       } else {
         alert('Error al actualizar el reporte');
       }
-    } catch (err) {
-      alert('Error de conexión');
-    }
+    } catch (err) { alert('Error de conexión'); }
   };
 
   const handleCreateNews = async (e) => {
@@ -243,7 +254,7 @@ const Admin = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchStats(), fetchUsuarios(), fetchTocatas(), fetchNoticias()]);
+      await Promise.all([fetchStats(), fetchUsuarios(), fetchTocatas(), fetchNoticias(), fetchVentas()]);
       setLoading(false);
     };
     if (token) loadData();
@@ -283,6 +294,12 @@ const Admin = () => {
     (t.organizador_nombre || '').toLowerCase().includes(tocataSearch.toLowerCase())
   );
 
+  const filteredVentas = ventasData.tickets.filter(v => 
+    (v.comprador_nombre || '').toLowerCase().includes(ventaSearch.toLowerCase()) ||
+    (v.evento_nombre || '').toLowerCase().includes(ventaSearch.toLowerCase()) ||
+    (v.categoria || '').toLowerCase().includes(ventaSearch.toLowerCase())
+  );
+
   return (
     <div className="p-6 space-y-8 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -299,12 +316,13 @@ const Admin = () => {
           <TabButton active={activeTab === 'usuarios'} onClick={() => setActiveTab('usuarios')} icon={<Users size={16}/>} label="Usuarios" />
           <TabButton active={activeTab === 'tocatas'} onClick={() => setActiveTab('tocatas')} icon={<Calendar size={16}/>} label="Tocatas" />
           <TabButton active={activeTab === 'noticias'} onClick={() => setActiveTab('noticias')} icon={<Newspaper size={16}/>} label="Noticias" />
+          <TabButton active={activeTab === 'ventas'} onClick={() => setActiveTab('ventas')} icon={<DollarSign size={16}/>} label="Ventas" />
           <TabButton active={activeTab === 'megaphone'} onClick={() => setActiveTab('megaphone')} icon={<Megaphone size={16}/>} label="Anuncios" />
         </div>
       </header>
 
       {activeTab === 'stats' && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard title="Total Usuarios" value={totales.usuarios} icon={<Users className="w-6 h-6 text-blue-400" />} color="bg-blue-500/10" />
             <MetricCard title="Total Tocatas" value={totales.tocatas} icon={<Calendar className="w-6 h-6 text-purple-400" />} color="bg-purple-500/10" />
@@ -354,7 +372,7 @@ const Admin = () => {
       )}
 
       {activeTab === 'usuarios' && (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden">
+        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="p-6 border-b border-gray-800 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white">Gestión de Usuarios</h2>
             <div className="relative">
@@ -453,7 +471,7 @@ const Admin = () => {
       )}
 
       {activeTab === 'tocatas' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white">Explorar Tocatas</h2>
             <div className="relative">
@@ -486,7 +504,7 @@ const Admin = () => {
       )}
 
       {activeTab === 'noticias' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-white">Gestión de Noticias Locales</h2>
             <button onClick={() => setShowNewsForm(!showNewsForm)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20">{showNewsForm ? "Cerrar Editor" : "Redactar Noticia"}</button>
@@ -516,6 +534,108 @@ const Admin = () => {
         </div>
       )}
 
+      {activeTab === 'ventas' && (
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-8 rounded-3xl flex items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <DollarSign size={32} />
+              </div>
+              <div>
+                <p className="text-emerald-500/70 text-sm font-bold uppercase tracking-wider">Ingresos Totales</p>
+                <p className="text-4xl font-black text-white mt-1">
+                  ${ventasData.resumen.ingresos_totales.toLocaleString('es-CL')}
+                </p>
+              </div>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/30 p-8 rounded-3xl flex items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                <Ticket size={32} />
+              </div>
+              <div>
+                <p className="text-blue-500/70 text-sm font-bold uppercase tracking-wider">Tickets Vendidos</p>
+                <p className="text-4xl font-black text-white mt-1">
+                  {ventasData.resumen.total_ventas}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-900/50 border border-gray-800 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/20">
+              <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <Clock className="text-indigo-400" />
+                Historial de Transacciones
+              </h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                <input 
+                  type="text" 
+                  placeholder="Comprador, evento o categoría..." 
+                  value={ventaSearch}
+                  onChange={(e) => setVentaSearch(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors w-80"
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-800/50 text-gray-400 uppercase text-[10px] tracking-widest font-bold">
+                  <tr>
+                    <th className="px-6 py-5">Fecha / ID</th>
+                    <th className="px-6 py-5">Comprador</th>
+                    <th className="px-6 py-5">Evento / Categoría</th>
+                    <th className="px-6 py-5 text-right">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {filteredVentas.length > 0 ? (
+                    filteredVentas.map(v => (
+                      <tr key={v.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-5">
+                          <div className="flex flex-col">
+                            <span className="text-white font-medium">{new Date(v.fecha).toLocaleDateString('es-CL')}</span>
+                            <span className="text-[10px] text-gray-500 font-mono mt-0.5">{v.id.substring(0,8)}...</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex flex-col">
+                            <span className="text-white font-bold">{v.comprador_nombre}</span>
+                            <span className="text-xs text-gray-500">{v.comprador_email}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-indigo-300 font-medium">{v.evento_nombre}</span>
+                            <div className="flex items-center gap-1.5">
+                              <Tag size={10} className="text-gray-500" />
+                              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold uppercase tracking-tighter">
+                                {v.categoria || 'Tocata'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <span className="text-emerald-400 font-black text-lg">
+                            ${v.monto.toLocaleString('es-CL')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="py-20 text-center text-gray-500 italic bg-gray-900/10">
+                        No hay transacciones registradas que coincidan con la búsqueda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'megaphone' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
           <div className="flex flex-col gap-2">
@@ -527,132 +647,26 @@ const Admin = () => {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Columna 1: Formulario */}
             <div className="xl:col-span-1 space-y-6">
               <form onSubmit={handleSendMassNotif} className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Título del Anuncio</label>
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="Ej: ¡Actualización importante!"
-                    value={massNotif.titulo}
-                    onChange={e => setMassNotif({...massNotif, titulo: e.target.value})}
-                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Mensaje</label>
-                  <textarea 
-                    required
-                    rows={4}
-                    placeholder="Escribe aquí los detalles..."
-                    value={massNotif.descripcion}
-                    onChange={e => setMassNotif({...massNotif, descripcion: e.target.value})}
-                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none resize-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Enlace (Link)</label>
-                  <input 
-                    type="text" 
-                    placeholder="/noticias"
-                    value={massNotif.link}
-                    onChange={e => setMassNotif({...massNotif, link: e.target.value})}
-                    className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none"
-                  />
-                </div>
-
-                <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20">
-                  <p className="text-xs text-amber-200 font-bold mb-1 uppercase tracking-tighter">Destinatarios:</p>
-                  <p className="text-sm text-white font-medium">
-                    {selectedUserIds.length > 0 
-                      ? `Enviando a ${selectedUserIds.length} seleccionados` 
-                      : 'Enviando a TODOS los usuarios'}
-                  </p>
-                </div>
-
-                <button 
-                  type="submit" 
-                  disabled={sendingNotif}
-                  className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-amber-500/10 uppercase tracking-widest text-sm"
-                >
-                  {sendingNotif ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div> : <><Send size={18} /> Lanzar Mensaje</>}
-                </button>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Título</label><input required type="text" value={massNotif.titulo} onChange={e => setMassNotif({...massNotif, titulo: e.target.value})} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Mensaje</label><textarea required rows={4} value={massNotif.descripcion} onChange={e => setMassNotif({...massNotif, descripcion: e.target.value})} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none resize-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Enlace</label><input type="text" value={massNotif.link} onChange={e => setMassNotif({...massNotif, link: e.target.value})} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none" /></div>
+                <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20"><p className="text-xs text-amber-200 font-bold mb-1 uppercase tracking-tighter">Destinatarios:</p><p className="text-sm text-white font-medium">{selectedUserIds.length > 0 ? `Enviando a ${selectedUserIds.length} seleccionados` : 'Enviando a TODOS los usuarios'}</p></div>
+                <button type="submit" disabled={sendingNotif} className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-amber-500/10 uppercase tracking-widest text-sm">{sendingNotif ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div> : <><Send size={18} /> Lanzar Mensaje</>}</button>
               </form>
             </div>
-
-            {/* Columna 2: Selector de Usuarios */}
             <div className="xl:col-span-1 space-y-6">
               <div className="bg-gray-900/50 border border-gray-800 rounded-3xl flex flex-col h-[580px]">
-                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-900/20">
-                  <h3 className="text-white font-bold text-sm">Seleccionar Usuarios</h3>
-                  <button 
-                    onClick={() => setSelectedUserIds([])}
-                    className="text-[10px] uppercase font-bold text-indigo-400 hover:text-white transition-colors"
-                  >
-                    Limpiar selección
-                  </button>
-                </div>
-                <div className="p-4 border-b border-gray-800">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-3 h-3" />
-                    <input 
-                      type="text" 
-                      placeholder="Filtrar por nombre..."
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      className="w-full bg-gray-800/50 border border-gray-700 rounded-xl pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-                  {filteredUsuarios.map(u => (
-                    <div 
-                      key={u.id} 
-                      onClick={() => toggleUserSelection(u.id)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all mb-1 ${
-                        selectedUserIds.includes(u.id) ? 'bg-indigo-500/20 border border-indigo-500/30' : 'hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      {selectedUserIds.includes(u.id) ? <CheckSquare size={16} className="text-indigo-400" /> : <Square size={16} className="text-gray-600" />}
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{u.nombre}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{u.email}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-900/20"><h3 className="text-white font-bold text-sm">Seleccionar Usuarios</h3><button onClick={() => setSelectedUserIds([])} className="text-[10px] uppercase font-bold text-indigo-400 hover:text-white transition-colors">Limpiar selección</button></div>
+                <div className="p-4 border-b border-gray-800"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-3 h-3" /><input type="text" placeholder="Filtrar por nombre..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full bg-gray-800/50 border border-gray-700 rounded-xl pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-indigo-500" /></div></div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">{filteredUsuarios.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u.id)} className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all mb-1 ${selectedUserIds.includes(u.id) ? 'bg-indigo-500/20 border border-indigo-500/30' : 'hover:bg-white/5 border border-transparent'}`}>{selectedUserIds.includes(u.id) ? <CheckSquare size={16} className="text-indigo-400" /> : <Square size={16} className="text-gray-600" />}<div className="min-w-0"><p className="text-xs font-bold text-white truncate">{u.nombre}</p><p className="text-[10px] text-gray-500 truncate">{u.email}</p></div></div>))}</div>
               </div>
             </div>
-
-            {/* Columna 3: Vista Previa */}
             <div className="xl:col-span-1 space-y-6">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Vista previa final</h3>
-              <div className="bg-zinc-950 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-                <div className="flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-                    <Megaphone size={20} />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-white font-bold text-sm">{massNotif.titulo || 'Título de ejemplo'}</h4>
-                    <p className="text-zinc-400 text-xs leading-relaxed">{massNotif.descripcion || 'Aquí aparecerá el cuerpo del mensaje...'}</p>
-                    <p className="text-[10px] text-zinc-600 font-bold uppercase pt-2">Ahora mismo • SISTEMA</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-2xl space-y-4">
-                <div className="flex items-center gap-3 text-indigo-400">
-                  <Users size={18} />
-                  <span className="text-xs font-bold uppercase">Tips de uso</span>
-                </div>
-                <ul className="text-xs text-gray-500 space-y-3 list-disc pl-4">
-                  <li>Si no seleccionas a nadie, el sistema asume que quieres mandárselo a <strong>toda la comunidad</strong>.</li>
-                  <li>Puedes usar el buscador para encontrar músicos específicos rápidamente.</li>
-                  <li>Los usuarios verán un punto rojo de notificación apenas envíes el mensaje.</li>
-                </ul>
-              </div>
+              <div className="bg-zinc-950 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden group"><div className="absolute top-0 left-0 w-1 h-full bg-amber-500" /><div className="flex gap-4"><div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0"><Megaphone size={20} /></div><div className="space-y-1"><h4 className="text-white font-bold text-sm">{massNotif.titulo || 'Título de ejemplo'}</h4><p className="text-zinc-400 text-xs leading-relaxed">{massNotif.descripcion || 'Aquí aparecerá el cuerpo del mensaje...'}</p><p className="text-[10px] text-zinc-600 font-bold uppercase pt-2">Ahora mismo • SISTEMA</p></div></div></div>
+              <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-2xl space-y-4"><div className="flex items-center gap-3 text-indigo-400"><Users size={18} /><span className="text-xs font-bold uppercase">Tips de uso</span></div><ul className="text-xs text-gray-500 space-y-3 list-disc pl-4"><li>Si no seleccionas a nadie, el sistema asume que quieres mandárselo a <strong>toda la comunidad</strong>.</li><li>Puedes usar el buscador para encontrar músicos específicos rápidamente.</li><li>Los usuarios verán un punto rojo de notificación apenas envíes el mensaje.</li></ul></div>
             </div>
           </div>
         </div>
