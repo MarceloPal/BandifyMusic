@@ -5,10 +5,12 @@ import {
   CalendarDays, MapPin, Music2, Plus, X,
   Loader2, User, ChevronLeft, ChevronRight, ImagePlus, Trash2,
   Ticket, ExternalLink, Clock, Users, ArrowRight,
+  LayoutGrid, Map as MapIcon,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
+import MapaTocatas     from './MapaTocatas'
 
 /* ─── helpers ─── */
 
@@ -678,6 +680,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
   const [selectedTocata, setSelectedTocata] = useState(null)
   const [showCreate, setShowCreate]         = useState(false)
   const [filtroActivo, setFiltroActivo]     = useState('todo')
+  const [vistaPrincipal, setVistaPrincipal] = useState('carrusel') // 'carrusel' | 'mapa'
   const [pagoStatus, setPagoStatus]         = useState(() => searchParams.get('pago') || null)
 
   useEffect(() => {
@@ -764,7 +767,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         <CreateTocataModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
       )}
 
-      {/* ── Hero Slider: primero, breakout full-width, esquinas cuadradas ── */}
+      {/* ── Hero Slider: siempre visible cuando hay eventos, breakout full-width ── */}
       {eventos.length > 0 && !isLoading && (
         <div
           className="mb-8"
@@ -809,32 +812,63 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         )}
       </div>
 
-      {/* ── Tabs — solo en vista completa ── */}
+      {/* ── Fila de filtros + toggle Carrusel/Mapa — solo en vista completa ── */}
       {!isHome && (
-        <div className="flex items-center gap-2 mb-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFiltroActivo(tab.id)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                filtroActivo === tab.id
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/8'
-              }`}
-            >
-              {tab.label}
-              {tab.id === 'comunidad' && tocatas.length > 0 && (
-                <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                  {tocatas.length}
-                </span>
-              )}
-              {tab.id === 'grandes-eventos' && eventos.length > 0 && (
-                <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                  {eventos.length}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          {/* Tabs (Todo, Comunidad, Grandes Eventos) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFiltroActivo(tab.id)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                  filtroActivo === tab.id
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/8'
+                }`}
+              >
+                {tab.label}
+                {tab.id === 'comunidad' && tocatas.length > 0 && (
+                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
+                    {tocatas.length}
+                  </span>
+                )}
+                {tab.id === 'grandes-eventos' && eventos.length > 0 && (
+                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
+                    {eventos.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Toggle Carrusel / Mapa — al lado de los filtros */}
+          {(tocatas.length > 0 || eventos.length > 0) && (
+            <div className="flex bg-zinc-800 border border-white/8 rounded-xl p-1">
+              <button
+                onClick={() => setVistaPrincipal('carrusel')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  vistaPrincipal === 'carrusel'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <LayoutGrid size={13} />
+                Cuadrícula
+              </button>
+              <button
+                onClick={() => setVistaPrincipal('mapa')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  vistaPrincipal === 'mapa'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <MapIcon size={13} />
+                Mapa
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -846,8 +880,19 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         </div>
       )}
 
-      {/* ── Grilla ── */}
-      {!isLoading && gridItems.length === 0 && (
+      {/* ══════════════════════════════════════════════
+          Vista de datos: Mapa o Grilla (según vistaPrincipal)
+          - isHome siempre fuerza grilla (landing page simple)
+          - Resto de vistas respeta el toggle del usuario
+      ══════════════════════════════════════════════ */}
+
+      {/* ── Vista MAPA ── */}
+      {!isLoading && !isHome && vistaPrincipal === 'mapa' && (
+        <MapaTocatas tocatas={gridItems} />
+      )}
+
+      {/* ── Vista GRILLA: empty state ── */}
+      {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length === 0 && (
         <div className="bg-zinc-800 rounded-2xl p-10 border border-white/8 shadow-sm flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-zinc-700 flex items-center justify-center">
             <CalendarDays size={28} className="text-zinc-600" />
@@ -865,7 +910,8 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         </div>
       )}
 
-      {!isLoading && gridItems.length > 0 && (
+      {/* ── Vista GRILLA: cards ── */}
+      {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {gridItems.map((item) =>

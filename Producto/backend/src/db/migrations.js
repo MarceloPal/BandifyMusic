@@ -104,6 +104,10 @@ async function runMigrations() {
     // Tocatas con venta de entradas vía MercadoPago
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',
+    // Coordenadas geográficas para mostrar tocatas en el mapa Leaflet
+    // NUMERIC(10,7) → ~1cm de precisión, suficiente para ubicar un venue
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7)',
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7)',
     // Fix FK constraints: reemplazar sin CASCADE por con CASCADE en jobs y audio_jobs
     // (necesario para poder eliminar usuarios desde el panel de admin)
     `DO $$
