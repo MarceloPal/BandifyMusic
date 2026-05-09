@@ -26,7 +26,7 @@ export default function Auth() {
   const [view, setView]   = useState(initialView)
   const [error, setError] = useState('')
   const navigate          = useNavigate()
-  const { token, login }  = useAuth()
+  const { token, user, login } = useAuth()
 
   // ── Mutación login / registro ─────────────────────────────────────────────
   const authMutation = useMutation({
@@ -94,7 +94,11 @@ export default function Auth() {
 
   const switchTo = (v) => { setView(v); setError(''); authMutation.reset(); forgotMutation.reset(); resetMutation.reset() }
 
-  if (token && !authMutation.isSuccess) return <Navigate to="/mi-adn" replace />
+  // Si ya hay sesión y NO acabamos de hacer login en esta vista, redirigir
+  // según el rol: admin → panel admin, resto → mi-adn
+  if (token && !authMutation.isSuccess) {
+    return <Navigate to={user?.role === 'admin' ? '/admin' : '/mi-adn'} replace />
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col" style={{ position: 'relative' }}>
