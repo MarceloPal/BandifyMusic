@@ -21,8 +21,11 @@ import MainLayout      from './layouts/MainLayout'
 import AdminLayout     from './layouts/AdminLayout'
 
 function PrivateRoute({ children }) {
-  const { token } = useAuth()
-  return token ? children : <Navigate to="/auth" replace />
+  const { token, user } = useAuth()
+  if (!token) return <Navigate to="/auth" replace />
+  // Los admins NO pueden navegar la interfaz de usuario — siempre al panel admin
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />
+  return children
 }
 
 function AdminRoute({ children }) {
