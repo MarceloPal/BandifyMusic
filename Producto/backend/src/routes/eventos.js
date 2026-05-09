@@ -24,6 +24,12 @@ function mapEvento(ev) {
   const genero  = ev.classifications?.[0]?.genre?.name ?? null;
   const subgenero = ev.classifications?.[0]?.subGenre?.name ?? null;
 
+  // Coordenadas: Ticketmaster las devuelve como STRINGS — convertir y validar
+  const latRaw = venue?.location?.latitude;
+  const lngRaw = venue?.location?.longitude;
+  const lat    = latRaw != null ? Number(latRaw) : null;
+  const lng    = lngRaw != null ? Number(lngRaw) : null;
+
   return {
     id:          ev.id,
     nombre:      ev.name,
@@ -40,6 +46,9 @@ function mapEvento(ev) {
     artistas,
     genero,
     subgenero,
+    // Coordenadas para Leaflet (null si la API no las trajo o son inválidas)
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null,
   };
 }
 

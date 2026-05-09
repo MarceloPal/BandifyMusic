@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/index');
 const authMiddleware = require('../middleware/auth');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { getCoordinates } = require('../utils/geocoder');
 
 const mpClient = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
 
@@ -51,12 +52,26 @@ router.post('/', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'nombre, fecha y ciudad son obligatorios' });
     }
 
+    // Coordenadas: si el frontend ya las envía explícitas, las respetamos.
+    // Si no, intentamos geocodificar la dirección con Nominatim.
+    // El geocoder NUNCA falla → si no encuentra, devuelve { lat: null, lng: null }
+    // y la tocata se crea igual (solo no aparecerá en el mapa).
+    let latFinal = lat != null ? Number(lat) : null;
+    let lngFinal = lng != null ? Number(lng) : null;
+
+    if ((latFinal == null || lngFinal == null) && (direccion || ciudad)) {
+      const queryDir = [direccion, ciudad, 'Chile'].filter(Boolean).join(', ');
+      const coords = await getCoordinates(queryDir);
+      latFinal = coords.lat;
+      lngFinal = coords.lng;
+    }
+
     const resultado = await pool.query(
       `INSERT INTO tocatas (organizador_id, nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [req.usuario.id, nombre, descripcion || null, fecha, ciudad, direccion || null,
-       genero || null, lat || null, lng || null, afiche_url || null, contacto_email || null,
+       genero || null, latFinal, lngFinal, afiche_url || null, contacto_email || null,
        precio ? Number(precio) : null, cantidad_disponible ? parseInt(cantidad_disponible) : null]
     );
 
