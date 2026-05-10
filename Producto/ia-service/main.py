@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 import os
 import uuid
 import asyncio
+import traceback
 from dotenv import load_dotenv
 
 from models import AnalyzeRequest, AnalyzeResponse, JobStatusResponse, HealthResponse
@@ -54,7 +55,22 @@ async def process_audio_task(job_id: str, s3_key: str) -> None:
             mark_job_error(job_id, "Error guardando vector en PostgreSQL")
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        mark_job_error(job_id, f"Excepción inesperada: {str(e)}")
+        # Log COMPLETO: tipo de excepción + mensaje + traceback en stdout.
+        # str(e) puede ser vacío para ciertos errores (ej: NoBackendError de
+        # audioread sin FFmpeg). repr(e) y type(e).__name__ dan más contexto.
+        exc_type    = type(e).__name__
+        exc_repr    = repr(e)
+        exc_message = str(e) or '(sin mensaje)'
+        full_tb     = traceback.format_exc()
+
+        print(f"\n[TASK ERROR] Job {job_id} falló")
+        print(f"[TASK ERROR]   tipo:    {exc_type}")
+        print(f"[TASK ERROR]   repr:    {exc_repr}")
+        print(f"[TASK ERROR]   mensaje: {exc_message}")
+        print(f"[TASK ERROR]   traceback:\n{full_tb}")
+
+        # Mensaje persistido en DB — incluye tipo para que sea útil aún si str(e) es vacío
+        mark_job_error(job_id, f"Excepción inesperada: {exc_type}: {exc_message}")
 
 
 @app.get("/health", response_model=HealthResponse)
