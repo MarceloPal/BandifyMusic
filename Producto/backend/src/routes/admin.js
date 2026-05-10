@@ -1,240 +1,176 @@
-const express = require('express');
-const pool = require('../db/index');
-const authMiddleware = require('../middleware/auth');
-const { requireAdmin } = authMiddleware;
+const express          = require('express');
+const authMiddleware    = require('../middleware/auth');
+const { requireAdmin }  = authMiddleware;
+const adminController   = require('../controllers/adminController');
 
 const router = express.Router();
 
-// GET /api/admin/stats
-// Muestra: total de usuarios, total de tocatas, total de tickets vendidos, y registros por semana
-router.get('/stats', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    // 1. Totales simples
-    const totalUsuariosQuery = pool.query('SELECT COUNT(*) FROM usuarios');
-    const totalTocatasQuery  = pool.query('SELECT COUNT(*) FROM tocatas');
-    const totalTicketsQuery  = pool.query('SELECT COUNT(*) FROM tickets');
+// Todas las rutas de este router requieren auth + rol admin
+router.use(authMiddleware, requireAdmin);
 
-    // 2. Registros por semana (últimas 4 semanas)
-    const registrosSemanalesQuery = pool.query(`
-      SELECT
-        date_trunc('week', created_at) AS semana,
-        COUNT(*) AS cantidad
-      FROM usuarios
-      WHERE created_at >= NOW() - INTERVAL '4 weeks'
-      GROUP BY semana
-      ORDER BY semana ASC
-    `);
+/**
+ * @swagger
+ * /api/admin/stats:
+ *   get:
+ *     summary: Métricas globales del sistema
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Totales + registros semanales + reportes }
+ */
+router.get('/stats', adminController.stats);
 
-    // 3. Reportes recientes
-    const reportesQuery = pool.query(`
-      SELECT r.*, u.nombre as emisor_nombre
-      FROM reportes r
-      LEFT JOIN usuarios u ON u.id = r.emisor_id
-      ORDER BY r.created_at DESC
-      LIMIT 10
-    `);
+/**
+ * @swagger
+ * /api/admin/usuarios:
+ *   get:
+ *     summary: Lista todos los usuarios
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Lista de usuarios }
+ */
+router.get('/usuarios', adminController.listarUsuarios);
 
-    const [usuariosRes, tocatasRes, ticketsRes, registrosRes, reportesRes] = await Promise.all([
-      totalUsuariosQuery,
-      totalTocatasQuery,
-      totalTicketsQuery,
-      registrosSemanalesQuery,
-      reportesQuery
-    ]);
+/**
+ * @swagger
+ * /api/admin/usuarios/{id}:
+ *   patch:
+ *     summary: Editar campos clave de un usuario
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:        { type: string }
+ *               email:         { type: string, format: email }
+ *               role:          { type: string, enum: [user, admin] }
+ *               es_premium:    { type: boolean }
+ *               es_verificado: { type: boolean }
+ *     responses:
+ *       200: { description: Usuario actualizado }
+ *       404: { description: Usuario no encontrado }
+ */
+router.patch('/usuarios/:id', adminController.actualizarUsuario);
 
-    res.json({
-      totales: {
-        usuarios: parseInt(usuariosRes.rows[0].count),
-        tocatas: parseInt(tocatasRes.rows[0].count),
-        tickets: parseInt(ticketsRes.rows[0].count)
-      },
-      registrosSemanales: registrosRes.rows.map(r => ({
-        semana: r.semana,
-        cantidad: parseInt(r.cantidad)
-      })),
-      reportes: reportesRes.rows
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @swagger
+ * /api/admin/usuarios/{id}:
+ *   delete:
+ *     summary: Eliminar usuario (transacción con limpieza de FK)
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: Usuario eliminado }
+ */
+router.delete('/usuarios/:id', adminController.eliminarUsuario);
 
-// GET /api/admin/usuarios
-// Lista todos los usuarios con información básica
-router.get('/usuarios', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, nombre, email, role, es_premium, es_verificado, created_at, ciudad, instrumento
-      FROM usuarios
-      ORDER BY created_at DESC
-    `);
-    res.json(result.rows);
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @swagger
+ * /api/admin/tocatas:
+ *   get:
+ *     summary: Lista todas las tocatas con organizador
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Lista de tocatas }
+ */
+router.get('/tocatas', adminController.listarTocatas);
 
-// PATCH /api/admin/usuarios/:id
-// Permite al administrador editar datos clave del usuario
-router.patch('/usuarios/:id', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const { nombre, email, role, es_premium, es_verificado } = req.body;
-    
-    const result = await pool.query(
-      `UPDATE usuarios 
-       SET nombre = $1, email = $2, role = $3, es_premium = $4, es_verificado = $5
-       WHERE id = $6 RETURNING *`,
-      [nombre, email, role, es_premium, es_verificado, req.params.id]
-    );
+/**
+ * @swagger
+ * /api/admin/tocatas/{id}:
+ *   delete:
+ *     summary: Eliminar tocata
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: Tocata eliminada }
+ */
+router.delete('/tocatas/:id', adminController.eliminarTocata);
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
+/**
+ * @swagger
+ * /api/admin/reportes/{id}:
+ *   patch:
+ *     summary: Cambiar estado de un reporte
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado: { type: string, enum: [pendiente, resuelto, ignorado] }
+ *     responses:
+ *       200: { description: Reporte actualizado }
+ *       404: { description: Reporte no encontrado }
+ */
+router.patch('/reportes/:id', adminController.actualizarReporte);
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @swagger
+ * /api/admin/notificaciones-masivas:
+ *   post:
+ *     summary: Enviar notificación a todos los usuarios o a una lista
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [titulo, descripcion]
+ *             properties:
+ *               titulo:      { type: string }
+ *               descripcion: { type: string }
+ *               link:        { type: string, nullable: true }
+ *               usuario_ids:
+ *                 type: array
+ *                 items: { type: string, format: uuid }
+ *                 description: Si está vacío, envía a TODOS los usuarios
+ *     responses:
+ *       200: { description: Notificación enviada }
+ */
+router.post('/notificaciones-masivas', adminController.notificacionesMasivas);
 
-// GET /api/admin/tocatas
-// Lista todas las tocatas
-router.get('/tocatas', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const result = await pool.query(`
-      SELECT t.*, u.nombre as organizador_nombre
-      FROM tocatas t
-      LEFT JOIN usuarios u ON u.id = t.organizador_id
-      ORDER BY t.fecha DESC
-    `);
-    res.json(result.rows);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// DELETE /api/admin/usuarios/:id
-// Usa una transacción para eliminar primero las tablas sin ON DELETE CASCADE
-router.delete('/usuarios/:id', authMiddleware, requireAdmin, async (req, res, next) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const id = req.params.id;
-
-    // Tablas que referencian usuarios sin CASCADE automático
-    await client.query('DELETE FROM jobs       WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM audio_jobs WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM perfiles   WHERE usuario_id = $1', [id]);
-
-    // El resto tiene ON DELETE CASCADE o SET NULL definido en migrations
-    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
-
-    await client.query('COMMIT');
-    res.json({ message: 'Usuario eliminado con éxito' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    next(error);
-  } finally {
-    client.release();
-  }
-});
-
-// DELETE /api/admin/tocatas/:id
-router.delete('/tocatas/:id', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    await pool.query('DELETE FROM tocatas WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Tocata eliminada con éxito' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// PATCH /api/admin/reportes/:id
-// Actualiza el estado de un reporte (ej: 'resuelto', 'ignorado')
-router.patch('/reportes/:id', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const { estado } = req.body;
-    if (!estado) return res.status(400).json({ error: 'Estado es requerido' });
-
-    const result = await pool.query(
-      'UPDATE reportes SET estado = $1 WHERE id = $2 RETURNING *',
-      [estado, req.params.id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /api/admin/notificaciones-masivas
-// Envía un aviso a TODOS los usuarios registrados o a una lista seleccionada
-router.post('/notificaciones-masivas', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const { titulo, descripcion, link, usuario_ids } = req.body;
-    if (!titulo || !descripcion) {
-      return res.status(400).json({ error: 'Título y descripción son obligatorios' });
-    }
-
-    if (usuario_ids && Array.isArray(usuario_ids) && usuario_ids.length > 0) {
-      // Enviar solo a los seleccionados
-      await pool.query(`
-        INSERT INTO notificaciones (usuario_id, titulo, descripcion, tipo, link)
-        SELECT id, $1, $2, 'sistema', $3 
-        FROM usuarios 
-        WHERE id = ANY($4::uuid[])
-      `, [titulo, descripcion, link || null, usuario_ids]);
-    } else {
-      // Enviar a TODOS
-      await pool.query(`
-        INSERT INTO notificaciones (usuario_id, titulo, descripcion, tipo, link)
-        SELECT id, $1, $2, 'sistema', $3 FROM usuarios
-      `, [titulo, descripcion, link || null]);
-    }
-
-    res.json({ message: 'Notificación enviada correctamente' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET /api/admin/ventas
-// Obtiene el historial de todos los tickets vendidos con detalles de monto y categoría
-router.get('/ventas', authMiddleware, requireAdmin, async (req, res, next) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        ti.id,
-        ti.price_clp as monto,
-        ti.purchased_at as fecha,
-        u.nombre as comprador_nombre,
-        u.email as comprador_email,
-        t.nombre as evento_nombre,
-        t.genero as categoria
-      FROM tickets ti
-      JOIN usuarios u ON u.id = ti.buyer_id
-      JOIN tocatas t ON t.id = ti.event_id
-      ORDER BY ti.purchased_at DESC
-    `);
-    
-    // Calcular ingresos totales para el resumen
-    const ingresosTotales = result.rows.reduce((sum, row) => sum + (parseInt(row.monto) || 0), 0);
-    
-    res.json({
-      tickets: result.rows,
-      resumen: {
-        total_ventas: result.rowCount,
-        ingresos_totales: ingresosTotales
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @swagger
+ * /api/admin/ventas:
+ *   get:
+ *     summary: Historial de tickets vendidos + resumen
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: '{ tickets, resumen: { total_ventas, ingresos_totales } }' }
+ */
+router.get('/ventas', adminController.ventas);
 
 module.exports = router;

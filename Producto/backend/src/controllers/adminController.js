@@ -1,0 +1,246 @@
+/**
+ * Controlador del Panel de Administración.
+ * Todas las operaciones requieren rol 'admin' (verificado en el router).
+ */
+
+const pool = require('../db/index');
+
+/**
+ * GET /api/admin/stats — totales + registros semanales + reportes recientes.
+ */
+exports.stats = async (req, res, next) => {
+  try {
+    const totalUsuariosQuery = pool.query('SELECT COUNT(*) FROM usuarios');
+    const totalTocatasQuery  = pool.query('SELECT COUNT(*) FROM tocatas');
+    const totalTicketsQuery  = pool.query('SELECT COUNT(*) FROM tickets');
+
+    const registrosSemanalesQuery = pool.query(`
+      SELECT
+        date_trunc('week', created_at) AS semana,
+        COUNT(*) AS cantidad
+      FROM usuarios
+      WHERE created_at >= NOW() - INTERVAL '4 weeks'
+      GROUP BY semana
+      ORDER BY semana ASC
+    `);
+
+    const reportesQuery = pool.query(`
+      SELECT r.*, u.nombre as emisor_nombre
+      FROM reportes r
+      LEFT JOIN usuarios u ON u.id = r.emisor_id
+      ORDER BY r.created_at DESC
+      LIMIT 10
+    `);
+
+    const [usuariosRes, tocatasRes, ticketsRes, registrosRes, reportesRes] = await Promise.all([
+      totalUsuariosQuery,
+      totalTocatasQuery,
+      totalTicketsQuery,
+      registrosSemanalesQuery,
+      reportesQuery,
+    ]);
+
+    res.json({
+      totales: {
+        usuarios: parseInt(usuariosRes.rows[0].count),
+        tocatas:  parseInt(tocatasRes.rows[0].count),
+        tickets:  parseInt(ticketsRes.rows[0].count),
+      },
+      registrosSemanales: registrosRes.rows.map(r => ({
+        semana:   r.semana,
+        cantidad: parseInt(r.cantidad),
+      })),
+      reportes: reportesRes.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/usuarios — lista todos los usuarios con info básica.
+ */
+exports.listarUsuarios = async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, nombre, email, role, es_premium, es_verificado, created_at, ciudad, instrumento
+      FROM usuarios
+      ORDER BY created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/admin/usuarios/:id — admin edita campos clave del usuario.
+ */
+exports.actualizarUsuario = async (req, res, next) => {
+  try {
+    const { nombre, email, role, es_premium, es_verificado } = req.body;
+
+    const result = await pool.query(
+      `UPDATE usuarios
+       SET nombre = $1, email = $2, role = $3, es_premium = $4, es_verificado = $5
+       WHERE id = $6 RETURNING *`,
+      [nombre, email, role, es_premium, es_verificado, req.params.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/tocatas — lista todas las tocatas con organizador.
+ */
+exports.listarTocatas = async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT t.*, u.nombre as organizador_nombre
+      FROM tocatas t
+      LEFT JOIN usuarios u ON u.id = t.organizador_id
+      ORDER BY t.fecha DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/admin/usuarios/:id
+ * Transacción: limpia tablas dependientes que no tienen ON DELETE CASCADE.
+ */
+exports.eliminarUsuario = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const id = req.params.id;
+
+    // Tablas que referencian usuarios sin CASCADE automático
+    await client.query('DELETE FROM jobs       WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM audio_jobs WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM perfiles   WHERE usuario_id = $1', [id]);
+
+    // El resto tiene ON DELETE CASCADE o SET NULL definido en migrations
+    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Usuario eliminado con éxito' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * DELETE /api/admin/tocatas/:id — eliminar tocata.
+ */
+exports.eliminarTocata = async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM tocatas WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Tocata eliminada con éxito' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/admin/reportes/:id — actualizar estado del reporte.
+ */
+exports.actualizarReporte = async (req, res, next) => {
+  try {
+    const { estado } = req.body;
+    if (!estado) return res.status(400).json({ error: 'Estado es requerido' });
+
+    const result = await pool.query(
+      'UPDATE reportes SET estado = $1 WHERE id = $2 RETURNING *',
+      [estado, req.params.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Reporte no encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/admin/notificaciones-masivas
+ * Envía notificación a todos los usuarios o a una lista específica.
+ */
+exports.notificacionesMasivas = async (req, res, next) => {
+  try {
+    const { titulo, descripcion, link, usuario_ids } = req.body;
+    if (!titulo || !descripcion) {
+      return res.status(400).json({ error: 'Título y descripción son obligatorios' });
+    }
+
+    if (usuario_ids && Array.isArray(usuario_ids) && usuario_ids.length > 0) {
+      // Enviar solo a los seleccionados
+      await pool.query(`
+        INSERT INTO notificaciones (usuario_id, titulo, descripcion, tipo, link)
+        SELECT id, $1, $2, 'sistema', $3
+        FROM usuarios
+        WHERE id = ANY($4::uuid[])
+      `, [titulo, descripcion, link || null, usuario_ids]);
+    } else {
+      // Enviar a TODOS
+      await pool.query(`
+        INSERT INTO notificaciones (usuario_id, titulo, descripcion, tipo, link)
+        SELECT id, $1, $2, 'sistema', $3 FROM usuarios
+      `, [titulo, descripcion, link || null]);
+    }
+
+    res.json({ message: 'Notificación enviada correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/ventas — historial de tickets con resumen de ingresos.
+ */
+exports.ventas = async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        ti.id,
+        ti.price_clp as monto,
+        ti.purchased_at as fecha,
+        u.nombre as comprador_nombre,
+        u.email as comprador_email,
+        t.nombre as evento_nombre,
+        t.genero as categoria
+      FROM tickets ti
+      JOIN usuarios u ON u.id = ti.buyer_id
+      JOIN tocatas t ON t.id = ti.event_id
+      ORDER BY ti.purchased_at DESC
+    `);
+
+    const ingresosTotales = result.rows.reduce((sum, row) => sum + (parseInt(row.monto) || 0), 0);
+
+    res.json({
+      tickets: result.rows,
+      resumen: {
+        total_ventas:     result.rowCount,
+        ingresos_totales: ingresosTotales,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
