@@ -11,6 +11,7 @@ import { useAuth }        from '../context/AuthContext'
 import { API_URL, getInitials }        from '../utils/helpers'
 import { parseVector, parseMetadata, deriveStats, CHROMA_LABELS, deriveMood, detectKey, suggestGenres } from '../utils/audioHelpers'
 import { useImageUrl }    from '../hooks/useImageUrl'
+import { useProgressMessage } from '../hooks/useProgressMessage'
 import PremiumModal           from '../components/PremiumModal'
 import AudioAnalysisLoader    from '../components/AudioAnalysisLoader'
 import ProfileDrawer          from '../components/ProfileDrawer'
@@ -185,21 +186,6 @@ const MAX_FILE_MB    = 60
 const MAX_FILE_SIZE  = MAX_FILE_MB * 1024 * 1024
 const HIFI_THRESHOLD = 20 * 1024 * 1024   // archivos > 20 MB muestran aviso hi-fi
 
-function useProgressMessage(isActive) {
-  const [secs, setSecs] = useState(0)
-  useEffect(() => {
-    if (!isActive) { setSecs(0); return }
-    const t = setInterval(() => setSecs((s) => s + 1), 1000)
-    return () => clearInterval(t)
-  }, [isActive])
-
-  if (!isActive) return { text: '', sub: '', secs: 0 }
-  if (secs < 6)  return { text: 'Subiendo archivo...', sub: 'Transfiriendo a la nube', secs }
-  if (secs < 18) return { text: 'Descargando audio...', sub: 'El servicio de IA está obteniendo el archivo de S3', secs }
-  if (secs < 38) return { text: 'Analizando segmentos...', sub: 'Procesando MFCCs, Chroma y HPSS en 3 ventanas', secs }
-  if (secs < 58) return { text: 'Calculando ADN musical...', sub: 'Aplicando votación y promediando segmentos ganadores', secs }
-  return           { text: 'Finalizando análisis...', sub: 'Casi listo — guardando resultados', secs }
-}
 
 /* ─── main page ─── */
 
@@ -214,7 +200,6 @@ function SimpleView({ stats }) {
   const bpmLabel      = stats.bpm < 80 ? 'Lento' : stats.bpm < 110 ? 'Moderado' : stats.bpm < 140 ? 'Rápido' : 'Muy rápido'
   const colorLabel    = labelFromRange(stats.brillo, 33, 66, ['Cálido', 'Neutro', 'Brillante'])
   const energiaLabel  = labelFromRange(stats.energia, 33, 66, ['Suave', 'Moderada', 'Intensa'])
-  const densidadLabel = labelFromRange(stats.densidadRitmica, 33, 66, ['Fluida', 'Pulsante', 'Densa'])
   const melodiaLabel  = stats.harmonyPct > stats.percussivePct + 20
     ? 'Melódico' : stats.percussivePct > stats.harmonyPct + 20 ? 'Percusivo' : 'Balanceado'
   const armoniaLabel  = labelFromRange(stats.riquezaArmonica, 33, 66, ['Minimalista', 'Armónico', 'Rico en notas'])
@@ -318,8 +303,7 @@ export default function MiAdn() {
 
   /* cover upload state */
   const coverInputRef   = useRef(null)
-  const [activeCoverId, setActiveCoverId]     = useState(null)  // demo whose cover is being changed
-  const [coverUploading, setCoverUploading]   = useState(null)  // demo id while uploading
+  const [activeCoverId, setActiveCoverId]     = useState(null)  // demo cuyo cover se sube actualmente
 
   /* repertoire */
   const [selectedDemoId, setSelectedDemoId] = useState(null)
@@ -469,7 +453,6 @@ export default function MiAdn() {
 
   const handleCoverFile = async (file) => {
     if (!file || !activeCoverId) return
-    setCoverUploading(activeCoverId)
     try {
       const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
       const urlRes = await fetch(
@@ -486,7 +469,6 @@ export default function MiAdn() {
       queryClient.invalidateQueries({ queryKey: ['demos'] })
       queryClient.invalidateQueries({ queryKey: ['image-url', key] })
     } finally {
-      setCoverUploading(null)
       setActiveCoverId(null)
     }
   }
@@ -506,7 +488,6 @@ export default function MiAdn() {
   const handleReset = ()  => { setJobId(null); uploadMutation.reset(); setShowUploader(true); setFileError('') }
 
   const isProcessing = uploadMutation.isPending || jobData?.status === 'processing'
-  const isDone       = jobData?.status === 'done'
   const isError      = jobData?.status === 'error' || uploadMutation.isError
   const isLimitError = uploadMutation.error?.code === 'DEMO_LIMIT_REACHED'
 

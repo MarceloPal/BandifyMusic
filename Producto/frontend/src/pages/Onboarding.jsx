@@ -7,6 +7,7 @@ import { API_URL } from '../utils/helpers'
 import { OFICIOS, TAG_OPTIONS } from '../utils/audioHelpers'
 import Stepper, { Step } from '../components/Stepper'
 import SoftAurora from '../components/SoftAurora'
+import { useProgressMessage } from '../hooks/useProgressMessage'
 
 const MAX_FILE_MB   = 60
 const MAX_FILE_SIZE = MAX_FILE_MB * 1024 * 1024
@@ -19,22 +20,6 @@ const AUDIO_MIME = {
   m4a:  'audio/mp4',
   flac: 'audio/flac',
   alac: 'audio/mp4',
-}
-
-function useProgressMessage(isActive) {
-  const [secs, setSecs] = useState(0)
-  useEffect(() => {
-    if (!isActive) { setSecs(0); return }
-    const t = setInterval(() => setSecs((s) => s + 1), 1000)
-    return () => clearInterval(t)
-  }, [isActive])
-
-  if (!isActive) return { text: '', sub: '' }
-  if (secs < 6)  return { text: 'Subiendo archivo...', sub: 'Transfiriendo a la nube' }
-  if (secs < 18) return { text: 'Descargando audio...', sub: 'El servicio de IA está obteniendo el archivo de S3' }
-  if (secs < 38) return { text: 'Analizando segmentos...', sub: 'Procesando MFCCs, Chroma y HPSS en 3 ventanas' }
-  if (secs < 58) return { text: 'Calculando ADN musical...', sub: 'Aplicando votación y promediando segmentos ganadores' }
-  return           { text: 'Finalizando análisis...', sub: 'Casi listo — guardando resultados' }
 }
 
 /** Pill-style multi-select tag button */
@@ -165,7 +150,10 @@ export default function Onboarding() {
         })
         const data = await res.json()
         if (res.ok) updateUser(data)
-      } catch (_) {}
+      } catch {
+        // Silencio intencional: el guardado del perfil es best-effort.
+        // Si falla la red, el usuario puede reintentar desde su perfil.
+      }
     }
     navigate('/mi-adn')
   }

@@ -3,12 +3,16 @@
  * superar el límite de 3 demos activos.
  */
 
-import { Sparkles, X, Zap, Infinity, Star } from 'lucide-react'
+// `Infinity` se renombra a `InfinityIcon` para no pisar el global Infinity de JS.
+import { Sparkles, X, Zap, Infinity as InfinityIcon, Star } from 'lucide-react'
 
+// Usamos `Icon` capitalizado directamente como key del objeto:
+// así el destructure `{ Icon, text }` no requiere alias y el linter detecta
+// el uso en JSX (`<Icon ...>`) sin marcar falsos positivos de "unused var".
 const BENEFITS = [
-  { icon: Infinity, text: 'Demos ilimitados en tu repertorio' },
-  { icon: Zap,      text: 'Análisis de audio prioritario' },
-  { icon: Star,     text: 'Destacado en resultados de Explorar' },
+  { Icon: InfinityIcon, text: 'Demos ilimitados en tu repertorio' },
+  { Icon: Zap,          text: 'Análisis de audio prioritario' },
+  { Icon: Star,         text: 'Destacado en resultados de Explorar' },
 ]
 
 export default function PremiumModal({ onClose }) {
@@ -48,7 +52,7 @@ export default function PremiumModal({ onClose }) {
 
           {/* Benefits */}
           <div className="flex flex-col gap-3 mb-7">
-            {BENEFITS.map(({ icon: Icon, text }) => (
+            {BENEFITS.map(({ Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center flex-shrink-0">
                   <Icon size={14} className="text-yellow-600" />
