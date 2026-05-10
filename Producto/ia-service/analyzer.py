@@ -218,8 +218,14 @@ def extract_segments_librosa(path: str) -> Optional[Tuple[List[np.ndarray], int]
         )
         segments = list(np.array_split(audio_data, 3))
         return segments, sr
-    except (OSError, ValueError) as exc:
-        print(f"[LIBROSA ERROR] No se pudo decodificar '{path}': {exc}")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        # Atrapa TODO: OSError, ValueError, NoBackendError de audioread, RuntimeError, etc.
+        # Caso típico: librosa hace fallback a audioread para .m4a/.mp3, y audioread
+        # necesita FFmpeg en el sistema. Sin FFmpeg, lanza NoBackendError sin mensaje.
+        exc_type = type(exc).__name__
+        exc_msg  = str(exc) or repr(exc) or '(sin mensaje)'
+        print(f"[LIBROSA ERROR] {exc_type} al decodificar '{path}': {exc_msg}")
+        print("[LIBROSA HINT] Si es .m4a/.mp3/.ogg, verifica que FFmpeg esté instalado en el sistema.")
         return None
 
 

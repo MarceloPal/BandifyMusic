@@ -1,0 +1,30 @@
+# Virtualenv local (se reinstala dentro del container con pip)
+venv/
+.venv/
+
+# Cache y artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Variables de entorno locales (Railway/Render las inyecta en runtime)
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# Docs y dev
+README.md
+*.md
