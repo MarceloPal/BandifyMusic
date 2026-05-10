@@ -20,8 +20,8 @@ const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
 function SectionHeader({ children }) {
   return (
     <div className="mb-4">
-      <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-[0.25em] flex items-center gap-2">
-        <span className="text-zinc-700">//</span>
+      <p className="text-zinc-500 text-[11px] uppercase tracking-[0.25em] flex items-center gap-2">
+        <span className="text-zinc-700 font-mono">//</span>
         <span className="text-zinc-300 font-bold">{children}</span>
       </p>
       <div className="h-px bg-zinc-800 mt-2" />
@@ -146,7 +146,10 @@ export default function Profile() {
   const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
 
   return (
-    <div className="-mx-6 -mt-8 min-h-screen bg-black pb-20">
+    // MainLayout añade /profile a FULL_BLEED_ROUTES → este div ocupa el ancho
+    // total de la ventana. No usamos negative margins; el negro fluye directo
+    // hasta los bordes de la pantalla.
+    <div className="min-h-screen w-full bg-black pb-20">
 
       {/* Hidden inputs */}
       <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
@@ -172,7 +175,7 @@ export default function Profile() {
         <button
           onClick={() => bannerInputRef.current?.click()}
           disabled={bannerUploading}
-          className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] font-mono uppercase tracking-widest hover:border-purple-500 hover:text-purple-400"
+          className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] uppercase tracking-widest hover:border-purple-500 hover:text-purple-400"
         >
           {bannerUploading ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
           Cambiar banner
@@ -199,7 +202,7 @@ export default function Profile() {
             {photoUrl ? (
               <img src={photoUrl} alt={user.nombre} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl font-mono">
+              <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl">
                 {getInitials(user.nombre)}
               </div>
             )}
@@ -217,13 +220,13 @@ export default function Profile() {
                 {user.nombre}
               </h1>
               {user.es_premium && (
-                <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-widest">
+                <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
                   ✦ Premium
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] font-mono uppercase tracking-widest text-zinc-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] uppercase tracking-widest text-zinc-500">
               {oficioUser.length > 0 && (
                 <span className="text-zinc-300">{oficioUser.join(' · ')}</span>
               )}
@@ -233,14 +236,14 @@ export default function Profile() {
                   {user.ciudad}
                 </span>
               )}
-              <span className="text-zinc-700">ID://{user.id?.slice(0, 8) ?? '────────'}</span>
+              <span className="text-zinc-700 font-mono">ID://{user.id?.slice(0, 8) ?? '────────'}</span>
             </div>
           </div>
 
           {/* Botón editar — borde sólido, sin fondo */}
           <button
             onClick={() => navigate('/settings')}
-            className="flex-shrink-0 flex items-center gap-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] font-mono uppercase tracking-widest font-bold transition-colors"
+            className="flex-shrink-0 flex items-center gap-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors"
           >
             <Edit3 size={12} />
             Editar perfil
@@ -249,9 +252,11 @@ export default function Profile() {
       </div>
 
       {/* ══════════════════════════════════════════════
-          GRID PRINCIPAL — 3 columnas con divisores
+          GRID PRINCIPAL — 3 columnas con divisores full-bleed
+          Sin max-w para que las líneas divisoras lleguen hasta los bordes
+          de la pantalla (parte clave del look brutalista/dashboard).
       ══════════════════════════════════════════════ */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800 border-b border-zinc-800">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
 
         {/* ───────────────── COLUMNA IZQUIERDA ───────────────── */}
         <div className="p-6 flex flex-col gap-8">
@@ -259,14 +264,14 @@ export default function Profile() {
           {/* BIOGRAFÍA */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-[0.25em] flex items-center gap-2">
-                <span className="text-zinc-700">//</span>
+              <p className="text-zinc-500 text-[11px] uppercase tracking-[0.25em] flex items-center gap-2">
+                <span className="text-zinc-700 font-mono">//</span>
                 <span className="text-zinc-300 font-bold">Biografía</span>
               </p>
               {!editingBio && (
                 <button
                   onClick={() => { setBioValue(user?.bio ?? ''); setEditingBio(true) }}
-                  className="flex items-center gap-1 text-zinc-600 hover:text-purple-400 transition-colors text-[10px] font-mono uppercase tracking-widest"
+                  className="flex items-center gap-1 text-zinc-600 hover:text-purple-400 transition-colors text-[10px] uppercase tracking-widest"
                 >
                   <Pencil size={10} />
                   {user?.bio ? 'Editar' : 'Agregar'}
@@ -289,14 +294,14 @@ export default function Profile() {
                   <button
                     onClick={saveBio}
                     disabled={bioSaving}
-                    className="flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-[11px] font-bold uppercase tracking-widest transition-colors"
                   >
                     {bioSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Guardar
                   </button>
                   <button
                     onClick={() => setEditingBio(false)}
-                    className="px-4 py-1.5 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
+                    className="px-4 py-1.5 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 text-[11px] font-bold uppercase tracking-widest transition-colors"
                   >
                     Cancelar
                   </button>
@@ -305,7 +310,7 @@ export default function Profile() {
             ) : user?.bio ? (
               <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
             ) : (
-              <p className="text-zinc-600 text-sm italic font-mono">Sin biografía registrada.</p>
+              <p className="text-zinc-600 text-sm italic">Sin biografía registrada.</p>
             )}
           </section>
 
@@ -318,7 +323,7 @@ export default function Profile() {
                   {tagsUser.map((t) => (
                     <span
                       key={t}
-                      className="bg-black border border-purple-500/40 text-purple-300 px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                      className="bg-black border border-purple-500/40 text-purple-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
                     >
                       {t}
                     </span>
@@ -326,20 +331,20 @@ export default function Profile() {
                   {gens.filter((g) => !tagsUser.includes(g)).map((g) => (
                     <span
                       key={g}
-                      className="bg-black border border-zinc-700 text-zinc-500 px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                      className="bg-black border border-zinc-700 text-zinc-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
                     >
                       {g}
                     </span>
                   ))}
                 </div>
                 {gens.length > 0 && (
-                  <p className="text-zinc-700 text-[10px] font-mono mt-3 uppercase tracking-widest">
+                  <p className="text-zinc-700 text-[10px] mt-3 uppercase tracking-widest">
                     [ Tags grises = sugerencias IA Bandify ]
                   </p>
                 )}
               </>
             ) : (
-              <p className="text-zinc-600 text-sm italic font-mono">Sin tags definidos.</p>
+              <p className="text-zinc-600 text-sm italic">Sin tags definidos.</p>
             )}
           </section>
         </div>
@@ -353,10 +358,10 @@ export default function Profile() {
               <Folder size={26} className="text-zinc-700" strokeWidth={1.5} />
             </div>
             <div className="space-y-1.5">
-              <p className="text-zinc-400 text-sm font-mono uppercase tracking-widest font-bold">
+              <p className="text-zinc-400 text-sm uppercase tracking-widest font-bold">
                 Carpetas próximamente
               </p>
-              <p className="text-zinc-600 text-[11px] font-mono leading-relaxed max-w-xs">
+              <p className="text-zinc-600 text-[11px] leading-relaxed max-w-xs">
                 Aquí podrás organizar tus demos por proyecto, agrupar colaboraciones y compartir carpetas con otros músicos.
               </p>
             </div>
@@ -383,12 +388,12 @@ export default function Profile() {
                       return (
                         <li
                           key={d.id || d.s3_key || i}
-                          className={`flex items-center justify-between px-3 py-2.5 text-sm font-mono transition-colors ${
+                          className={`flex items-center justify-between px-3 py-2.5 text-sm transition-colors ${
                             isActive ? 'bg-purple-500/5 border-l-2 border-l-purple-500' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="text-zinc-700 text-[11px] flex-shrink-0">
+                            <span className="text-zinc-700 text-[11px] font-mono flex-shrink-0">
                               {String(i + 1).padStart(2, '0')}
                             </span>
                             <span className={`truncate text-[13px] ${isActive ? 'text-purple-300 font-bold' : 'text-zinc-400'}`}>
@@ -397,7 +402,7 @@ export default function Profile() {
                           </div>
                           <div className="flex items-center gap-3 text-[10px] flex-shrink-0 uppercase tracking-widest">
                             {isActive && stats?.bpm && (
-                              <span className="text-zinc-500">{stats.bpm} BPM</span>
+                              <span className="text-zinc-500 font-mono">{stats.bpm} BPM</span>
                             )}
                             {isActive && (
                               <span className="text-purple-400 font-bold">● Activo</span>
@@ -408,7 +413,7 @@ export default function Profile() {
                     })}
                   </ul>
                 ) : (
-                  <p className="text-zinc-600 text-sm italic font-mono">Cargando demos...</p>
+                  <p className="text-zinc-600 text-sm italic">Cargando demos...</p>
                 )}
 
                 {/* Reproductor del demo activo */}
@@ -470,7 +475,7 @@ export default function Profile() {
                 {/* Link a análisis completo */}
                 <Link
                   to="/mi-adn"
-                  className="mt-3 flex items-center justify-center gap-2 border border-zinc-800 hover:border-purple-500 px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-zinc-400 hover:text-purple-400 transition-colors"
+                  className="mt-3 flex items-center justify-center gap-2 border border-zinc-800 hover:border-purple-500 px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-400 hover:text-purple-400 transition-colors"
                 >
                   <BarChart2 size={11} />
                   Ver análisis completo
@@ -482,12 +487,12 @@ export default function Profile() {
                   <Upload size={18} className="text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-zinc-300 text-sm font-mono uppercase tracking-widest font-bold">Sin demos analizados</p>
-                  <p className="text-zinc-600 text-[11px] font-mono mt-1">Sube tu primer demo para activar el ADN.</p>
+                  <p className="text-zinc-300 text-sm uppercase tracking-widest font-bold">Sin demos analizados</p>
+                  <p className="text-zinc-600 text-[11px] mt-1">Sube tu primer demo para activar el ADN.</p>
                 </div>
                 <Link
                   to="/mi-adn"
-                  className="mt-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
+                  className="mt-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold uppercase tracking-widest transition-colors"
                 >
                   Subir primer demo
                 </Link>
@@ -537,7 +542,7 @@ export default function Profile() {
               </div>
             ) : (
               <div className="border border-dashed border-zinc-800 p-4">
-                <p className="text-zinc-600 text-[11px] font-mono leading-relaxed">
+                <p className="text-zinc-600 text-[11px] leading-relaxed">
                   Sin redes vinculadas.{' '}
                   <button
                     onClick={() => navigate('/settings')}
