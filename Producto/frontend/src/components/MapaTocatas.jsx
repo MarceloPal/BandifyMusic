@@ -26,45 +26,6 @@ L.Icon.Default.mergeOptions({
 const SANTIAGO_CENTER = [-33.4372, -70.6344]
 const DEFAULT_ZOOM    = 12
 
-// Mock temporal — se usa solo cuando no hay tocatas con coordenadas reales,
-// para que el componente sea visible al copiar/pegar antes de wirear el
-// backend con lat/lng reales.
-const TOCATAS_MOCK = [
-  {
-    id: 'mock-1',
-    nombre: 'Noche de Rock Latino',
-    recinto: 'Bar Loreto',
-    ciudad: 'Recoleta, Santiago',
-    fecha: '2026-05-20',
-    precio_min: 8000,
-    genero: 'Rock',
-    lat: -33.4275,
-    lng: -70.6396,
-  },
-  {
-    id: 'mock-2',
-    nombre: 'Festival Indie Santiago',
-    recinto: 'Centro Arte Alameda',
-    ciudad: 'Providencia, Santiago',
-    fecha: '2026-06-05',
-    precio_min: 12000,
-    genero: 'Indie',
-    lat: -33.4470,
-    lng: -70.6260,
-  },
-  {
-    id: 'mock-3',
-    nombre: 'Jazz Sessions',
-    recinto: 'Thelonious Bar',
-    ciudad: 'Bellavista, Santiago',
-    fecha: '2026-05-28',
-    precio_min: 6000,
-    genero: 'Jazz',
-    lat: -33.4324,
-    lng: -70.6347,
-  },
-]
-
 /**
  * Re-encuadra el mapa cuando el array de puntos cambia (filtro de género, etc.)
  */
@@ -97,14 +58,11 @@ function normalize(item) {
 
 export default function MapaTocatas({ tocatas = [] }) {
   // Filtrar solo los que tengan coordenadas válidas
-  const itemsConCoords = tocatas
+  const items  = tocatas
     .map(normalize)
     .filter(t => t.lat != null && t.lng != null)
 
-  // Fallback a mock si no hay datos reales con coords (modo demo)
-  const items       = itemsConCoords.length > 0 ? itemsConCoords : TOCATAS_MOCK
-  const usandoMock  = itemsConCoords.length === 0
-  const points      = items.map(t => [t.lat, t.lng])
+  const points = items.map(t => [t.lat, t.lng])
 
   return (
     // ⚠️ relative z-0 → crea un stacking context que CONTIENE los z-index altos
@@ -112,10 +70,10 @@ export default function MapaTocatas({ tocatas = [] }) {
     // Sin esto, el navbar sticky/fixed queda tapado por el mapa.
     <div className="relative z-0">
 
-      {/* Banner de modo demo */}
-      {usandoMock && (
-        <div className="absolute top-3 left-3 z-[1000] bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 text-[11px] font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
-          Vista demo — los eventos reales aún no tienen coordenadas
+      {/* Aviso cuando no hay eventos con coordenadas */}
+      {items.length === 0 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 border border-white/10 text-zinc-300 text-xs font-semibold px-4 py-2 rounded-full backdrop-blur-sm">
+          Aún no hay eventos con ubicación para mostrar
         </div>
       )}
 
