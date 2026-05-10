@@ -1,5 +1,8 @@
 import React, { useState, Children, useRef, useLayoutEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+// Aliasamos `motion` → `Motion` para satisfacer la regla de ESLint
+// `varsIgnorePattern: /^[A-Z_]/u` (ignora variables que empiezan con mayúscula).
+// Sin el alias, el linter no detecta el uso en `<Motion.div>` y marca falso positivo.
+import { motion as Motion, AnimatePresence } from 'motion/react';
 
 import './Stepper.css';
 
@@ -136,7 +139,7 @@ function StepContentWrapper({ isCompleted, currentStep, direction, children, cla
   const [parentHeight, setParentHeight] = useState(0);
 
   return (
-    <motion.div
+    <Motion.div
       className={className}
       style={{ position: 'relative', overflow: 'hidden' }}
       animate={{ height: isCompleted ? 0 : parentHeight }}
@@ -153,7 +156,7 @@ function StepContentWrapper({ isCompleted, currentStep, direction, children, cla
           </SlideTransition>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -165,7 +168,7 @@ function SlideTransition({ children, direction, onHeightReady }) {
   }, [children, onHeightReady]);
 
   return (
-    <motion.div
+    <Motion.div
       ref={containerRef}
       custom={direction}
       variants={stepVariants}
@@ -176,7 +179,7 @@ function SlideTransition({ children, direction, onHeightReady }) {
       style={{ position: 'absolute', left: 0, right: 0, top: 0 }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -194,13 +197,13 @@ function StepIndicator({ step, currentStep, onClickStep, disableStepIndicators }
   const status = currentStep === step ? 'active' : currentStep < step ? 'inactive' : 'complete';
 
   return (
-    <motion.div
+    <Motion.div
       onClick={() => { if (step !== currentStep && !disableStepIndicators) onClickStep(step); }}
       className="step-indicator"
       animate={status}
       initial={false}
     >
-      <motion.div
+      <Motion.div
         variants={{
           inactive: { scale: 1, backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' },
           active:   { scale: 1, backgroundColor: '#5227FF', color: '#fff' },
@@ -216,15 +219,15 @@ function StepIndicator({ step, currentStep, onClickStep, disableStepIndicators }
         ) : (
           <span className="step-number">{step}</span>
         )}
-      </motion.div>
-    </motion.div>
+      </Motion.div>
+    </Motion.div>
   );
 }
 
 function StepConnector({ isComplete }) {
   return (
     <div className="step-connector">
-      <motion.div
+      <Motion.div
         className="step-connector-inner"
         variants={{
           incomplete: { width: 0,      backgroundColor: 'transparent' },
@@ -241,7 +244,7 @@ function StepConnector({ isComplete }) {
 function CheckIcon(props) {
   return (
     <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <motion.path
+      <Motion.path
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ delay: 0.1, type: 'tween', ease: 'easeOut', duration: 0.3 }}

@@ -8,7 +8,6 @@ const FILTROS = [
   { label: 'Música',      q: 'música'      },
   { label: 'Conciertos',  q: 'conciertos'  },
   { label: 'Álbumes',     q: 'álbumes'     },
-  { label: 'Indie Chile', q: 'indie chile' },
 ]
 
 async function fetchNoticias(q) {

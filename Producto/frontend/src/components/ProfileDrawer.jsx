@@ -29,6 +29,17 @@ export default function ProfileDrawer({ musico, onClose }) {
   const [audioReady, setAudioReady] = useState(false)
   const [progress,   setProgress]   = useState(0)   // 0-100
   const [imageError, setImageError] = useState(false)
+  const [prevMusicoId, setPrevMusicoId] = useState(musico?.id)
+
+  // Reset al cambiar de músico — patrón oficial de React en lugar de useEffect.
+  // https://react.dev/learn/you-might-not-need-an-effect#resetting-all-state-when-a-prop-changes
+  if (prevMusicoId !== musico?.id) {
+    setPrevMusicoId(musico?.id)
+    setIsPlaying(false)
+    setProgress(0)
+    setAudioReady(false)
+    setImageError(false)
+  }
 
   const { url: photoUrl } = useImageUrl(musico?.foto_url ?? null)
 
@@ -58,11 +69,6 @@ export default function ProfileDrawer({ musico, onClose }) {
     el.addEventListener('ended', onEnded)
     return () => { el.removeEventListener('timeupdate', onTimeUpdate); el.removeEventListener('ended', onEnded) }
   }, [listenData?.url])
-
-  // Reset player and avatar when musico changes
-  useEffect(() => {
-    setIsPlaying(false); setProgress(0); setAudioReady(false); setImageError(false)
-  }, [musico?.id])
 
   const handlePlayPause = () => {
     const el = audioRef.current

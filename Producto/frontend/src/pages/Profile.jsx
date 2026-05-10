@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Music2, Upload, Zap, Wind, Activity, Sparkles,
   Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil,
+  Folder,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
@@ -15,6 +16,19 @@ import AudioPlayer from '../components/AudioPlayer'
 
 const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
 
+/* ─── SectionHeader técnico ─── */
+function SectionHeader({ children }) {
+  return (
+    <div className="mb-4">
+      <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-[0.25em] flex items-center gap-2">
+        <span className="text-zinc-700">//</span>
+        <span className="text-zinc-300 font-bold">{children}</span>
+      </p>
+      <div className="h-px bg-zinc-800 mt-2" />
+    </div>
+  )
+}
+
 /* ─── main component ─── */
 
 export default function Profile() {
@@ -23,9 +37,10 @@ export default function Profile() {
   const [editingBio, setEditingBio] = useState(false)
   const [bioValue, setBioValue]     = useState(user?.bio ?? '')
   const [bioSaving, setBioSaving]   = useState(false)
-  const [activeCoverKey, setActiveCoverKey] = useState(null)
+  const [activeCoverKey, setActiveCoverKey]   = useState(null)
   const [photoUploading, setPhotoUploading]   = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
+  const [demos, setDemos] = useState([])
   const photoInputRef  = useRef(null)
   const bannerInputRef = useRef(null)
 
@@ -46,15 +61,21 @@ export default function Profile() {
     return () => { cancelled = true }
   }, [user?.s3_key, token])
 
-  /* Obtiene la cover_key del demo activo buscando por s3_key */
+  /* Trae todos los demos del usuario y deriva la cover_key del activo */
   useEffect(() => {
-    if (!user?.s3_key || !token) { setActiveCoverKey(null); return }
+    if (!user?.s3_key || !token) {
+      setActiveCoverKey(null)
+      setDemos([])
+      return
+    }
     let cancelled = false
     fetch(`${API_URL}/demos`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : [])
-      .then((demos) => {
+      .then((demoList) => {
         if (cancelled) return
-        const active = demos.find((d) => d.s3_key === user.s3_key)
+        const list = Array.isArray(demoList) ? demoList : []
+        setDemos(list)
+        const active = list.find((d) => d.s3_key === user.s3_key)
         setActiveCoverKey(active?.cover_url ?? null)
       })
       .catch(() => {})
@@ -123,10 +144,9 @@ export default function Profile() {
   const tieneAnalisis = Boolean(user?.s3_key)
   const oficioUser    = Array.isArray(user?.oficio)    ? user.oficio    : []
   const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
-  const allTags       = [...tagsUser, ...gens.filter((g) => !tagsUser.includes(g))]
 
   return (
-    <div className="-mx-6 -mt-8 min-h-screen pb-16">
+    <div className="-mx-6 -mt-8 min-h-screen bg-black pb-20">
 
       {/* Hidden inputs */}
       <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
@@ -134,129 +154,149 @@ export default function Profile() {
       <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
         onChange={(e) => handleBannerUpload(e.target.files[0])} />
 
-      {/* ── Banner full-width ── */}
-      <div className="relative w-full h-52 group/banner">
-        {/* Fondo del banner */}
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-900 to-zinc-900 overflow-hidden">
-          {bannerUrl && (
-            <img src={bannerUrl} alt="banner" className="w-full h-full object-cover opacity-70" />
-          )}
-        </div>
-        {/* Fade hacia abajo */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
+      {/* ══════════════════════════════════════════════
+          BANNER — full-width, gradiente morado oscuro → negro
+      ══════════════════════════════════════════════ */}
+      <div className="relative w-full h-56 group/banner overflow-hidden bg-gradient-to-b from-purple-950 via-zinc-950 to-black">
+        {bannerUrl && (
+          <img src={bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity" />
+        )}
+        {/* Líneas técnicas decorativas */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: 'linear-gradient(to right, rgba(168,85,247,0.05) 1px, transparent 1px)',
+          backgroundSize: '40px 100%',
+        }} />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-800" />
+
         {/* Botón cambiar banner */}
         <button
           onClick={() => bannerInputRef.current?.click()}
           disabled={bannerUploading}
-          className="absolute top-3 right-3 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-white text-xs font-semibold border border-white/20 hover:bg-black/70"
+          className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] font-mono uppercase tracking-widest hover:border-purple-500 hover:text-purple-400"
         >
-          {bannerUploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+          {bannerUploading ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
           Cambiar banner
         </button>
+
+        {/* Etiqueta esquina sup-izq estilo expediente */}
+        <div className="absolute top-4 left-6 text-zinc-600 text-[10px] font-mono uppercase tracking-[0.3em]">
+          // perfil_de_usuario.bandify
+        </div>
       </div>
 
-      {/* ── Franja de identidad (rompe la línea del banner) ── */}
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="flex items-end justify-between gap-4 -mt-14 pb-5">
-          <div className="flex items-end gap-4 min-w-0 flex-1">
-            {/* Avatar */}
-            <button
-              onClick={() => photoInputRef.current?.click()}
-              disabled={photoUploading}
-              className="group/avatar relative w-24 h-24 rounded-full overflow-hidden border-4 border-zinc-900 shadow-2xl focus:outline-none flex-shrink-0 z-10"
-            >
-              {photoUrl ? (
-                <img src={photoUrl} alt={user.nombre} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-purple-500 to-violet-700 flex items-center justify-center text-white font-bold text-3xl">
-                  {getInitials(user.nombre)}
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
-                {photoUploading
-                  ? <Loader2 size={18} className="text-white animate-spin" />
-                  : <Camera size={18} className="text-white" />}
-              </div>
-            </button>
+      {/* ══════════════════════════════════════════════
+          FRANJA DE IDENTIDAD
+      ══════════════════════════════════════════════ */}
+      <div className="border-b border-zinc-800 bg-zinc-950">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-end gap-5">
 
-            {/* Nombre + oficio + ciudad */}
-            <div className="pb-1 min-w-0 flex-1 pt-16">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-white text-2xl font-black tracking-tight leading-none">
-                  {user.nombre}
-                </h1>
-                {user.es_premium && (
-                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    ✦ Premium
-                  </span>
-                )}
+          {/* Avatar cuadrado con borde técnico */}
+          <button
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoUploading}
+            className="group/avatar relative w-28 h-28 -mt-16 overflow-hidden border-2 border-zinc-700 hover:border-purple-500 bg-zinc-900 focus:outline-none flex-shrink-0 transition-colors z-10"
+          >
+            {photoUrl ? (
+              <img src={photoUrl} alt={user.nombre} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl font-mono">
+                {getInitials(user.nombre)}
               </div>
+            )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+              {photoUploading
+                ? <Loader2 size={20} className="text-purple-400 animate-spin" />
+                : <Camera size={20} className="text-purple-400" />}
+            </div>
+          </button>
+
+          {/* Nombre + roles + ciudad */}
+          <div className="flex-1 min-w-0 pb-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-white text-3xl md:text-4xl font-black uppercase tracking-tight leading-none">
+                {user.nombre}
+              </h1>
+              {user.es_premium && (
+                <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-widest">
+                  ✦ Premium
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] font-mono uppercase tracking-widest text-zinc-500">
               {oficioUser.length > 0 && (
-                <p className="text-zinc-400 text-sm mt-0.5">
-                  {oficioUser.join(' · ')}
-                </p>
+                <span className="text-zinc-300">{oficioUser.join(' · ')}</span>
               )}
               {user.ciudad && (
-                <p className="flex items-center gap-1 mt-0.5 text-zinc-500 text-xs">
-                  <MapPin size={10} /> {user.ciudad}
-                </p>
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={11} />
+                  {user.ciudad}
+                </span>
               )}
+              <span className="text-zinc-700">ID://{user.id?.slice(0, 8) ?? '────────'}</span>
             </div>
           </div>
 
-          {/* Botón editar */}
+          {/* Botón editar — borde sólido, sin fondo */}
           <button
             onClick={() => navigate('/settings')}
-            className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-semibold transition-colors"
+            className="flex-shrink-0 flex items-center gap-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] font-mono uppercase tracking-widest font-bold transition-colors"
           >
-            <Edit3 size={13} />
+            <Edit3 size={12} />
             Editar perfil
           </button>
         </div>
       </div>
 
-      {/* ── Contenido en dos columnas ── */}
-      <div className="max-w-5xl mx-auto px-6 mt-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ══════════════════════════════════════════════
+          GRID PRINCIPAL — 3 columnas con divisores
+      ══════════════════════════════════════════════ */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800 border-b border-zinc-800">
 
-        {/* ── Columna izquierda ── */}
-        <div className="flex flex-col gap-4">
+        {/* ───────────────── COLUMNA IZQUIERDA ───────────────── */}
+        <div className="p-6 flex flex-col gap-8">
 
-          {/* Sobre mí */}
-          <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Sobre mí</p>
+          {/* BIOGRAFÍA */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-[0.25em] flex items-center gap-2">
+                <span className="text-zinc-700">//</span>
+                <span className="text-zinc-300 font-bold">Biografía</span>
+              </p>
               {!editingBio && (
                 <button
                   onClick={() => { setBioValue(user?.bio ?? ''); setEditingBio(true) }}
-                  className="flex items-center gap-1 text-zinc-600 hover:text-zinc-300 transition-colors text-xs"
+                  className="flex items-center gap-1 text-zinc-600 hover:text-purple-400 transition-colors text-[10px] font-mono uppercase tracking-widest"
                 >
-                  <Pencil size={11} />
+                  <Pencil size={10} />
                   {user?.bio ? 'Editar' : 'Agregar'}
                 </button>
               )}
             </div>
+            <div className="h-px bg-zinc-800 -mt-2 mb-4" />
+
             {editingBio ? (
               <div className="flex flex-col gap-2">
                 <textarea
                   value={bioValue}
                   onChange={(e) => setBioValue(e.target.value)}
-                  rows={3}
+                  rows={5}
                   placeholder="Cuéntanos sobre tu música y lo que buscas..."
                   autoFocus
-                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-none"
+                  className="w-full bg-black border border-zinc-700 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-purple-500 resize-none"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={saveBio}
                     disabled={bioSaving}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
                   >
-                    {bioSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    {bioSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Guardar
                   </button>
                   <button
                     onClick={() => setEditingBio(false)}
-                    className="px-3 py-1.5 text-zinc-400 hover:text-zinc-200 text-xs font-medium rounded-lg hover:bg-white/5 transition-colors"
+                    className="px-4 py-1.5 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
                   >
                     Cancelar
                   </button>
@@ -265,164 +305,250 @@ export default function Profile() {
             ) : user?.bio ? (
               <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
             ) : (
-              <p className="text-zinc-600 text-sm italic">Sin biografía aún.</p>
+              <p className="text-zinc-600 text-sm italic font-mono">Sin biografía registrada.</p>
             )}
-          </div>
+          </section>
 
-          {/* Vibra Musical — tags + géneros IA fusionados */}
-          {allTags.length > 0 && (
-            <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Vibra Musical</p>
-              <div className="flex flex-wrap gap-1.5">
-                {tagsUser.map((t) => (
-                  <span key={t} className="bg-purple-500/15 text-purple-200 text-xs px-2.5 py-1 rounded-full border border-purple-500/30 font-semibold">
-                    #{t}
-                  </span>
-                ))}
-                {gens.filter((g) => !tagsUser.includes(g)).map((g) => (
-                  <span key={g} className="bg-white/5 text-zinc-400 text-xs px-2.5 py-1 rounded-full border border-white/10 font-medium">
-                    #{g}
-                  </span>
-                ))}
-              </div>
-              {gens.length > 0 && (
-                <p className="text-zinc-600 text-[10px] mt-2">
-                  Los tags en gris son sugeridos por la IA de Bandify.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Redes sociales */}
-          <div className="bg-zinc-800 rounded-2xl p-5 border border-white/8">
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Redes sociales</p>
-            {(user?.instagram_url || user?.spotify_url || user?.discord_url) ? (
-              <div className="flex flex-wrap gap-2">
-                {user.instagram_url && (
-                  <a href={user.instagram_url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold transition-opacity hover:opacity-75"
-                    style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}>
-                    <IgIcon /> Instagram
-                  </a>
+          {/* VIBRA MUSICAL */}
+          <section>
+            <SectionHeader>Vibra Musical</SectionHeader>
+            {(tagsUser.length > 0 || gens.length > 0) ? (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {tagsUser.map((t) => (
+                    <span
+                      key={t}
+                      className="bg-black border border-purple-500/40 text-purple-300 px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                  {gens.filter((g) => !tagsUser.includes(g)).map((g) => (
+                    <span
+                      key={g}
+                      className="bg-black border border-zinc-700 text-zinc-500 px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
+                {gens.length > 0 && (
+                  <p className="text-zinc-700 text-[10px] font-mono mt-3 uppercase tracking-widest">
+                    [ Tags grises = sugerencias IA Bandify ]
+                  </p>
                 )}
-                {user.spotify_url && (
-                  <a href={user.spotify_url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#1db954] hover:opacity-75 transition-opacity">
-                    <SpotifyIcon /> Spotify
-                  </a>
-                )}
-                {user.discord_url && (
-                  <a href={user.discord_url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold bg-[#5865f2] hover:opacity-75 transition-opacity">
-                    <DiscordIcon /> Discord
-                  </a>
-                )}
-              </div>
+              </>
             ) : (
-              <p className="text-zinc-600 text-sm italic">
-                Aún no hay redes vinculadas.{' '}
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="text-purple-400 hover:text-purple-300 transition-colors not-italic"
-                >
-                  Agrégalas en Ajustes →
-                </button>
-              </p>
+              <p className="text-zinc-600 text-sm italic font-mono">Sin tags definidos.</p>
             )}
+          </section>
+        </div>
+
+        {/* ───────────────── COLUMNA CENTRAL (NUEVA) ───────────────── */}
+        <div className="p-6">
+          <SectionHeader>Carpetas de Proyectos</SectionHeader>
+
+          <div className="border border-dashed border-zinc-800 bg-zinc-950/50 p-10 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 border border-zinc-800 flex items-center justify-center">
+              <Folder size={26} className="text-zinc-700" strokeWidth={1.5} />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-zinc-400 text-sm font-mono uppercase tracking-widest font-bold">
+                Carpetas próximamente
+              </p>
+              <p className="text-zinc-600 text-[11px] font-mono leading-relaxed max-w-xs">
+                Aquí podrás organizar tus demos por proyecto, agrupar colaboraciones y compartir carpetas con otros músicos.
+              </p>
+            </div>
+            <div className="mt-2 px-3 py-1 border border-zinc-800 text-zinc-700 text-[10px] font-mono uppercase tracking-widest">
+              [ STATUS: PENDING_DEPLOY ]
+            </div>
           </div>
         </div>
 
-        {/* ── Columna derecha: Mis Demos ── */}
-        <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/50 rounded-2xl border border-white/8 overflow-hidden shadow-lg shadow-purple-900/5 self-start">
-          <div className="p-5">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-violet-700 flex items-center justify-center shadow-md shadow-purple-900/30 flex-shrink-0">
-                  <Music2 size={16} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-bold text-sm leading-tight">Mis Demos</p>
-                  <p className="text-zinc-500 text-xs">Tu sonido analizado por IA</p>
-                </div>
-              </div>
-              {tieneAnalisis && stats && (
-                <Link
-                  to="/mi-adn"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/8 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/12 text-xs font-semibold transition-colors flex-shrink-0"
-                >
-                  <BarChart2 size={12} />
-                  Ver completo
-                </Link>
-              )}
-            </div>
+        {/* ───────────────── COLUMNA DERECHA ───────────────── */}
+        <div className="p-6 flex flex-col gap-8">
+
+          {/* DEMOS PUBLICADOS */}
+          <section>
+            <SectionHeader>Demos Publicados</SectionHeader>
 
             {tieneAnalisis ? (
               <>
-                {/* Reproductor — elemento central */}
-                {audioUrl ? (
-                  <div
-                    className="relative rounded-xl overflow-hidden mb-4 border border-white/8"
-                    style={activeCoverUrl ? {
-                      backgroundImage: `url(${activeCoverUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    } : {}}
-                  >
-                    {activeCoverUrl && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
-                    )}
-                    <div className={`relative z-10 p-4 ${!activeCoverUrl ? 'bg-zinc-900/80' : ''}`}>
-                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-2">Demo activo</p>
-                      <AudioPlayer key={audioUrl} src={audioUrl} />
+                {/* Tracklist */}
+                {demos.length > 0 ? (
+                  <ul className="border border-zinc-800 divide-y divide-zinc-800">
+                    {demos.map((d, i) => {
+                      const isActive = d.s3_key === user.s3_key
+                      return (
+                        <li
+                          key={d.id || d.s3_key || i}
+                          className={`flex items-center justify-between px-3 py-2.5 text-sm font-mono transition-colors ${
+                            isActive ? 'bg-purple-500/5 border-l-2 border-l-purple-500' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-zinc-700 text-[11px] flex-shrink-0">
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <span className={`truncate text-[13px] ${isActive ? 'text-purple-300 font-bold' : 'text-zinc-400'}`}>
+                              {d.nombre || 'Demo sin nombre'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] flex-shrink-0 uppercase tracking-widest">
+                            {isActive && stats?.bpm && (
+                              <span className="text-zinc-500">{stats.bpm} BPM</span>
+                            )}
+                            {isActive && (
+                              <span className="text-purple-400 font-bold">● Activo</span>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-zinc-600 text-sm italic font-mono">Cargando demos...</p>
+                )}
+
+                {/* Reproductor del demo activo */}
+                {audioUrl && (
+                  <div className="mt-4 border border-zinc-800 bg-zinc-950">
+                    <div
+                      className="relative overflow-hidden"
+                      style={activeCoverUrl ? {
+                        backgroundImage: `url(${activeCoverUrl})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      } : {}}
+                    >
+                      {activeCoverUrl && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/60" />
+                      )}
+                      <div className="relative z-10 p-4">
+                        <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-[0.25em] mb-2">
+                          // Reproduciendo
+                        </p>
+                        <AudioPlayer key={audioUrl} src={audioUrl} />
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-zinc-900/60 rounded-xl p-4 border border-white/8 mb-4 text-center">
-                    <p className="text-zinc-600 text-xs">Cargando demo...</p>
-                  </div>
                 )}
 
-                {/* Línea de resumen técnico sutil */}
+                {/* Stats técnicos del demo activo */}
                 {stats && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-zinc-400 text-sm mb-4">
+                  <div className="mt-3 grid grid-cols-2 gap-px bg-zinc-800 border border-zinc-800">
                     {mood && (
-                      <span className="flex items-center gap-1">
-                        <span style={{ color: mood.color }}>●</span>
-                        {mood.label}
-                      </span>
+                      <div className="bg-black p-2.5 flex items-center gap-2">
+                        <span className="w-2 h-2" style={{ backgroundColor: mood.color }} />
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">{mood.label}</span>
+                      </div>
                     )}
-                    {detectedKey && <span>♪ {detectedKey}</span>}
-                    <span>⏱ {stats.bpm} BPM</span>
-                    <span>⚡ {stats.energia}% Energía</span>
+                    {detectedKey && (
+                      <div className="bg-black p-2.5 flex items-center justify-between">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">Tonalidad</span>
+                        <span className="text-[11px] font-mono font-bold text-zinc-200">{detectedKey}</span>
+                      </div>
+                    )}
+                    <div className="bg-black p-2.5 flex items-center justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">BPM</span>
+                      <span className="text-[11px] font-mono font-bold text-zinc-200">{stats.bpm}</span>
+                    </div>
+                    <div className="bg-black p-2.5 flex items-center justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">Energía</span>
+                      <span className="text-[11px] font-mono font-bold text-purple-400">{stats.energia}%</span>
+                    </div>
                     {TextureIcon && (
-                      <span className="flex items-center gap-1">
-                        <TextureIcon size={13} className="text-zinc-500" />
-                        {stats.texture.label}
-                      </span>
+                      <div className="bg-black p-2.5 flex items-center gap-2 col-span-2">
+                        <TextureIcon size={12} className="text-zinc-500" />
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">{stats.texture.label}</span>
+                      </div>
                     )}
                   </div>
                 )}
 
+                {/* Link a análisis completo */}
+                <Link
+                  to="/mi-adn"
+                  className="mt-3 flex items-center justify-center gap-2 border border-zinc-800 hover:border-purple-500 px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-zinc-400 hover:text-purple-400 transition-colors"
+                >
+                  <BarChart2 size={11} />
+                  Ver análisis completo
+                </Link>
               </>
             ) : (
-              <div className="bg-zinc-900/60 rounded-xl p-6 border border-dashed border-white/10 flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-purple-500/15 flex items-center justify-center">
-                  <Upload size={20} className="text-purple-400" />
+              <div className="border border-dashed border-zinc-800 p-6 flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 border border-zinc-800 flex items-center justify-center">
+                  <Upload size={18} className="text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-zinc-200 text-sm font-semibold">Aún no analizas tu sonido</p>
-                  <p className="text-zinc-500 text-xs mt-0.5">Sube un demo para ver tu ADN musical único.</p>
+                  <p className="text-zinc-300 text-sm font-mono uppercase tracking-widest font-bold">Sin demos analizados</p>
+                  <p className="text-zinc-600 text-[11px] font-mono mt-1">Sube tu primer demo para activar el ADN.</p>
                 </div>
                 <Link
                   to="/mi-adn"
-                  className="mt-1 px-5 py-2 bg-purple-600 text-white rounded-full text-xs font-bold hover:bg-purple-500 transition-colors"
+                  className="mt-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-mono font-bold uppercase tracking-widest transition-colors"
                 >
-                  Subir mi primer demo
+                  Subir primer demo
                 </Link>
               </div>
             )}
-          </div>
+          </section>
+
+          {/* REDES SOCIALES */}
+          <section>
+            <SectionHeader>Redes Sociales</SectionHeader>
+
+            {(user?.instagram_url || user?.spotify_url || user?.discord_url) ? (
+              <div className="flex flex-wrap gap-2">
+                {user.instagram_url && (
+                  <a
+                    href={user.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Instagram"
+                    className="w-11 h-11 border border-zinc-700 hover:border-purple-500 flex items-center justify-center text-zinc-400 hover:text-purple-400 transition-colors"
+                  >
+                    <IgIcon />
+                  </a>
+                )}
+                {user.spotify_url && (
+                  <a
+                    href={user.spotify_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Spotify"
+                    className="w-11 h-11 border border-zinc-700 hover:border-purple-500 flex items-center justify-center text-zinc-400 hover:text-purple-400 transition-colors"
+                  >
+                    <SpotifyIcon />
+                  </a>
+                )}
+                {user.discord_url && (
+                  <a
+                    href={user.discord_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Discord"
+                    className="w-11 h-11 border border-zinc-700 hover:border-purple-500 flex items-center justify-center text-zinc-400 hover:text-purple-400 transition-colors"
+                  >
+                    <DiscordIcon />
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="border border-dashed border-zinc-800 p-4">
+                <p className="text-zinc-600 text-[11px] font-mono leading-relaxed">
+                  Sin redes vinculadas.{' '}
+                  <button
+                    onClick={() => navigate('/settings')}
+                    className="text-purple-400 hover:text-purple-300 transition-colors uppercase tracking-widest font-bold"
+                  >
+                    Vincular →
+                  </button>
+                </p>
+              </div>
+            )}
+          </section>
         </div>
 
       </div>
@@ -433,21 +559,21 @@ export default function Profile() {
 /* ─── Brand SVG icons ─── */
 function IgIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
     </svg>
   )
 }
 function SpotifyIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
     </svg>
   )
 }
 function DiscordIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.101 18.08.1 18.102.12 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
     </svg>
   )

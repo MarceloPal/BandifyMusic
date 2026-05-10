@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Play, Pause, Volume2, VolumeX } from 'lucide-react'
 
 /* ─── Reproductor custom dark, alineado con el theme de Bandify. ─── */
@@ -17,11 +17,15 @@ export default function AudioPlayer({ src, audioRef: externalRef, onPlay, onPaus
   const [duration, setDuration]   = useState(0)
   const [current, setCurrent]     = useState(0)
   const [muted, setMuted]         = useState(false)
+  const [prevSrc, setPrevSrc]     = useState(src)
 
-  useEffect(() => {
+  // Reset al cambiar la pista — patrón oficial recomendado en lugar de useEffect.
+  // https://react.dev/learn/you-might-not-need-an-effect#resetting-all-state-when-a-prop-changes
+  if (prevSrc !== src) {
+    setPrevSrc(src)
     setPlaying(false)
     setCurrent(0)
-  }, [src])
+  }
 
   const togglePlay = () => {
     const el = audioRef.current
