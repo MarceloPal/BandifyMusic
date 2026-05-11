@@ -19,6 +19,7 @@ const FOLDER_MAP = {
   afiche:  'afiches',
   banner:  'banners',
   anuncio: 'anuncios',   // imágenes adjuntas a notificaciones masivas (admin)
+  folder:  'folders',    // covers de las carpetas de proyectos (Épica 2)
 };
 
 const EXT_MIME = {

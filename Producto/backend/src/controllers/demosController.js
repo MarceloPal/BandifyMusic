@@ -11,13 +11,28 @@ const pool = require('../db/index');
  */
 exports.listar = async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, s3_key, nombre, cover_url, audio_vector, audio_metadata, created_at
-       FROM demos
-       WHERE usuario_id = $1 AND activo = true
-       ORDER BY created_at DESC`,
-      [req.usuario.id]
-    );
+    // folder_id incluido para que el frontend pueda mostrar a qué carpeta
+    // pertenece cada demo (o NULL si no está en ninguna carpeta)
+    let rows;
+    try {
+      ({ rows } = await pool.query(
+        `SELECT id, s3_key, nombre, cover_url, audio_vector, audio_metadata, folder_id, created_at
+         FROM demos
+         WHERE usuario_id = $1 AND activo = true
+         ORDER BY created_at DESC`,
+        [req.usuario.id]
+      ));
+    } catch (colErr) {
+      // Fallback si la migración de folder_id aún no corrió
+      if (colErr.code !== '42703') throw colErr;
+      ({ rows } = await pool.query(
+        `SELECT id, s3_key, nombre, cover_url, audio_vector, audio_metadata, NULL::uuid AS folder_id, created_at
+         FROM demos
+         WHERE usuario_id = $1 AND activo = true
+         ORDER BY created_at DESC`,
+        [req.usuario.id]
+      ));
+    }
 
     rows.forEach((r) => {
       if (r.audio_vector) {
@@ -41,7 +56,7 @@ exports.listar = async (req, res, next) => {
  */
 exports.actualizar = async (req, res, next) => {
   try {
-    const { nombre, cover_url } = req.body;
+    const { nombre, cover_url, folder_id } = req.body;
 
     const check = await pool.query(
       'SELECT id FROM demos WHERE id = $1 AND usuario_id = $2 AND activo = true',
@@ -54,12 +69,17 @@ exports.actualizar = async (req, res, next) => {
     let idx = 1;
     if (nombre    !== undefined) { campos.push(`nombre = $${idx++}`);    vals.push(nombre); }
     if (cover_url !== undefined) { campos.push(`cover_url = $${idx++}`); vals.push(cover_url); }
+    // folder_id: acepta string vacío o null para "quitar de carpeta"
+    if (folder_id !== undefined) {
+      campos.push(`folder_id = $${idx++}`);
+      vals.push(folder_id || null);
+    }
 
     if (!campos.length) return res.status(400).json({ error: 'Nada que actualizar' });
 
     vals.push(req.params.id);
     const { rows } = await pool.query(
-      `UPDATE demos SET ${campos.join(', ')} WHERE id = $${idx} RETURNING id, nombre, cover_url, created_at`,
+      `UPDATE demos SET ${campos.join(', ')} WHERE id = $${idx} RETURNING id, nombre, cover_url, folder_id, created_at`,
       vals
     );
     res.json(rows[0]);
