@@ -19,7 +19,6 @@ const FOLDER_MAP = {
   afiche:  'afiches',
   banner:  'banners',
   anuncio: 'anuncios',   // imágenes adjuntas a notificaciones masivas (admin)
-  folder:  'folders',    // covers de las carpetas de proyectos (Épica 2)
 };
 
 const EXT_MIME = {
@@ -29,7 +28,6 @@ const EXT_MIME = {
   webp: 'image/webp',
 };
 
-const ALLOWED_VIEW_PREFIXES = Object.values(FOLDER_MAP).map((f) => `${f}/`);
 
 function randomHex() {
   return crypto.randomBytes(4).toString('hex');
@@ -86,7 +84,7 @@ exports.viewUrl = async (req, res, next) => {
       return res.status(400).json({ error: "Parámetro 'key' es obligatorio." });
     }
 
-    const allowed = ALLOWED_VIEW_PREFIXES.some((prefix) => key.startsWith(prefix));
+    const ALLOWED_VIEW_PREFIXES = Object.values(FOLDER_MAP).map((f) => `${f}/`);
     if (!allowed) {
       return res.status(403).json({
         error: `La key '${key}' no corresponde a una carpeta de imagen autorizada (${ALLOWED_VIEW_PREFIXES.join(', ')}).`,

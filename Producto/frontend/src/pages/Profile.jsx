@@ -1,9 +1,8 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+﻿import { useMemo, useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Music2, Upload, Zap, Wind, Activity, Sparkles,
-  Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil,
-  Folder, Plus, X, ImagePlus,
+  Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
@@ -13,11 +12,10 @@ import {
 } from '../utils/audioHelpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import AudioPlayer from '../components/AudioPlayer'
-import GlassIcons from '../components/GlassIcons'
 
 const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
 
-/* ─── SectionHeader técnico ─── */
+/* â”€â”€â”€ SectionHeader tÃ©cnico â”€â”€â”€ */
 function SectionHeader({ children }) {
   return (
     <div className="mb-4">
@@ -29,7 +27,7 @@ function SectionHeader({ children }) {
   )
 }
 
-/* ─── main component ─── */
+/* â”€â”€â”€ main component â”€â”€â”€ */
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
@@ -43,10 +41,6 @@ export default function Profile() {
   const [demos, setDemos] = useState([])
   const photoInputRef  = useRef(null)
   const bannerInputRef = useRef(null)
-
-  // ── ÉPICA 2: Carpetas de Proyectos ──
-  const [folders, setFolders]                   = useState([])
-  const [showNewFolderModal, setShowNewFolderModal] = useState(false)
 
   const { url: photoUrl }      = useImageUrl(user?.foto_url   ?? null)
   const { url: bannerUrl }     = useImageUrl(user?.banner_url ?? null)
@@ -86,50 +80,6 @@ export default function Profile() {
     return () => { cancelled = true }
   }, [user?.s3_key, token])
 
-  /* Carpetas del usuario (Épica 2) */
-  useEffect(() => {
-    if (!token) { setFolders([]); return }
-    let cancelled = false
-    fetch(`${API_URL}/api/folders`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.ok ? r.json() : [])
-      .then((list) => {
-        if (cancelled) return
-        setFolders(Array.isArray(list) ? list : [])
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [token])
-
-  /**
-   * Asigna un demo a una carpeta (o lo desvincula con folderId=null).
-   * Actualiza el estado local sin re-fetch para que la UI responda instantáneo.
-   */
-  const assignDemoToFolder = async (demoId, folderId) => {
-    try {
-      const res = await fetch(`${API_URL}/demos/${demoId}`, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ folder_id: folderId || null }),
-      })
-      if (!res.ok) return
-      setDemos((prev) => prev.map((d) =>
-        d.id === demoId ? { ...d, folder_id: folderId || null } : d
-      ))
-      // Refrescar conteo de demos por carpeta — refetch ligero
-      const refetch = await fetch(`${API_URL}/api/folders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (refetch.ok) setFolders(await refetch.json())
-    } catch {
-      // Silencio intencional: si falla, el usuario verá que el select no cambió
-    }
-  }
-
-  /** Tras crear una carpeta nueva (desde el modal), la añadimos al state. */
-  const handleFolderCreated = (newFolder) => {
-    setFolders((prev) => [newFolder, ...prev])
-    setShowNewFolderModal(false)
-  }
 
   const saveBio = async () => {
     setBioSaving(true)
@@ -195,7 +145,7 @@ export default function Profile() {
   const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
 
   return (
-    // MainLayout añade /profile a FULL_BLEED_ROUTES → este div ocupa el ancho
+    // MainLayout aÃ±ade /profile a FULL_BLEED_ROUTES â†’ este div ocupa el ancho
     // total de la ventana. No usamos negative margins; el negro fluye directo
     // hasta los bordes de la pantalla.
     <div className="min-h-screen w-full bg-black pb-20">
@@ -206,21 +156,21 @@ export default function Profile() {
       <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
         onChange={(e) => handleBannerUpload(e.target.files[0])} />
 
-      {/* ══════════════════════════════════════════════
-          BANNER — full-width, gradiente morado oscuro → negro
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          BANNER â€” full-width, gradiente morado oscuro â†’ negro
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div className="relative w-full h-56 group/banner overflow-hidden bg-gradient-to-b from-purple-950 via-zinc-950 to-black">
         {bannerUrl && (
           <img src={bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity" />
         )}
-        {/* Líneas técnicas decorativas */}
+        {/* LÃ­neas tÃ©cnicas decorativas */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'linear-gradient(to right, rgba(168,85,247,0.05) 1px, transparent 1px)',
           backgroundSize: '40px 100%',
         }} />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-800" />
 
-        {/* Botón cambiar banner */}
+        {/* BotÃ³n cambiar banner */}
         <button
           onClick={() => bannerInputRef.current?.click()}
           disabled={bannerUploading}
@@ -232,13 +182,13 @@ export default function Profile() {
 
       </div>
 
-      {/* ══════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           FRANJA DE IDENTIDAD
-      ══════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div className="border-b border-zinc-800 bg-zinc-950">
         <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-end gap-5">
 
-          {/* Avatar cuadrado con borde técnico */}
+          {/* Avatar cuadrado con borde tÃ©cnico */}
           <button
             onClick={() => photoInputRef.current?.click()}
             disabled={photoUploading}
@@ -266,14 +216,14 @@ export default function Profile() {
               </h1>
               {user.es_premium && (
                 <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                  ✦ Premium
+                  âœ¦ Premium
                 </span>
               )}
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] uppercase tracking-widest text-zinc-500">
               {oficioUser.length > 0 && (
-                <span className="text-zinc-300">{oficioUser.join(' · ')}</span>
+                <span className="text-zinc-300">{oficioUser.join(' Â· ')}</span>
               )}
               {user.ciudad && (
                 <span className="flex items-center gap-1.5">
@@ -281,11 +231,11 @@ export default function Profile() {
                   {user.ciudad}
                 </span>
               )}
-              <span className="text-zinc-700 font-mono">ID://{user.id?.slice(0, 8) ?? '────────'}</span>
+              <span className="text-zinc-700 font-mono">ID://{user.id?.slice(0, 8) ?? 'â”€â”€â”€â”€â”€â”€â”€â”€'}</span>
             </div>
           </div>
 
-          {/* Botón editar — borde sólido, sin fondo */}
+          {/* BotÃ³n editar â€” borde sÃ³lido, sin fondo */}
           <button
             onClick={() => navigate('/settings')}
             className="flex-shrink-0 flex items-center gap-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors"
@@ -296,21 +246,21 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════
-          GRID PRINCIPAL — 3 columnas con divisores full-bleed
-          Sin max-w para que las líneas divisoras lleguen hasta los bordes
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          GRID PRINCIPAL â€” 3 columnas con divisores full-bleed
+          Sin max-w para que las lÃ­neas divisoras lleguen hasta los bordes
           de la pantalla (parte clave del look brutalista/dashboard).
-      ══════════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div className="w-full grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
 
-        {/* ───────────────── COLUMNA IZQUIERDA ───────────────── */}
+        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA IZQUIERDA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="p-6 flex flex-col gap-8">
 
-          {/* BIOGRAFÍA */}
+          {/* BIOGRAFÃA */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <p className="text-zinc-300 text-[11px] font-bold uppercase tracking-[0.25em]">
-                Biografía
+                BiografÃ­a
               </p>
               {!editingBio && (
                 <button
@@ -330,7 +280,7 @@ export default function Profile() {
                   value={bioValue}
                   onChange={(e) => setBioValue(e.target.value)}
                   rows={5}
-                  placeholder="Cuéntanos sobre tu música y lo que buscas..."
+                  placeholder="CuÃ©ntanos sobre tu mÃºsica y lo que buscas..."
                   autoFocus
                   className="w-full bg-black border border-zinc-700 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-purple-500 resize-none"
                 />
@@ -354,7 +304,7 @@ export default function Profile() {
             ) : user?.bio ? (
               <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
             ) : (
-              <p className="text-zinc-600 text-sm italic">Sin biografía registrada.</p>
+              <p className="text-zinc-600 text-sm italic">Sin biografÃ­a registrada.</p>
             )}
           </section>
 
@@ -393,47 +343,25 @@ export default function Profile() {
           </section>
         </div>
 
-        {/* ───────────────── COLUMNA CENTRAL: Carpetas de Proyectos ───────────────── */}
+        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA CENTRAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="p-6">
-
-          {/* Header con botón "+ Nueva Carpeta" inline */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between">
-              <p className="text-zinc-300 text-[11px] font-bold uppercase tracking-[0.25em]">
-                Carpetas de Proyectos
-              </p>
-              <button
-                onClick={() => setShowNewFolderModal(true)}
-                className="flex items-center gap-1 text-purple-400 hover:text-purple-300 text-[10px] uppercase tracking-widest font-bold transition-colors"
-              >
-                <Plus size={11} />
-                Nueva
-              </button>
+          <SectionHeader>Más herramientas</SectionHeader>
+          <div className="border border-dashed border-zinc-800 bg-zinc-950/50 p-10 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 border border-zinc-800 bg-black flex items-center justify-center">
+              <span className="text-zinc-700 font-mono text-xl tracking-widest">• •</span>
             </div>
-            <div className="h-px bg-zinc-800 mt-2" />
+            <div className="space-y-1.5">
+              <p className="text-zinc-400 text-sm uppercase tracking-widest font-bold">
+                Nuevas herramientas próximamente
+              </p>
+              <p className="text-zinc-600 text-[11px] leading-relaxed max-w-xs">
+                Este espacio se renovará con funcionalidades de perfil y gestión de demos en próximas versiones.
+              </p>
+            </div>
+          </div>
           </div>
 
-          {folders.length === 0 ? (
-            <div className="border border-dashed border-zinc-800 bg-zinc-950/50 p-8 flex flex-col items-center text-center gap-3">
-              <div className="w-12 h-12 border border-zinc-800 flex items-center justify-center">
-                <Folder size={22} className="text-zinc-700" strokeWidth={1.5} />
-              </div>
-              <p className="text-zinc-500 text-xs leading-relaxed max-w-xs">
-                Aún no tienes carpetas. Crea una para organizar tus demos por proyecto.
-              </p>
-              <button
-                onClick={() => setShowNewFolderModal(true)}
-                className="mt-1 px-4 py-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 text-[11px] uppercase tracking-widest font-bold transition-colors"
-              >
-                Crear primera carpeta
-              </button>
-            </div>
-          ) : (
-            <FoldersGrid folders={folders} />
-          )}
-        </div>
-
-        {/* ───────────────── COLUMNA DERECHA ───────────────── */}
+        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA DERECHA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="p-6 flex flex-col gap-8">
 
           {/* DEMOS PUBLICADOS */}
@@ -462,27 +390,12 @@ export default function Profile() {
                               {d.nombre || 'Demo sin nombre'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] flex-shrink-0 uppercase tracking-widest">
-                            {/* Selector de carpeta — solo aparece si hay carpetas creadas */}
-                            {folders.length > 0 && (
-                              <select
-                                value={d.folder_id || ''}
-                                onChange={(e) => assignDemoToFolder(d.id, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                title="Asignar a carpeta"
-                                className="bg-zinc-900 border border-zinc-800 hover:border-purple-500 text-zinc-400 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-none focus:outline-none cursor-pointer max-w-[110px] truncate"
-                              >
-                                <option value="">Sin carpeta</option>
-                                {folders.map((f) => (
-                                  <option key={f.id} value={f.id}>{f.nombre}</option>
-                                ))}
-                              </select>
-                            )}
+                          <div className="flex items-center gap-3 text-[10px] flex-shrink-0 uppercase tracking-widest">
                             {isActive && stats?.bpm && (
                               <span className="text-zinc-500 font-mono">{stats.bpm} BPM</span>
                             )}
                             {isActive && (
-                              <span className="text-purple-400 font-bold">● Activo</span>
+                              <span className="text-purple-400 font-bold">â— Activo</span>
                             )}
                           </div>
                         </li>
@@ -517,7 +430,7 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Stats técnicos del demo activo */}
+                {/* Stats tÃ©cnicos del demo activo */}
                 {stats && (
                   <div className="mt-3 grid grid-cols-2 gap-px bg-zinc-800 border border-zinc-800">
                     {mood && (
@@ -537,7 +450,7 @@ export default function Profile() {
                       <span className="text-[11px] font-mono font-bold text-zinc-200">{stats.bpm}</span>
                     </div>
                     <div className="bg-black p-2.5 flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">Energía</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">EnergÃ­a</span>
                       <span className="text-[11px] font-mono font-bold text-purple-400">{stats.energia}%</span>
                     </div>
                     {TextureIcon && (
@@ -549,13 +462,13 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Link a análisis completo */}
+                {/* Link a anÃ¡lisis completo */}
                 <Link
                   to="/mi-adn"
                   className="mt-3 flex items-center justify-center gap-2 border border-zinc-800 hover:border-purple-500 px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-400 hover:text-purple-400 transition-colors"
                 >
                   <BarChart2 size={11} />
-                  Ver análisis completo
+                  Ver anÃ¡lisis completo
                 </Link>
               </>
             ) : (
@@ -625,7 +538,7 @@ export default function Profile() {
                     onClick={() => navigate('/settings')}
                     className="text-purple-400 hover:text-purple-300 transition-colors uppercase tracking-widest font-bold"
                   >
-                    Vincular →
+                    Vincular â†’
                   </button>
                 </p>
               </div>
@@ -634,257 +547,11 @@ export default function Profile() {
         </div>
 
       </div>
-
-      {/* Modal "Nueva Carpeta" */}
-      {showNewFolderModal && (
-        <NewFolderModal
-          token={token}
-          onClose={() => setShowNewFolderModal(false)}
-          onCreated={handleFolderCreated}
-        />
-      )}
     </div>
   )
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   FoldersGrid — wrapper que resuelve los signed URLs de las covers y los
-   pasa a GlassIcons. useImageUrl es un hook, así que necesita un componente
-   por carpeta para llamarlo legítimamente.
-══════════════════════════════════════════════════════════════════════════ */
-function FoldersGrid({ folders }) {
-  // Mapa de id → signed URL resuelta. Tenemos que llamar useImageUrl una vez
-  // por carpeta usando un sub-componente "resolver".
-  const [coverUrls, setCoverUrls] = useState({})
-
-  // Build items — el `cover_url` que pasamos a GlassIcons es la URL FIRMADA,
-  // no la s3_key. Cada FolderCoverResolver setea su URL en coverUrls.
-  const items = folders.map((f) => ({
-    id:        f.id,
-    label:     f.nombre,
-    icon:      <Folder size={18} strokeWidth={2} />,
-    cover_url: coverUrls[f.id] || null,
-    count:     f.demo_count,
-  }))
-
-  return (
-    <>
-      {/* Resolvers invisibles: cada uno llama useImageUrl y publica el resultado */}
-      {folders.map((f) => (
-        <FolderCoverResolver
-          key={f.id}
-          folderId={f.id}
-          s3Key={f.cover_url}
-          onResolved={(url) => setCoverUrls((prev) => ({ ...prev, [f.id]: url }))}
-        />
-      ))}
-      <GlassIcons items={items} />
-    </>
-  )
-}
-
-/** Resolver invisible — llama useImageUrl y reporta el resultado al padre. */
-function FolderCoverResolver({ folderId, s3Key, onResolved }) {
-  const { url } = useImageUrl(s3Key || null)
-  useEffect(() => {
-    onResolved(url)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url])
-  return null
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   NewFolderModal — input de nombre + upload opcional de cover.
-══════════════════════════════════════════════════════════════════════════ */
-function NewFolderModal({ token, onClose, onCreated }) {
-  const [nombre, setNombre]                 = useState('')
-  const [coverKey, setCoverKey]             = useState(null)
-  const [coverPreview, setCoverPreview]     = useState(null)
-  const [uploading, setUploading]           = useState(false)
-  const [saving, setSaving]                 = useState(false)
-  const [error, setError]                   = useState('')
-  const coverInputRef = useRef(null)
-
-  const handleCoverFile = async (file) => {
-    if (!file) return
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-      setError('Solo JPG, PNG o WebP')
-      return
-    }
-    setError('')
-    if (coverPreview) URL.revokeObjectURL(coverPreview)
-    setCoverPreview(URL.createObjectURL(file))
-    setUploading(true)
-    try {
-      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
-      const urlRes = await fetch(`${API_URL}/images/upload-url?type=folder&ext=${ext}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const { uploadUrl, key } = await urlRes.json()
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-      setCoverKey(key)
-    } catch {
-      setError('Error al subir la imagen')
-      if (coverPreview) URL.revokeObjectURL(coverPreview)
-      setCoverPreview(null)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!nombre.trim()) {
-      setError('El nombre es obligatorio')
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      const res = await fetch(`${API_URL}/api/folders`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ nombre: nombre.trim(), cover_url: coverKey }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Error al crear la carpeta')
-        return
-      }
-      onCreated(data)
-    } catch {
-      setError('Error de conexión')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Cleanup del blob URL al desmontar
-  useEffect(() => {
-    return () => {
-      if (coverPreview) URL.revokeObjectURL(coverPreview)
-    }
-  }, [coverPreview])
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-zinc-950 border border-zinc-800 w-full max-w-md p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-white text-lg font-bold uppercase tracking-wide">Nueva Carpeta</h3>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-white transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
-          {/* Cover opcional */}
-          <div>
-            <label className="block text-zinc-500 text-[11px] uppercase tracking-widest font-bold mb-2">
-              Imagen (opcional)
-            </label>
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => handleCoverFile(e.target.files?.[0])}
-              className="hidden"
-            />
-            {coverPreview ? (
-              <div className="relative">
-                <img
-                  src={coverPreview}
-                  alt="Cover"
-                  className="w-full h-32 object-cover border border-zinc-800"
-                />
-                {uploading && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 size={20} className="animate-spin text-purple-400" />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (coverPreview) URL.revokeObjectURL(coverPreview)
-                    setCoverPreview(null)
-                    setCoverKey(null)
-                    if (coverInputRef.current) coverInputRef.current.value = ''
-                  }}
-                  className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-black text-white flex items-center justify-center"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => coverInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-zinc-800 hover:border-purple-500/40 py-6 flex flex-col items-center gap-2 text-zinc-500 hover:text-purple-400 transition-colors"
-              >
-                <ImagePlus size={20} />
-                <span className="text-[10px] uppercase tracking-widest font-bold">Subir cover</span>
-              </button>
-            )}
-          </div>
-
-          {/* Nombre */}
-          <div>
-            <label className="block text-zinc-500 text-[11px] uppercase tracking-widest font-bold mb-2">
-              Nombre de la carpeta
-            </label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Sesiones 2026"
-              maxLength={100}
-              autoFocus
-              className="w-full bg-black border border-zinc-700 px-3 py-2.5 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-xs">{error}</p>
-          )}
-
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 px-4 py-2.5 text-[11px] uppercase tracking-widest font-bold transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving || uploading}
-              className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-4 py-2.5 text-[11px] uppercase tracking-widest font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-              {saving ? 'Creando...' : 'Crear carpeta'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Brand SVG icons ─── */
+/* â”€â”€â”€ Brand SVG icons â”€â”€â”€ */
 function IgIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
