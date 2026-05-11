@@ -22,6 +22,13 @@ const NAV_ITEMS = [
   { icon: Settings,      label: 'Ajustes',         path: '/settings'      },
 ]
 
+/* Quick-nav: enlaces destacados centrados en el header. Visibles solo en md+ */
+const QUICK_NAV = [
+  { label: 'Eventos', path: '/tocatas' },  // tocatas + mapa
+  { label: 'Mi ADN',  path: '/mi-adn'  },  // análisis vectorial
+  { label: 'Radar',   path: '/explore' },  // matching de músicos
+]
+
 export default function TopNavbar() {
   const { logout, user, token }   = useAuth()
   const navigate                  = useNavigate()
@@ -61,20 +68,58 @@ export default function TopNavbar() {
       className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center justify-between px-6 border-b border-white/8"
       style={{ backgroundColor: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(12px)' }}
     >
-      {/* Logo */}
-      <Link to="/" className="font-black text-white tracking-widest text-sm hover:opacity-70 transition-opacity">
-        BANDIFY
-      </Link>
+      {/* ── IZQUIERDA: Logo (flex-1 para empujar el centro) ── */}
+      <div className="flex-1 flex items-center">
+        <Link to="/" className="font-black text-white tracking-widest text-sm hover:opacity-70 transition-opacity">
+          BANDIFY
+        </Link>
+      </div>
 
-      {/* Avatar + dropdown */}
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          aria-label="Menú de usuario"
+      {/* ── CENTRO: Quick nav perfectamente centrado entre logo y avatar ── */}
+      {/* Oculto en mobile (< md) para no romper el layout */}
+      <nav className="hidden md:flex items-center gap-x-8">
+        {QUICK_NAV.map(({ label, path }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) =>
+              `text-sm transition-colors ${
+                isActive
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* ── DERECHA: Bell + Avatar/Dropdown (flex-1 + justify-end espeja al logo) ── */}
+      <div className="flex-1 flex items-center justify-end gap-x-4">
+
+        {/* Campana de notificaciones con badge */}
+        <Link
+          to="/notifications"
+          aria-label={`Notificaciones${unread > 0 ? ` (${unread} sin leer)` : ''}`}
+          className="relative text-zinc-400 hover:text-white transition-colors p-1"
         >
-          {/* Avatar con punto de notificación */}
-          <div className="relative">
+          <Bell size={18} />
+          {unread > 0 && (
+            <span
+              className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-zinc-950"
+              aria-hidden="true"
+            />
+          )}
+        </Link>
+
+        {/* Avatar + dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            aria-label="Menú de usuario"
+          >
             {photoUrl ? (
               <img
                 src={photoUrl}
@@ -86,15 +131,11 @@ export default function TopNavbar() {
                 {getInitials(user?.nombre)}
               </div>
             )}
-            {unread > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-zinc-950" />
-            )}
-          </div>
-          <ChevronDown
-            size={14}
-            className={`text-white/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          />
-        </button>
+            <ChevronDown
+              size={14}
+              className={`text-white/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            />
+          </button>
 
         {/* Dropdown */}
         {open && (
@@ -159,6 +200,7 @@ export default function TopNavbar() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </header>
   )
