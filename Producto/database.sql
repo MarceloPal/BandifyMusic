@@ -1,169 +1,200 @@
--- ============================================================
--- Bandify · Esquema base PostgreSQL (EP2)
--- ============================================================
--- Crea las tablas principales del proyecto y carga datos de
--- prueba para poder validar la aplicacion sin depender de S3
--- ni del pipeline de IA. Pensado para ejecutarse de cero sobre
--- una base limpia: todos los DROP son CASCADE para evitar
--- conflictos al re-ejecutar.
--- ============================================================
+-- ==============================================================================
+-- SCRIPT DE BASE DE DATOS: BANDIFY
+-- Motor: PostgreSQL 18.3 | Extensiones: pgcrypto, pgvector
+-- ==============================================================================
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- ------------------------------------------------------------------------------
+-- 1. CONFIGURACIÓN Y EXTENSIONES
+-- ------------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
-DROP TABLE IF EXISTS tickets   CASCADE;
-DROP TABLE IF EXISTS events    CASCADE;
-DROP TABLE IF EXISTS reviews   CASCADE;
-DROP TABLE IF EXISTS folders   CASCADE;
-DROP TABLE IF EXISTS demos     CASCADE;
-DROP TABLE IF EXISTS users     CASCADE;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
 
--- ─── users ──────────────────────────────────────────────────
-CREATE TABLE users (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email            VARCHAR(160) UNIQUE NOT NULL,
-    password_hash    VARCHAR(255)        NOT NULL,
-    nombre           VARCHAR(120)        NOT NULL,
-    instrumento      VARCHAR(80),
-    ciudad           VARCHAR(80),
-    fecha_nacimiento DATE,
-    created_at       TIMESTAMPTZ         NOT NULL DEFAULT NOW()
+
+-- ------------------------------------------------------------------------------
+-- 2. MÓDULO DE USUARIOS Y AUTENTICACIÓN
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE public.usuarios (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    nombre character varying(100) NOT NULL,
+    email character varying(150) NOT NULL UNIQUE,
+    password_hash character varying(255) NOT NULL,
+    instrumento character varying(100),
+    ciudad character varying(100),
+    estilo_detectado text,
+    tags_musicales jsonb,
+    fecha_nacimiento date,
+    es_premium boolean DEFAULT false,
+    email_secundario text,
+    role character varying(20) DEFAULT 'usuario' CHECK (role IN ('usuario', 'admin')),
+    es_verificado boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now()
 );
 
--- ─── demos ──────────────────────────────────────────────────
-CREATE TABLE demos (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id          UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title            VARCHAR(160) NOT NULL,
-    s3_key           VARCHAR(255) NOT NULL,
-    duration_seconds INTEGER      NOT NULL CHECK (duration_seconds > 0),
-    created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE public.perfiles (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    usuario_id uuid UNIQUE REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    audio_vector public.vector(27),
+    s3_key character varying(255),
+    audio_metadata jsonb,
+    user_tags jsonb DEFAULT '[]'::jsonb,
+    oficio jsonb DEFAULT '[]'::jsonb,
+    experiencia character varying(50),
+    bio text,
+    foto_url text,
+    banner_url text,
+    es_premium boolean DEFAULT false,
+    instagram_url text,
+    spotify_url text,
+    discord_username text,
+    discord_url text,
+    card_settings jsonb,
+    updated_at timestamp without time zone DEFAULT now()
 );
-CREATE INDEX idx_demos_user_id ON demos(user_id);
 
--- ─── folders (agrupaciones de demos por usuario) ────────────
-CREATE TABLE folders (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name        VARCHAR(120) NOT NULL,
-    description TEXT,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, name)
+CREATE TABLE public.password_resets (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    usuario_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    token text NOT NULL UNIQUE,
+    expires_at timestamp with time zone NOT NULL,
+    used boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- ─── reviews (feedback de un usuario sobre un demo) ─────────
-CREATE TABLE reviews (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    demo_id     UUID        NOT NULL REFERENCES demos(id) ON DELETE CASCADE,
-    reviewer_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    rating      SMALLINT    NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment     TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (demo_id, reviewer_id)
+
+-- ------------------------------------------------------------------------------
+-- 3. MÓDULO DE CONTENIDO (Tocatas, Demos y Entradas)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE public.tocatas (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    organizador_id uuid REFERENCES public.usuarios(id),
+    nombre character varying(200) NOT NULL,
+    descripcion text,
+    fecha date,
+    ciudad character varying(100),
+    direccion character varying(255),
+    genero character varying(100),
+    lat numeric(9,6),
+    lng numeric(9,6),
+    afiche_url text,
+    contacto_email text,
+    precio numeric(10,2),
+    cantidad_disponible integer,
+    created_at timestamp without time zone DEFAULT now()
 );
-CREATE INDEX idx_reviews_demo_id ON reviews(demo_id);
 
--- ─── events (tocatas / shows) ───────────────────────────────
-CREATE TABLE events (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organizer_id UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name         VARCHAR(160) NOT NULL,
-    description  TEXT,
-    fecha        DATE         NOT NULL,
-    ciudad       VARCHAR(80)  NOT NULL,
-    direccion    VARCHAR(200),
-    genero       VARCHAR(80),
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE public.tickets (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    event_id uuid NOT NULL,
+    buyer_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    price_clp integer NOT NULL CHECK (price_clp >= 0),
+    purchased_at timestamp with time zone DEFAULT now() NOT NULL
 );
-CREATE INDEX idx_events_fecha ON events(fecha);
 
--- ─── tickets (entradas a un evento) ─────────────────────────
-CREATE TABLE tickets (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id     UUID        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    buyer_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    price_clp    INTEGER     NOT NULL CHECK (price_clp >= 0),
-    purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE public.demos (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    usuario_id uuid NOT NULL,
+    nombre character varying(255),
+    s3_key text NOT NULL,
+    cover_url text,
+    formato_original text,
+    peso_original_mb double precision,
+    audio_metadata jsonb,
+    audio_vector jsonb,
+    activo boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_tickets_event_id ON tickets(event_id);
-CREATE INDEX idx_tickets_buyer_id ON tickets(buyer_id);
 
--- ============================================================
--- Datos de prueba
--- IDs explicitos para que las FK queden enlazadas.
--- password_hash de prueba corresponde a "bandify2026" (bcrypt).
--- ============================================================
 
-INSERT INTO users (id, email, password_hash, nombre, instrumento, ciudad, fecha_nacimiento) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'marcelo@bandify.cl',
-     '$2a$10$WjKdQsTjLg0iFqf3uVyM2eIuIv0wD2P8C1A3zXUaC1Hn3QbiMRB.S',
-     'Marcelo Palma',  'Guitarra',  'Santiago',    '1998-03-12'),
-    ('22222222-2222-2222-2222-222222222222', 'julio@bandify.cl',
-     '$2a$10$WjKdQsTjLg0iFqf3uVyM2eIuIv0wD2P8C1A3zXUaC1Hn3QbiMRB.S',
-     'Julio Silva',    'Bateria',   'Valparaiso',  '2000-07-04'),
-    ('33333333-3333-3333-3333-333333333333', 'ignacio@bandify.cl',
-     '$2a$10$WjKdQsTjLg0iFqf3uVyM2eIuIv0wD2P8C1A3zXUaC1Hn3QbiMRB.S',
-     'Ignacio Farias', 'Bajo',      'Concepcion',  '1999-11-22');
+-- ------------------------------------------------------------------------------
+-- 4. MÓDULO DE INTERACCIONES Y COMUNICACIÓN
+-- ------------------------------------------------------------------------------
 
-INSERT INTO demos (id, user_id, title, s3_key, duration_seconds) VALUES
-    ('aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '11111111-1111-1111-1111-111111111111',
-     'Riff de fusion latina', 'demos/marcelo/fusion-latina.mp3', 184),
-    ('aaaa2222-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '22222222-2222-2222-2222-222222222222',
-     'Groove en 7/8',         'demos/julio/groove-7-8.mp3',      212),
-    ('aaaa3333-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '33333333-3333-3333-3333-333333333333',
-     'Linea de bajo funky',   'demos/ignacio/funky-bass.mp3',    167);
+CREATE TABLE public.mensajes (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    de_id uuid REFERENCES public.usuarios(id),
+    para_id uuid REFERENCES public.usuarios(id),
+    contenido text NOT NULL,
+    leido boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now()
+);
 
-INSERT INTO folders (id, user_id, name, description) VALUES
-    ('bbbb1111-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-     '11111111-1111-1111-1111-111111111111',
-     'Composiciones 2026', 'Demos en proceso para el EP que sale a fin de ano'),
-    ('bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-     '22222222-2222-2222-2222-222222222222',
-     'Practicas de bateria', 'Sesiones de tempo y dinamica'),
-    ('bbbb3333-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-     '33333333-3333-3333-3333-333333333333',
-     'Lineas y solos',       'Material para mostrar a colaboradores potenciales');
+CREATE TABLE public.notificaciones (
+    id SERIAL PRIMARY KEY,
+    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    titulo character varying(255) NOT NULL,
+    descripcion text NOT NULL,
+    tipo character varying(50) DEFAULT 'sistema',
+    link text,
+    leida boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
+);
 
-INSERT INTO reviews (id, demo_id, reviewer_id, rating, comment) VALUES
-    ('cccc1111-cccc-cccc-cccc-cccccccccccc',
-     'aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '22222222-2222-2222-2222-222222222222',
-     5, 'Buen groove, encajaria de cabeza con la bateria'),
-    ('cccc2222-cccc-cccc-cccc-cccccccccccc',
-     'aaaa2222-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '33333333-3333-3333-3333-333333333333',
-     4, 'Falta un poco mas de cuerpo en los graves, pero la metrica esta solida'),
-    ('cccc3333-cccc-cccc-cccc-cccccccccccc',
-     'aaaa3333-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-     '11111111-1111-1111-1111-111111111111',
-     5, 'Slap muy limpio, calza perfecto con la guitarra ritmica');
+CREATE TABLE public.noticias (
+    id SERIAL PRIMARY KEY,
+    autor_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    titulo character varying(255) NOT NULL,
+    contenido text NOT NULL,
+    imagen_url text,
+    fuente character varying(100) DEFAULT 'Bandify',
+    created_at timestamp with time zone DEFAULT now()
+);
 
-INSERT INTO events (id, organizer_id, name, description, fecha, ciudad, direccion, genero) VALUES
-    ('dddd1111-dddd-dddd-dddd-dddddddddddd',
-     '11111111-1111-1111-1111-111111111111',
-     'Noche Bandify Vol. 1',
-     'Lanzamiento oficial con tres bandas locales',
-     '2026-05-30', 'Santiago',   'Club Chocolate, Av. Ernesto Pinto Lagarrigue 192', 'Indie Rock'),
-    ('dddd2222-dddd-dddd-dddd-dddddddddddd',
-     '22222222-2222-2222-2222-222222222222',
-     'Jam abierta en Valpo',
-     'Jam session de jazz fusion abierta a todo musico',
-     '2026-06-12', 'Valparaiso', 'Bar Cinzano, Plaza Anibal Pinto 1182',             'Jazz'),
-    ('dddd3333-dddd-dddd-dddd-dddddddddddd',
-     '33333333-3333-3333-3333-333333333333',
-     'Funk en el Bio Bio',
-     'Encuentro de bandas funk del sur',
-     '2026-07-04', 'Concepcion', 'Sala 666, Cochrane 666',                            'Funk');
+CREATE TABLE public.reportes (
+    id SERIAL PRIMARY KEY,
+    emisor_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    tipo_contenido character varying(50) NOT NULL,
+    contenido_id uuid NOT NULL,
+    motivo text NOT NULL,
+    estado character varying(20) DEFAULT 'pendiente',
+    created_at timestamp with time zone DEFAULT now()
+);
 
-INSERT INTO tickets (id, event_id, buyer_id, price_clp) VALUES
-    ('eeee1111-eeee-eeee-eeee-eeeeeeeeeeee',
-     'dddd1111-dddd-dddd-dddd-dddddddddddd',
-     '22222222-2222-2222-2222-222222222222',  5000),
-    ('eeee2222-eeee-eeee-eeee-eeeeeeeeeeee',
-     'dddd2222-dddd-dddd-dddd-dddddddddddd',
-     '33333333-3333-3333-3333-333333333333',  3000),
-    ('eeee3333-eeee-eeee-eeee-eeeeeeeeeeee',
-     'dddd3333-dddd-dddd-dddd-dddddddddddd',
-     '11111111-1111-1111-1111-111111111111',  4500);
+
+-- ------------------------------------------------------------------------------
+-- 5. MÓDULO DE SISTEMA E IA (Jobs y Logs)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE public.jobs (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    demo_id uuid,
+    ia_job_id text,
+    s3_key character varying(255) NOT NULL,
+    status character varying(20) DEFAULT 'processing',
+    created_at timestamp without time zone DEFAULT now()
+);
+
+CREATE TABLE public.audio_jobs (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    s3_key text NOT NULL,
+    status text DEFAULT 'processing',
+    audio_vector public.vector(27),
+    audio_metadata jsonb,
+    error_message text,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+CREATE TABLE public.admin_logs (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    admin_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    accion character varying(100) NOT NULL,
+    entidad_tipo character varying(50) NOT NULL,
+    entidad_id uuid,
+    detalles jsonb,
+    ip_address character varying(45),
+    user_agent text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- Índices de optimización para logs
+CREATE INDEX idx_admin_logs_accion ON public.admin_logs USING btree (accion);
+CREATE INDEX idx_admin_logs_admin_id ON public.admin_logs USING btree (admin_id);
+CREATE INDEX idx_admin_logs_created_at ON public.admin_logs USING btree (created_at DESC);
+CREATE INDEX idx_admin_logs_entidad ON public.admin_logs USING btree (entidad_tipo, entidad_id);
