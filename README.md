@@ -150,7 +150,6 @@ Esquema PostgreSQL con extensión `pgvector` para búsqueda de similitud de audi
 | `usuarios` | Identidad central: email, password_hash, nombre, instrumento, ciudad |
 | `perfiles` | Perfil extendido: `audio_vector vector(27)`, `audio_metadata JSONB`, `user_tags JSONB`, bio, foto, banner, links sociales |
 | `demos` | Biblioteca de audios del usuario: s3_key, cover, vector propio, activo (soft-delete) |
-| `folders` | Colecciones de demos (agrupaciones personalizadas) |
 | `reviews` | Calificaciones de demos (1–5 estrellas, únicas por par demo/reviewer) |
 | `tocatas` | Eventos en vivo: fecha, ciudad, género, coordenadas, afiche, contacto |
 | `tickets` | Compras de entradas (buyer_id, price_clp) |
