@@ -144,13 +144,40 @@ export const OFICIOS = [
   'Banda / Agrupación',
 ]
 
-/** Etiquetas de estilo/género disponibles para "user_tags". */
+/**
+ * Etiquetas de estilo/género disponibles para "user_tags".
+ * El frontend impone un límite de selección (MAX_TAGS) en los formularios
+ * para mantener la calidad del matching musical.
+ */
 export const TAG_OPTIONS = [
-  // Géneros principales
+  // ── Géneros principales ──
   'Rock', 'Pop', 'Jazz', 'Electrónica', 'Metal', 'Hip-Hop',
-  'Indie', 'Clásica', 'Blues', 'Funk', 'R&B', 'Reggaetón',
-  'Cumbia', 'Folclore', 'Alternativo', 'Latina',
-  // Subgéneros específicos
-  'Reggaetón Alternativo', 'Trap Soul', 'Indie Shoegaze',
-  'Math Rock', 'Synthwave', 'Lo-fi Beats', 'Post-Punk', 'Techno Progresivo',
+  'Indie', 'Clásica', 'Blues', 'Funk', 'R&B', 'Folclore', 'Alternativo',
+  // ── Urbano / Latino ──
+  'Urbano', 'Trap Latino', 'Neo-Perreo', 'Reggaetón', 'Cumbia', 'Latina',
+  'Reggaetón Alternativo', 'Trap Soul',
+  // ── Rock / Punk variantes ──
+  'Punk', 'Ska', 'Reggae', 'Dream Pop', 'Metalcore', 'Nu Metal',
+  'Post-Punk', 'Math Rock', 'Indie Shoegaze',
+  // ── Electrónica ──
+  'House', 'Drum & Bass', 'Jungle', 'Ambient', 'Synthwave',
+  'Lo-fi Beats', 'Techno Progresivo',
+  // ── Cantautor / Soul ──
+  'Cantautor', 'Trova', 'Neo-Soul',
+]
+
+/** Máximo de tags que un usuario puede seleccionar (calidad del matching). */
+export const MAX_TAGS = 5
+
+/**
+ * Ciudades/regiones principales de Chile.
+ * Lista cerrada para evitar typos en DB y facilitar matching por ciudad.
+ * Orden geográfico aproximado de norte a sur.
+ */
+export const CIUDADES_CHILE = [
+  'Arica', 'Iquique', 'Antofagasta', 'Copiapó',
+  'La Serena', 'Coquimbo', 'Valparaíso', 'Viña del Mar',
+  'Santiago', 'Rancagua', 'Talca', 'Chillán',
+  'Concepción', 'Temuco', 'Valdivia', 'Osorno',
+  'Puerto Montt', 'Castro', 'Coyhaique', 'Punta Arenas',
 ]

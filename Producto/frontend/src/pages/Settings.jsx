@@ -7,7 +7,7 @@ import { useAuth }     from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
-import { TAG_OPTIONS, OFICIOS } from '../utils/audioHelpers'
+import { TAG_OPTIONS, OFICIOS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
 
 /* ─── Toggle ─────────────────────────────────────────────────── */
 function Toggle({ checked, onChange }) {
@@ -68,7 +68,11 @@ function PanelPerfil({ user, token, updateUser }) {
   const bannerRef = useRef(null)
 
   const toggleTag = (tag) =>
-    setTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
+    setTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag)
+      if (prev.length >= MAX_TAGS) return prev   // límite alcanzado, no añadir
+      return [...prev, tag]
+    })
 
   const toggleOficio = (o) =>
     setOficio((prev) => prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o])
@@ -170,21 +174,41 @@ function PanelPerfil({ user, token, updateUser }) {
       {/* ── Formulario ── */}
       <form onSubmit={handleSave} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            { label: 'Nombre', value: nombre, set: setNombre, placeholder: 'Tu nombre artístico', type: 'text' },
-            { label: 'Ciudad', value: ciudad, set: setCiudad, placeholder: 'Ej: Santiago',         type: 'text' },
-          ].map(({ label, value, set, placeholder, type }) => (
-            <div key={label}>
-              <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">{label}</label>
-              <input
-                type={type}
-                value={value}
-                onChange={(e) => set(e.target.value)}
-                placeholder={placeholder}
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-              />
-            </div>
-          ))}
+          {/* Nombre */}
+          <div>
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nombre</label>
+            <input
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Tu nombre artístico"
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+            />
+          </div>
+
+          {/* Ciudad — dropdown cerrado con lista de ciudades chilenas */}
+          <div>
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Ciudad</label>
+            <select
+              value={ciudad}
+              onChange={(e) => setCiudad(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40 [color-scheme:dark] appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='rgba(161,161,170,1)'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.75rem center',
+                backgroundSize: '1.25rem',
+                paddingRight: '2.5rem',
+              }}
+            >
+              <option value="">Selecciona tu ciudad...</option>
+              {CIUDADES_CHILE.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Fecha de nacimiento */}
           <div>
             <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Fecha de nacimiento</label>
             <input
@@ -217,24 +241,41 @@ function PanelPerfil({ user, token, updateUser }) {
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Tags — máximo MAX_TAGS para mantener calidad del matching */}
         <div>
-          <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Estilos musicales</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide">
+              Estilos musicales
+            </label>
+            <span className={`text-xs font-semibold ${
+              tags.length >= MAX_TAGS ? 'text-purple-400' : 'text-zinc-500'
+            }`}>
+              {tags.length} / {MAX_TAGS}
+              {tags.length >= MAX_TAGS && ' · Límite alcanzado'}
+            </span>
+          </div>
           <div className="flex flex-wrap gap-1.5">
-            {TAG_OPTIONS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
-                  tags.includes(tag)
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-white/20 hover:text-zinc-200'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+            {TAG_OPTIONS.map((tag) => {
+              const isSelected = tags.includes(tag)
+              const isDisabled = !isSelected && tags.length >= MAX_TAGS
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  disabled={isDisabled}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                    isSelected
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : isDisabled
+                      ? 'bg-zinc-900/50 text-zinc-700 border-zinc-800 cursor-not-allowed'
+                      : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-white/20 hover:text-zinc-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              )
+            })}
           </div>
         </div>
 

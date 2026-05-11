@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, CheckCircle, XCircle, Loader2, Music, SkipForward } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
-import { OFICIOS, TAG_OPTIONS } from '../utils/audioHelpers'
+import { OFICIOS, TAG_OPTIONS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
 import Stepper, { Step } from '../components/Stepper'
 import SoftAurora from '../components/SoftAurora'
 import { useProgressMessage } from '../hooks/useProgressMessage'
@@ -22,15 +22,18 @@ const AUDIO_MIME = {
   alac: 'audio/mp4',
 }
 
-/** Pill-style multi-select tag button */
-function TagPill({ label, selected, onClick }) {
+/** Pill-style multi-select tag button. Soporta estado deshabilitado (límite). */
+function TagPill({ label, selected, disabled, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled && !selected}
       className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
         selected
           ? 'bg-[#5227FF] border-[#5227FF] text-white'
+          : disabled
+          ? 'bg-white/4 border-white/8 text-white/25 cursor-not-allowed'
           : 'bg-white/8 border-white/15 text-white/60 hover:border-white/40 hover:text-white'
       }`}
     >
@@ -60,6 +63,19 @@ export default function Onboarding() {
     setList((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     )
+  }
+
+  /**
+   * Toggle específico para tags musicales con límite estricto (MAX_TAGS).
+   * - Remover una tag siempre se permite (aunque el usuario esté en el límite).
+   * - Añadir una tag está bloqueado si ya hay MAX_TAGS seleccionadas.
+   */
+  const toggleUserTag = (tag) => {
+    setUserTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag)
+      if (prev.length >= MAX_TAGS) return prev   // límite alcanzado, no añadir
+      return [...prev, tag]
+    })
   }
 
   const uploadMutation = useMutation({
@@ -176,18 +192,13 @@ export default function Onboarding() {
       {/* Contenido sobre la aurora */}
       <div className="flex flex-col flex-1" style={{ position: 'relative', zIndex: 1 }}>
 
-        {/* Navbar mínima */}
+        {/* Navbar mínima — solo logo. El botón "Omitir" global se removió:
+            los pasos 1-3 (ciudad, oficio, tags) son obligatorios; solo el
+            paso 4 (Demo) tiene un botón "Omitir este paso" propio. */}
         <nav className="flex items-center justify-between px-8 py-4 border-b border-white/10">
           <div className="font-black text-sm tracking-widest text-white">
             BANDIFY
           </div>
-          <button
-            onClick={() => navigate('/mi-adn')}
-            className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm"
-          >
-            <SkipForward size={14} />
-            Omitir
-          </button>
         </nav>
 
         {/* Stepper centrado */}
@@ -195,7 +206,7 @@ export default function Onboarding() {
           <div className="w-full max-w-lg">
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-white mb-1">Completa tu perfil</h1>
-              <p className="text-white/40 text-sm">Solo toma un momento. Puedes omitir pasos si quieres.</p>
+              <p className="text-white/40 text-sm">Solo toma un momento. El demo es opcional.</p>
             </div>
 
             <Stepper
@@ -206,16 +217,27 @@ export default function Onboarding() {
               disableFinalStep={isProcessing || (!isDone && !isError)}
             >
 
-              {/* ── Paso 1: Ciudad ── */}
+              {/* ── Paso 1: Ciudad (dropdown cerrado) ── */}
               <Step>
                 <h2>¿Desde dónde tocas?</h2>
                 <p>Tu ciudad nos ayuda a conectarte con músicos cercanos.</p>
-                <input
+                <select
                   value={ciudad}
                   onChange={(e) => setCiudad(e.target.value)}
-                  placeholder="Santiago, Valparaíso, Concepción..."
-                  className="mt-5 w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#5227FF]/60 border border-white/10"
-                />
+                  className="mt-5 w-full bg-white/8 text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#5227FF]/60 border border-white/10 [color-scheme:dark] appearance-none cursor-pointer"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='rgba(255,255,255,0.4)'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 1rem center',
+                    backgroundSize: '1.25rem',
+                    paddingRight: '2.5rem',
+                  }}
+                >
+                  <option value="" className="bg-zinc-900 text-white/40">Selecciona tu ciudad...</option>
+                  {CIUDADES_CHILE.map((c) => (
+                    <option key={c} value={c} className="bg-zinc-900 text-white">{c}</option>
+                  ))}
+                </select>
               </Step>
 
               {/* ── Paso 2: Rol ── */}
@@ -239,17 +261,31 @@ export default function Onboarding() {
                 )}
               </Step>
 
-              {/* ── Paso 3: Estilo Musical ── */}
+              {/* ── Paso 3: Estilo Musical (máx 5 tags) ── */}
               <Step>
                 <h2>Estilo Musical</h2>
-                <p>¿Con qué géneros se identifica tu sonido? Puedes elegir varios.</p>
-                <div className="mt-5 flex flex-wrap gap-2">
+                <p>¿Con qué géneros se identifica tu sonido? Elige hasta {MAX_TAGS} para que el matching sea preciso.</p>
+
+                {/* Contador de selección */}
+                <div className="mt-5 flex items-center justify-between mb-3">
+                  <span className={`text-xs font-semibold ${
+                    userTags.length >= MAX_TAGS ? 'text-[#5227FF]' : 'text-white/50'
+                  }`}>
+                    Seleccionados: {userTags.length} / {MAX_TAGS}
+                  </span>
+                  {userTags.length >= MAX_TAGS && (
+                    <span className="text-[#5227FF] text-xs">Límite alcanzado</span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
                   {TAG_OPTIONS.map((tag) => (
                     <TagPill
                       key={tag}
                       label={tag}
                       selected={userTags.includes(tag)}
-                      onClick={() => toggleTag(userTags, setUserTags, tag)}
+                      disabled={userTags.length >= MAX_TAGS}
+                      onClick={() => toggleUserTag(tag)}
                     />
                   ))}
                 </div>
@@ -330,8 +366,24 @@ export default function Onboarding() {
                     ? '¡Análisis listo! Puedes finalizar.'
                     : isError
                     ? 'Hubo un error. Puedes finalizar de todas formas o intentarlo de nuevo.'
-                    : 'Sube tu demo para activar el botón Finalizar, o cierra sin subir.'}
+                    : 'Sube tu demo o continúa sin él — siempre podrás subirlo después.'}
                 </p>
+
+                {/* Botón "Omitir este paso por ahora" — solo en este paso (Demo).
+                    Llama a saveAndFinish() para persistir ciudad+oficio+tags antes
+                    de redirigir, sin esperar el upload del demo. */}
+                {!isProcessing && !isDone && (
+                  <div className="mt-5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={saveAndFinish}
+                      className="flex items-center gap-2 text-white/50 hover:text-white text-xs font-semibold transition-colors px-4 py-2 border border-white/10 rounded-full hover:border-white/30"
+                    >
+                      <SkipForward size={12} />
+                      Omitir este paso por ahora
+                    </button>
+                  </div>
+                )}
               </Step>
 
             </Stepper>
