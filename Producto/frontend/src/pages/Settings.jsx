@@ -150,7 +150,7 @@ function PanelPerfil({ user, token, updateUser }) {
             onClick={() => avatarRef.current?.click()}
           >
             {avatarUrl
-              ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ? <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover aspect-square" />
               : <span className="text-white font-bold text-lg flex items-center justify-center w-full h-full">
                   {(user?.nombre || '?')[0].toUpperCase()}
                 </span>
@@ -629,8 +629,12 @@ export default function Settings() {
       {/* ── Master-Detail: sidebar izquierda, contenido derecha ── */}
       <div className="flex flex-col md:flex-row gap-0 items-start">
 
-        {/* ── Sidebar izquierda ── */}
-        <aside className="w-full md:w-48 flex-shrink-0 pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0">
+        {/* ── Sidebar izquierda — sticky en desktop ── */}
+        {/* md:sticky md:top-24 → se queda fija debajo del navbar al hacer scroll.
+            md:self-start → no estira para llenar la altura del flex container,
+            requisito de sticky.
+            Solo aplica en md+ para que en mobile el menú quede arriba del contenido. */}
+        <aside className="w-full md:w-48 flex-shrink-0 pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0 md:sticky md:top-24 md:self-start">
           {NAV_SECTIONS.map((section, si) => (
             <div key={section.group} className={si > 0 ? 'mt-6' : ''}>
               <p className="pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
@@ -658,8 +662,9 @@ export default function Settings() {
           ))}
         </aside>
 
-        {/* ── Panel de contenido derecha ── */}
-        <div className="flex-1 min-w-0 md:pl-10">
+        {/* ── Panel de contenido derecha — bg-transparent para que herede
+              el gris de MainLayout (bg-zinc-900) sin contraste extra. ── */}
+        <div className="flex-1 min-w-0 md:pl-10 bg-transparent">
           {renderPanel()}
         </div>
 

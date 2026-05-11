@@ -24,7 +24,10 @@ export default function MainLayout() {
       .catch(() => {})
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const showFooter   = !HIDE_FOOTER_ON.includes(pathname) && !user
+  // Footer global: visible en TODAS las rutas excepto las que están en HIDE_FOOTER_ON.
+  // Antes se ocultaba para usuarios autenticados; ahora se muestra siempre porque
+  // el footer contiene info útil (legal, soporte, redes) que vale para todos.
+  const showFooter   = !HIDE_FOOTER_ON.includes(pathname)
   const isMessages   = pathname === '/messages'
   const isFullBleed  = FULL_BLEED_ROUTES.includes(pathname)
 
