@@ -1,14 +1,63 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, MessageCircle, Sparkles, CalendarDays, Loader2 } from 'lucide-react'
+import { Bell, MessageCircle, Sparkles, CalendarDays, Megaphone, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
+import { useImageUrl } from '../hooks/useImageUrl'
 
 /* ─── Mapping tipo → icono y color ─── */
 const TYPE_STYLES = {
   mensaje: { icon: MessageCircle, color: 'text-blue-400',   bg: 'bg-blue-500/15' },
   tocata:  { icon: CalendarDays,  color: 'text-green-400',  bg: 'bg-green-500/15' },
   adn:     { icon: Sparkles,      color: 'text-purple-400', bg: 'bg-purple-500/15' },
+  sistema: { icon: Megaphone,     color: 'text-amber-400',  bg: 'bg-amber-500/15' },
+}
+
+/**
+ * Subcomponente para una notificación. Se separa para poder usar useImageUrl
+ * (hook) por cada notif sin violar las reglas de hooks dentro del .map().
+ */
+function NotificationCard({ n }) {
+  const style = TYPE_STYLES[n.tipo] ?? TYPE_STYLES.adn
+  const Icon  = style.icon
+  const { url: imagenUrl } = useImageUrl(n.imagen_url ?? null)
+
+  return (
+    <Link
+      to={n.link || '#'}
+      className={`bg-zinc-800 rounded-2xl overflow-hidden flex flex-col border transition-all hover:bg-zinc-700/60 ${
+        n.leida ? 'border-white/8' : 'border-purple-500/40'
+      }`}
+    >
+      {/* Imagen del anuncio si existe */}
+      {imagenUrl && (
+        <img
+          src={imagenUrl}
+          alt=""
+          className="w-full h-44 object-cover border-b border-white/8"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+      )}
+
+      <div className="p-5 flex items-start gap-4">
+        <div className={`${style.bg} p-2.5 rounded-xl flex-shrink-0`}>
+          <Icon size={15} className={style.color} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-sm font-semibold ${n.leida ? 'text-zinc-300' : 'text-white'}`}>
+              {n.titulo}
+            </p>
+            {!n.leida && (
+              <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 mt-1.5" />
+            )}
+          </div>
+          <p className="text-zinc-400 text-xs mt-0.5 leading-relaxed">{n.descripcion}</p>
+          <p className="text-zinc-500 text-xs mt-2">{tiempoRelativo(n.tiempo)}</p>
+        </div>
+      </div>
+    </Link>
+  )
 }
 
 /* ─── Tiempo relativo ─── */
@@ -109,35 +158,9 @@ export default function Notifications() {
       {/* Lista */}
       {notifs.length > 0 && (
         <div className="flex flex-col gap-2">
-          {notifs.map((n) => {
-            const style = TYPE_STYLES[n.tipo] ?? TYPE_STYLES.adn
-            const Icon  = style.icon
-            return (
-              <Link
-                key={n.id}
-                to={n.link || '#'}
-                className={`bg-zinc-800 rounded-2xl p-5 flex items-start gap-4 border transition-all hover:bg-zinc-700/60 ${
-                  n.leida ? 'border-white/8' : 'border-purple-500/40'
-                }`}
-              >
-                <div className={`${style.bg} p-2.5 rounded-xl flex-shrink-0`}>
-                  <Icon size={15} className={style.color} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm font-semibold ${n.leida ? 'text-zinc-300' : 'text-white'}`}>
-                      {n.titulo}
-                    </p>
-                    {!n.leida && (
-                      <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 mt-1.5" />
-                    )}
-                  </div>
-                  <p className="text-zinc-400 text-xs mt-0.5 leading-relaxed">{n.descripcion}</p>
-                  <p className="text-zinc-500 text-xs mt-2">{tiempoRelativo(n.tiempo)}</p>
-                </div>
-              </Link>
-            )
-          })}
+          {notifs.map((n) => (
+            <NotificationCard key={n.id} n={n} />
+          ))}
         </div>
       )}
     </div>

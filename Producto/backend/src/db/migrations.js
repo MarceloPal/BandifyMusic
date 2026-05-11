@@ -101,6 +101,8 @@ async function runMigrations() {
       link          TEXT,
       created_at    TIMESTAMPTZ DEFAULT NOW()
     )`,
+    // Imagen opcional en notificaciones (anuncios admin con foto)
+    'ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS imagen_url TEXT',
     // Tocatas con venta de entradas vía MercadoPago
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',
@@ -135,6 +137,47 @@ async function runMigrations() {
          ALTER TABLE audio_jobs DROP CONSTRAINT audio_jobs_usuario_id_fkey;
          ALTER TABLE audio_jobs ADD CONSTRAINT audio_jobs_usuario_id_fkey
            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
+    // Fix FK constraints: mensajes.de_id y mensajes.para_id deben cascadear
+    // al borrar un usuario (sino el admin no puede eliminar usuarios que
+    // hayan enviado o recibido mensajes).
+    `DO $$
+     BEGIN
+       IF EXISTS (
+         SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name = 'mensajes_de_id_fkey'
+           AND constraint_type = 'FOREIGN KEY'
+       ) THEN
+         ALTER TABLE mensajes DROP CONSTRAINT mensajes_de_id_fkey;
+         ALTER TABLE mensajes ADD CONSTRAINT mensajes_de_id_fkey
+           FOREIGN KEY (de_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF EXISTS (
+         SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name = 'mensajes_para_id_fkey'
+           AND constraint_type = 'FOREIGN KEY'
+       ) THEN
+         ALTER TABLE mensajes DROP CONSTRAINT mensajes_para_id_fkey;
+         ALTER TABLE mensajes ADD CONSTRAINT mensajes_para_id_fkey
+           FOREIGN KEY (para_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
+    // Fix FK constraint: tocatas.organizador_id debe cascadear al borrar usuario.
+    // Sin esto, un admin no puede eliminar usuarios que hayan organizado tocatas.
+    `DO $$
+     BEGIN
+       IF EXISTS (
+         SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name = 'tocatas_organizador_id_fkey'
+           AND constraint_type = 'FOREIGN KEY'
+       ) THEN
+         ALTER TABLE tocatas DROP CONSTRAINT tocatas_organizador_id_fkey;
+         ALTER TABLE tocatas ADD CONSTRAINT tocatas_organizador_id_fkey
+           FOREIGN KEY (organizador_id) REFERENCES usuarios(id) ON DELETE CASCADE;
        END IF;
      END $$`,
   ];

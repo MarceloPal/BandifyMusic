@@ -14,10 +14,11 @@ const s3                          = require('../utils/s3Client');
 // ─── Tablas de validación ───────────────────────────────────────────────────
 
 const FOLDER_MAP = {
-  avatar: 'avatars',
-  cover:  'covers',
-  afiche: 'afiches',
-  banner: 'banners',
+  avatar:  'avatars',
+  cover:   'covers',
+  afiche:  'afiches',
+  banner:  'banners',
+  anuncio: 'anuncios',   // imágenes adjuntas a notificaciones masivas (admin)
 };
 
 const EXT_MIME = {

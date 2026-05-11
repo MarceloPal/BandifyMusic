@@ -173,4 +173,38 @@ router.post('/notificaciones-masivas', adminController.notificacionesMasivas);
  */
 router.get('/ventas', adminController.ventas);
 
+/**
+ * @swagger
+ * /api/admin/notificaciones:
+ *   get:
+ *     summary: Historial de anuncios enviados (agrupados por contenido)
+ *     description: |
+ *       Devuelve cada anuncio una sola vez (deduplicado por título+descripción+link+imagen)
+ *       con el conteo de destinatarios. El id es el representativo del grupo.
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Lista de anuncios ordenados por fecha desc (máx 100)
+ */
+router.get('/notificaciones', adminController.listarAnuncios);
+
+/**
+ * @swagger
+ * /api/admin/notificaciones/{id}:
+ *   delete:
+ *     summary: Eliminar un anuncio del historial (borra todas las filas del broadcast)
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: 'Anuncio eliminado + filas borradas' }
+ *       404: { description: Anuncio no encontrado }
+ */
+router.delete('/notificaciones/:id', adminController.eliminarAnuncio);
+
 module.exports = router;
