@@ -58,14 +58,29 @@ exports.listar = async (req, res, next) => {
     );
 
     // ── 4. Notificaciones físicas de la DB (anuncios, sistema) ───────────────
-    const fisicas = await pool.query(
-      `SELECT id, titulo, descripcion, tipo, leida, link, created_at
-       FROM notificaciones
-       WHERE usuario_id = $1
-       ORDER BY created_at DESC
-       LIMIT 15`,
-      [miId]
-    );
+    // imagen_url permite mostrar foto adjunta en anuncios masivos del admin
+    let fisicas;
+    try {
+      fisicas = await pool.query(
+        `SELECT id, titulo, descripcion, tipo, leida, link, imagen_url, created_at
+         FROM notificaciones
+         WHERE usuario_id = $1
+         ORDER BY created_at DESC
+         LIMIT 15`,
+        [miId]
+      );
+    } catch (colErr) {
+      // Fallback si imagen_url no existe aún (migración no corrió)
+      if (colErr.code !== '42703') throw colErr;
+      fisicas = await pool.query(
+        `SELECT id, titulo, descripcion, tipo, leida, link, NULL::text AS imagen_url, created_at
+         FROM notificaciones
+         WHERE usuario_id = $1
+         ORDER BY created_at DESC
+         LIMIT 15`,
+        [miId]
+      );
+    }
 
     // ── Agregar y formatear ──────────────────────────────────────────────────
     const items = [];
@@ -79,6 +94,7 @@ exports.listar = async (req, res, next) => {
         tiempo:      f.created_at,
         leida:       f.leida,
         link:        f.link || null,
+        imagen_url:  f.imagen_url || null,
       });
     }
 

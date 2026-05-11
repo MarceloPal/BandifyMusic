@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,6 +11,7 @@ import {
   CheckSquare, Square, CheckCheck, DollarSign, Tag, Clock
 } from 'lucide-react';
 import { API_URL } from '../utils/helpers';
+import { useImageUrl } from '../hooks/useImageUrl';
 
 /* ─────────────────────────────────────────
    Helpers
@@ -131,6 +132,31 @@ const ConfirmModal = ({ modal, onConfirm, onCancel }) => {
 };
 
 /* ─────────────────────────────────────────
+   Avatar de usuario en la tabla — usa useImageUrl (hook) por usuario
+   para pedir signed URL si tiene foto_url, sino muestra iniciales.
+───────────────────────────────────────── */
+const UserAvatar = ({ user, size = 'sm' }) => {
+  const { url: photoUrl } = useImageUrl(user?.foto_url ?? null);
+  const dim = size === 'md' ? 'w-10 h-10' : 'w-8 h-8';
+
+  if (photoUrl) {
+    return (
+      <img
+        src={photoUrl}
+        alt={user.nombre}
+        className={`${dim} rounded-full object-cover border border-zinc-700`}
+        onError={(e) => { e.currentTarget.style.display = 'none' }}
+      />
+    );
+  }
+  return (
+    <div className={`${dim} rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-xs uppercase`}>
+      {(user?.nombre || 'U').substring(0, 2)}
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────
    Main Component
 ───────────────────────────────────────── */
 const Admin = () => {
@@ -160,9 +186,15 @@ const Admin = () => {
   const [userForm,    setUserForm]    = useState({ nombre: '', email: '', role: '', es_premium: false, es_verificado: false });
 
   // Megáfono
-  const [massNotif,      setMassNotif]      = useState({ titulo: '', descripcion: '', link: '' });
+  const [massNotif,      setMassNotif]      = useState({ titulo: '', descripcion: '', link: '', imagen_url: '' });
   const [sendingNotif,   setSendingNotif]   = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [imagenPreview,  setImagenPreview]  = useState(null);   // blob URL para preview local
+  const [imagenUploading, setImagenUploading] = useState(false);
+  const anuncioImgRef = useRef(null);
+
+  // Historial de anuncios enviados
+  const [anuncios, setAnuncios] = useState([]);
 
   // UI modals / toasts
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
@@ -241,6 +273,19 @@ const Admin = () => {
     }
   }, [token]);
 
+  /** Trae el historial de anuncios (deduplicado por contenido). */
+  const fetchAnuncios = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/notificaciones`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Error al cargar anuncios');
+      setAnuncios(await res.json());
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [token]);
+
   /* ── Carga inicial ── */
   useEffect(() => {
     if (!token) return;
@@ -258,7 +303,8 @@ const Admin = () => {
     if (activeTab === 'tocatas' && tocatas.length === 0) fetchTocatas();
     if (activeTab === 'noticias' && noticias.length === 0) fetchNoticias();
     if (activeTab === 'ventas' && ventasData.tickets.length === 0) fetchVentas();
-  }, [activeTab, token, fetchTocatas, fetchNoticias, fetchVentas, tocatas.length, noticias.length, ventasData.tickets.length]);
+    if (activeTab === 'megaphone' && anuncios.length === 0) fetchAnuncios();
+  }, [activeTab, token, fetchTocatas, fetchNoticias, fetchVentas, fetchAnuncios, tocatas.length, noticias.length, ventasData.tickets.length, anuncios.length]);
 
   /* ── Handlers ── */
   const handleDeleteUsuario = (id) => {
@@ -449,8 +495,11 @@ const Admin = () => {
         });
         if (res.ok) {
           showToast('¡Mensaje enviado con éxito!');
-          setMassNotif({ titulo: '', descripcion: '', link: '' });
+          setMassNotif({ titulo: '', descripcion: '', link: '', imagen_url: '' });
           setSelectedUserIds([]);
+          if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+          setImagenPreview(null);
+          fetchAnuncios();   // refresca el historial con el anuncio recién enviado
         } else {
           showToast('Error al enviar notificación', 'error');
         }
@@ -460,6 +509,83 @@ const Admin = () => {
         setSendingNotif(false);
       }
     }, isFiltered ? 'Enviar anuncio segmentado' : 'Enviar anuncio masivo');
+  };
+
+  /**
+   * Sube una imagen para el anuncio: pide URL presignada → PUT a S3 → guarda
+   * la key en massNotif.imagen_url. Muestra preview local instantáneo con blob URL.
+   */
+  const handleAnuncioImage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      showToast('Solo JPG, PNG o WebP', 'error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('La imagen no puede pesar más de 5 MB', 'error');
+      return;
+    }
+
+    // Preview local instantáneo (blob URL — no espera al upload de S3)
+    if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+    setImagenPreview(URL.createObjectURL(file));
+    setImagenUploading(true);
+
+    try {
+      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg';
+      const urlRes = await fetch(`${API_URL}/images/upload-url?type=anuncio&ext=${ext}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!urlRes.ok) throw new Error('No se pudo obtener URL de subida');
+      const { uploadUrl, key } = await urlRes.json();
+
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+
+      setMassNotif((prev) => ({ ...prev, imagen_url: key }));
+    } catch {
+      showToast('Error al subir la imagen', 'error');
+      if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+      setImagenPreview(null);
+    } finally {
+      setImagenUploading(false);
+    }
+  };
+
+  const removeAnuncioImage = () => {
+    if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+    setImagenPreview(null);
+    setMassNotif((prev) => ({ ...prev, imagen_url: '' }));
+    if (anuncioImgRef.current) anuncioImgRef.current.value = '';
+  };
+
+  /** Borra un anuncio del historial — confirma primero, refresca al terminar. */
+  const handleDeleteAnuncio = (anuncio) => {
+    showConfirm(
+      `Esto eliminará el anuncio "${anuncio.titulo}" de los ${anuncio.destinatarios} usuarios que lo recibieron. ¿Continuar?`,
+      async () => {
+        hideConfirm();
+        try {
+          const res = await fetch(`${API_URL}/api/admin/notificaciones/${anuncio.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            showToast('Anuncio eliminado');
+            setAnuncios((prev) => prev.filter((a) => a.id !== anuncio.id));
+          } else {
+            showToast('Error al eliminar', 'error');
+          }
+        } catch {
+          showToast('Error de conexión', 'error');
+        }
+      },
+      'Eliminar anuncio'
+    );
   };
 
   const toggleUserSelection = (id) => {
@@ -621,9 +747,7 @@ const Admin = () => {
                     <tr key={u.id} className="hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs uppercase">
-                            {(u.nombre || 'U').substring(0, 2)}
-                          </div>
+                          <UserAvatar user={u} />
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="text-white font-medium">{u.nombre}</p>
@@ -635,7 +759,12 @@ const Admin = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
-                          <span className={`text-[10px] font-bold uppercase w-fit px-2 py-0.5 rounded ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}>{u.role}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-bold uppercase w-fit px-2 py-0.5 rounded ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}>{u.role}</span>
+                            <span className="text-[10px] font-bold uppercase bg-zinc-800 text-zinc-400 w-fit px-2 py-0.5 rounded">
+                              Demos: {u.demo_count ?? 0}
+                            </span>
+                          </div>
                           {u.es_premium && <span className="text-[10px] font-bold uppercase bg-amber-500/20 text-amber-500 w-fit px-2 py-0.5 rounded">Premium</span>}
                         </div>
                       </td>
@@ -643,7 +772,7 @@ const Admin = () => {
                         <div className="flex items-center gap-1"><MapPin size={12}/>{u.ciudad || 'No especificada'}</div>
                       </td>
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEditUser(u)} className="text-gray-500 hover:text-indigo-400 transition-colors p-2" title="Editar"><Edit2 size={16} /></button>
+                        <button onClick={() => handleEditUser(u)} className="text-gray-500 hover:text-purple-400 transition-colors p-2" title="Editar"><Edit2 size={16} /></button>
                         <button onClick={() => handleDeleteUsuario(u.id)} className="text-gray-500 hover:text-red-400 transition-colors p-2" title="Eliminar"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -686,11 +815,11 @@ const Admin = () => {
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer group">
                       <input type="checkbox" checked={userForm.es_verificado} onChange={e => setUserForm({ ...userForm, es_verificado: e.target.checked })} className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-0" />
-                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Verificado ✅</span>
+                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Verificado</span>
                     </label>
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 transition-all">
+                <button type="submit" className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 transition-all uppercase tracking-wide text-sm">
                   <Save size={18} /> Guardar Cambios
                 </button>
               </form>
@@ -865,6 +994,48 @@ const Admin = () => {
                   <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Título</label><input required type="text" value={massNotif.titulo} onChange={e => setMassNotif({ ...massNotif, titulo: e.target.value })} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none" /></div>
                   <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Mensaje</label><textarea required rows={4} value={massNotif.descripcion} onChange={e => setMassNotif({ ...massNotif, descripcion: e.target.value })} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none resize-none" /></div>
                   <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Enlace</label><input type="text" value={massNotif.link} onChange={e => setMassNotif({ ...massNotif, link: e.target.value })} className="w-full bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-amber-500 transition-all outline-none" /></div>
+
+                  {/* Imagen opcional del anuncio */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Imagen (opcional)</label>
+                    <input
+                      ref={anuncioImgRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleAnuncioImage}
+                      className="hidden"
+                    />
+                    {imagenPreview ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-gray-700 bg-black">
+                        <img src={imagenPreview} alt="Vista previa" className="w-full h-40 object-cover" />
+                        {imagenUploading && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-amber-500" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={removeAnuncioImage}
+                          disabled={imagenUploading}
+                          className="absolute top-2 right-2 w-8 h-8 bg-black/70 hover:bg-black text-white rounded-full flex items-center justify-center transition-colors disabled:opacity-40"
+                          title="Quitar imagen"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => anuncioImgRef.current?.click()}
+                        className="w-full border-2 border-dashed border-gray-700 hover:border-amber-500/50 rounded-2xl py-8 flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-amber-400 transition-colors"
+                      >
+                        <ImageIcon size={22} />
+                        <span className="text-xs font-semibold uppercase tracking-wider">Subir imagen</span>
+                        <span className="text-[10px] text-gray-600">JPG, PNG o WebP · máx 5 MB</span>
+                      </button>
+                    )}
+                  </div>
+
                   <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20"><p className="text-xs text-amber-200 font-bold mb-1 uppercase tracking-tighter">Destinatarios:</p><p className="text-sm text-white font-medium">{selectedUserIds.length > 0 ? `Enviando a ${selectedUserIds.length} seleccionados` : 'Enviando a TODOS los usuarios'}</p></div>
                   <button type="submit" disabled={sendingNotif} className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-amber-500/10 uppercase tracking-widest text-sm">{sendingNotif ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black" /> : <><Send size={18} /> Lanzar Mensaje</>}</button>
                 </form>
@@ -878,9 +1049,77 @@ const Admin = () => {
               </div>
               <div className="xl:col-span-1 space-y-6">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Vista previa final</h3>
-                <div className="bg-zinc-950 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden"><div className="absolute top-0 left-0 w-1 h-full bg-amber-500" /><div className="flex gap-4"><div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0"><Megaphone size={20} /></div><div className="space-y-1"><h4 className="text-white font-bold text-sm">{massNotif.titulo || 'Título de ejemplo'}</h4><p className="text-zinc-400 text-xs leading-relaxed">{massNotif.descripcion || 'Aquí aparecerá el cuerpo del mensaje...'}</p><p className="text-[10px] text-zinc-600 font-bold uppercase pt-2">Ahora mismo • SISTEMA</p></div></div></div>
-                <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-2xl space-y-4"><div className="flex items-center gap-3 text-indigo-400"><Users size={18} /><span className="text-xs font-bold uppercase">Tips de uso</span></div><ul className="text-xs text-gray-500 space-y-3 list-disc pl-4"><li>Si no seleccionas a nadie, el sistema envía el mensaje a <strong>toda la comunidad</strong>.</li><li>Usa el buscador de la columna central para encontrar músicos específicos.</li><li>Los usuarios verán un punto rojo de notificación apenas envíes el mensaje.</li></ul></div>
+                <div className="bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 z-10" />
+                  {imagenPreview && (
+                    <img src={imagenPreview} alt="" className="w-full h-32 object-cover" />
+                  )}
+                  <div className="p-6">
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                        <Megaphone size={20} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-white font-bold text-sm">{massNotif.titulo || 'Título de ejemplo'}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{massNotif.descripcion || 'Aquí aparecerá el cuerpo del mensaje...'}</p>
+                        <p className="text-[10px] text-zinc-600 font-bold uppercase pt-2">Ahora mismo • SISTEMA</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-2xl space-y-4"><div className="flex items-center gap-3 text-purple-400"><Users size={18} /><span className="text-xs font-bold uppercase">Tips de uso</span></div><ul className="text-xs text-gray-500 space-y-3 list-disc pl-4"><li>Si no seleccionas a nadie, el sistema envía el mensaje a <strong>toda la comunidad</strong>.</li><li>Usa el buscador de la columna central para encontrar músicos específicos.</li><li>Los usuarios verán un punto rojo de notificación apenas envíes el mensaje.</li></ul></div>
               </div>
+            </div>
+
+            {/* ══════════════════════════════════════════════
+                Historial de Anuncios — deduplicado por backend
+            ══════════════════════════════════════════════ */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                  <Clock size={18} className="text-purple-400" />
+                  Historial de Anuncios
+                </h3>
+                <span className="text-xs text-zinc-500">{anuncios.length} {anuncios.length === 1 ? 'anuncio' : 'anuncios'}</span>
+              </div>
+
+              {anuncios.length === 0 ? (
+                <div className="text-center py-10 text-zinc-500 text-sm">
+                  <Megaphone size={28} className="mx-auto mb-2 text-zinc-700" />
+                  Aún no se han enviado anuncios.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {anuncios.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-start gap-4 bg-black/30 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
+                        <Megaphone size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h4 className="text-white font-semibold text-sm">{a.titulo}</h4>
+                          <span className="text-[10px] uppercase font-bold bg-purple-500/15 text-purple-400 px-2 py-0.5 rounded">
+                            {a.destinatarios} {a.destinatarios === 1 ? 'destinatario' : 'destinatarios'}
+                          </span>
+                        </div>
+                        <p className="text-zinc-400 text-xs leading-relaxed line-clamp-2">{a.descripcion}</p>
+                        <p className="text-zinc-600 text-[10px] mt-1.5">{formatFecha(a.created_at)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAnuncio(a)}
+                        className="text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors p-2 rounded-lg shrink-0"
+                        title="Eliminar anuncio"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
