@@ -20,9 +20,8 @@ const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
 function SectionHeader({ children }) {
   return (
     <div className="mb-4">
-      <p className="text-zinc-500 text-[11px] uppercase tracking-[0.25em] flex items-center gap-2">
-        <span className="text-zinc-700 font-mono">//</span>
-        <span className="text-zinc-300 font-bold">{children}</span>
+      <p className="text-zinc-300 text-[11px] font-bold uppercase tracking-[0.25em]">
+        {children}
       </p>
       <div className="h-px bg-zinc-800 mt-2" />
     </div>
@@ -181,10 +180,6 @@ export default function Profile() {
           Cambiar banner
         </button>
 
-        {/* Etiqueta esquina sup-izq estilo expediente */}
-        <div className="absolute top-4 left-6 text-zinc-600 text-[10px] font-mono uppercase tracking-[0.3em]">
-          // perfil_de_usuario.bandify
-        </div>
       </div>
 
       {/* ══════════════════════════════════════════════
@@ -264,9 +259,8 @@ export default function Profile() {
           {/* BIOGRAFÍA */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-zinc-500 text-[11px] uppercase tracking-[0.25em] flex items-center gap-2">
-                <span className="text-zinc-700 font-mono">//</span>
-                <span className="text-zinc-300 font-bold">Biografía</span>
+              <p className="text-zinc-300 text-[11px] font-bold uppercase tracking-[0.25em]">
+                Biografía
               </p>
               {!editingBio && (
                 <button
@@ -431,8 +425,8 @@ export default function Profile() {
                         <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/60" />
                       )}
                       <div className="relative z-10 p-4">
-                        <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-[0.25em] mb-2">
-                          // Reproduciendo
+                        <p className="text-zinc-500 text-[10px] uppercase tracking-[0.25em] mb-2">
+                          Reproduciendo
                         </p>
                         <AudioPlayer key={audioUrl} src={audioUrl} />
                       </div>
