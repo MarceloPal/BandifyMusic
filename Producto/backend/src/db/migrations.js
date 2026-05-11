@@ -103,6 +103,18 @@ async function runMigrations() {
     )`,
     // Imagen opcional en notificaciones (anuncios admin con foto)
     'ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS imagen_url TEXT',
+    // ── ÉPICA 2: Carpetas de Proyectos ──
+    // Tabla de carpetas: agrupan demos del usuario por proyecto/colaboración
+    `CREATE TABLE IF NOT EXISTS folders (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      usuario_id  UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      nombre      VARCHAR(100) NOT NULL,
+      cover_url   TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // Demos pueden pertenecer a una carpeta (opcional)
+    // ON DELETE SET NULL: al borrar la carpeta, los demos quedan sin carpeta
+    'ALTER TABLE demos ADD COLUMN IF NOT EXISTS folder_id UUID REFERENCES folders(id) ON DELETE SET NULL',
     // Tocatas con venta de entradas vía MercadoPago
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS precio             NUMERIC(10,2)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS cantidad_disponible INTEGER',

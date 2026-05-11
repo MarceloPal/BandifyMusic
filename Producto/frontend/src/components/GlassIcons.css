@@ -1,0 +1,139 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   GlassIcons — botones con efecto glassmorphism + tilt 3D.
+   Adaptado para Bandify: el `icon-btn__back` puede ser un gradiente sólido
+   (carpetas sin foto) o una imagen de cover (carpetas con foto).
+────────────────────────────────────────────────────────────────────────── */
+
+.icon-btns {
+  display: grid;
+  grid-gap: 2.5em;
+  grid-template-columns: repeat(2, 1fr);
+  margin: 0;
+  padding: 1.5em 0;
+  overflow: visible;
+}
+
+.icon-btn {
+  background-color: transparent;
+  outline: none;
+  position: relative;
+  width: 4em;
+  height: 4em;
+  perspective: 24em;
+  transform-style: preserve-3d;
+  -webkit-tap-highlight-color: transparent;
+  border: none;
+  cursor: pointer;
+  justify-self: center;
+}
+
+.icon-btn__back,
+.icon-btn__front,
+.icon-btn__label {
+  transition:
+    opacity 0.3s cubic-bezier(0.83, 0, 0.17, 1),
+    transform 0.3s cubic-bezier(0.83, 0, 0.17, 1);
+}
+
+.icon-btn__back,
+.icon-btn__front {
+  border-radius: 1em;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.icon-btn__back {
+  box-shadow: 0.5em -0.5em 0.75em hsla(223, 10%, 5%, 0.45);
+  display: block;
+  transform: rotate(15deg);
+  transform-origin: 100% 100%;
+  will-change: transform;
+  /* background se setea inline (gradiente o background-image de cover) */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.icon-btn__front {
+  background-color: hsla(0, 0%, 100%, 0.12);
+  box-shadow: 0 0 0 0.1em hsla(0, 0%, 100%, 0.25) inset;
+  backdrop-filter: blur(0.75em);
+  -webkit-backdrop-filter: blur(0.75em);
+  display: flex;
+  transform-origin: 80% 50%;
+  will-change: transform;
+}
+
+.icon-btn__icon {
+  margin: auto;
+  width: 1.5em;
+  height: 1.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.icon-btn__label {
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 2;
+  opacity: 0;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  transform: translateY(0);
+  color: #e4e4e7; /* zinc-200 */
+}
+
+.icon-btn:focus-visible .icon-btn__back,
+.icon-btn:hover .icon-btn__back {
+  transform: rotate(25deg) translate3d(-0.5em, -0.5em, 0.5em);
+}
+
+.icon-btn:focus-visible .icon-btn__front,
+.icon-btn:hover .icon-btn__front {
+  transform: translate3d(0, 0, 2em);
+}
+
+.icon-btn:focus-visible .icon-btn__label,
+.icon-btn:hover .icon-btn__label {
+  opacity: 1;
+  transform: translateY(20%);
+}
+
+/* Indicador de count de demos sobre la carpeta */
+.icon-btn__count {
+  position: absolute;
+  top: -0.4em;
+  right: -0.4em;
+  background: #7c3aed; /* purple-600 */
+  color: white;
+  font-size: 0.6em;
+  font-weight: 700;
+  min-width: 1.6em;
+  height: 1.6em;
+  border-radius: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4em;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 480px) {
+  .icon-btns {
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 1.5em;
+  }
+}
