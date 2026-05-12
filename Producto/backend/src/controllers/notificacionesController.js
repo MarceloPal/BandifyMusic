@@ -153,6 +153,10 @@ exports.marcarLeidas = async (req, res, next) => {
       `UPDATE mensajes SET leido = true WHERE para_id = $1 AND leido = false`,
       [req.usuario.id]
     );
+    await pool.query(
+      `UPDATE notificaciones SET leida = true WHERE usuario_id = $1 AND leida = false`,
+      [req.usuario.id]
+    );
     res.json({ ok: true });
   } catch (error) {
     next(error);
