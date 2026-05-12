@@ -85,6 +85,7 @@ exports.viewUrl = async (req, res, next) => {
     }
 
     const ALLOWED_VIEW_PREFIXES = Object.values(FOLDER_MAP).map((f) => `${f}/`);
+    const allowed = ALLOWED_VIEW_PREFIXES.some((prefix) => key.startsWith(prefix));
     if (!allowed) {
       return res.status(403).json({
         error: `La key '${key}' no corresponde a una carpeta de imagen autorizada (${ALLOWED_VIEW_PREFIXES.join(', ')}).`,
