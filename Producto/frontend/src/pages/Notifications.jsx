@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, MessageCircle, Sparkles, CalendarDays, Megaphone, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -105,6 +106,12 @@ export default function Notifications() {
   })
 
   const sinLeer = notifs.filter((n) => !n.leida).length
+
+  // Marca todo como leído al abrir la página
+  useEffect(() => {
+    if (!token || sinLeer === 0) return
+    marcarLeidas.mutate()
+  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="max-w-3xl mx-auto w-full">

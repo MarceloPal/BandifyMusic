@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { MapPin, ArrowLeft, Sparkles, Music, CalendarDays } from 'lucide-react'
+import { MapPin, ArrowLeft, Sparkles, Music, CalendarDays, Mic2, Users2, Ticket, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import Footer      from '../components/Footer'
@@ -111,6 +111,183 @@ function WhiteBtn({ to, children, className = '' }) {
     >
       {children}
     </Link>
+  )
+}
+
+// ── Cómo Funciona: stepper interactivo ───────────────────────
+
+const STEPS = [
+  {
+    num: '01',
+    icon: Mic2,
+    color: 'from-purple-500/20 to-purple-600/10',
+    border: 'border-purple-500/30',
+    iconColor: 'text-purple-400',
+    titulo: 'Sube tu música',
+    subtitulo: 'Nuestro algoritmo analiza tu sonido',
+    desc: 'Sube un audio en formato .mp3 o .wav. Nuestra IA analiza el BPM, energía, timbre y estructura rítmica de tu música para crear un perfil único — tu ADN Musical.',
+    puntos: ['Sin formularios aburridos', 'Análisis en segundos', 'Perfil 100% basado en tu sonido real'],
+    preview: (
+      <div className="bg-white/5 rounded-2xl p-5 border border-white/8 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center"><Mic2 size={18} className="text-purple-400" /></div>
+          <div><p className="text-white text-sm font-bold">demo_session.mp3</p><p className="text-white/40 text-xs">3:42 · 8.4 MB</p></div>
+        </div>
+        <div className="h-10 flex items-end gap-0.5">
+          {[4,7,5,9,6,8,4,10,7,5,9,6,8,4,7,5,9,6,8,4,6,9,5,8].map((h, i) => (
+            <div key={i} className="flex-1 bg-purple-400/60 rounded-full" style={{ height: `${h * 10}%` }} />
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {['BPM: 128', 'Energía: Alta', 'Electrónica'].map(tag => (
+            <span key={tag} className="text-xs bg-purple-500/15 border border-purple-400/20 text-purple-300 px-2.5 py-1 rounded-full">{tag}</span>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    num: '02',
+    icon: Users2,
+    color: 'from-blue-500/20 to-blue-600/10',
+    border: 'border-blue-500/30',
+    iconColor: 'text-blue-400',
+    titulo: 'Conecta con músicos',
+    subtitulo: 'El algoritmo encuentra tu match musical',
+    desc: 'Basado en tu ADN Musical, Bandify te muestra músicos que vibran en tu misma frecuencia. Filtra por instrumento, ciudad o género y contáctalos directamente desde la app.',
+    puntos: ['Match por sonido, no por etiquetas', 'Chat directo sin intermediarios', 'Explora perfiles con demos reales'],
+    preview: (
+      <div className="flex flex-col gap-2.5">
+        {[
+          { nombre: 'Valentina M.', inst: 'Vocalista · Santiago', pct: 94 },
+          { nombre: 'Rodrigo A.',   inst: 'Bajista · Valparaíso', pct: 87 },
+          { nombre: 'Camila R.',    inst: 'Baterista · Santiago', pct: 82 },
+        ].map((m) => (
+          <div key={m.nombre} className="bg-white/5 border border-white/8 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 text-xs font-bold flex-shrink-0">{m.nombre[0]}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-semibold truncate">{m.nombre}</p>
+              <p className="text-white/40 text-xs">{m.inst}</p>
+            </div>
+            <span className="text-green-400 text-xs font-black flex-shrink-0">{m.pct}%</span>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    num: '03',
+    icon: Ticket,
+    color: 'from-pink-500/20 to-pink-600/10',
+    border: 'border-pink-500/30',
+    iconColor: 'text-pink-400',
+    titulo: 'Toca en vivo',
+    subtitulo: 'Publica y descubre tocatas en Chile',
+    desc: 'Explora eventos de la comunidad y grandes conciertos en un solo lugar. Publica tu propia tocata, vende entradas y haz crecer tu audiencia en la escena musical chilena.',
+    puntos: ['Eventos de la comunidad + Ticketmaster', 'Vende entradas con MercadoPago', 'Mapa de eventos por ciudad'],
+    preview: (
+      <div className="bg-white/5 rounded-2xl overflow-hidden border border-white/8">
+        <div className="h-24 bg-gradient-to-br from-pink-900/40 to-purple-900/40 flex items-center justify-center">
+          <Ticket size={32} className="text-pink-400/60" />
+        </div>
+        <div className="p-4 flex flex-col gap-2">
+          <p className="text-white font-bold text-sm">Noche de Jazz Vol. 4</p>
+          <p className="text-white/40 text-xs flex items-center gap-1"><CalendarDays size={11} /> Sáb 14 Jun · Club Chocolate, Santiago</p>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-pink-400 text-sm font-black">$5.000</span>
+            <span className="text-xs bg-pink-500/15 border border-pink-400/20 text-pink-300 px-2.5 py-1 rounded-full">Jazz</span>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+]
+
+function ComoFunciona({ onBack }) {
+  const [step, setStep] = useState(0)
+  const current = STEPS[step]
+  const Icon = current.icon
+
+  return (
+    <section className="flex-1 px-6 py-12">
+      <div className="max-w-3xl mx-auto">
+        <BackButton onClick={onBack} />
+
+        <h2 className="text-2xl font-bold text-white mb-2 text-center">Cómo funciona</h2>
+        <p className="text-white/40 text-sm text-center mb-10">Tres pasos para ser parte de la escena musical</p>
+
+        {/* Barra de progreso */}
+        <div className="flex items-center gap-2 mb-10">
+          {STEPS.map((s, i) => (
+            <button key={i} onClick={() => setStep(i)} className="flex-1 flex flex-col items-center gap-2 group">
+              <div className={`w-full h-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-purple-400' : 'bg-white/10'}`} />
+              <span className={`text-xs font-semibold transition-colors ${i === step ? 'text-white' : 'text-white/30 group-hover:text-white/50'}`}>
+                {s.num}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Contenido del paso */}
+        <div className={`rounded-3xl border bg-gradient-to-br ${current.color} ${current.border} p-7 mb-6 transition-all duration-300`}>
+          <div className="flex flex-col md:flex-row gap-8">
+
+            {/* Info */}
+            <div className="flex-1 flex flex-col gap-4">
+              <div className={`w-12 h-12 rounded-2xl bg-white/5 border ${current.border} flex items-center justify-center`}>
+                <Icon size={22} className={current.iconColor} />
+              </div>
+              <div>
+                <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-1">{current.subtitulo}</p>
+                <h3 className="text-white font-black text-xl mb-3">{current.titulo}</h3>
+                <p className="text-white/60 text-sm leading-relaxed">{current.desc}</p>
+              </div>
+              <ul className="flex flex-col gap-2 mt-2">
+                {current.puntos.map((p) => (
+                  <li key={p} className="flex items-center gap-2.5 text-white/70 text-sm">
+                    <Check size={14} className={current.iconColor} />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Preview */}
+            <div className="md:w-56 flex-shrink-0">
+              {current.preview}
+            </div>
+          </div>
+        </div>
+
+        {/* Navegación */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors disabled:opacity-0 text-sm font-medium"
+          >
+            <ChevronLeft size={15} /> Anterior
+          </button>
+
+          {step < STEPS.length - 1 ? (
+            <button
+              onClick={() => setStep((s) => s + 1)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white transition-colors text-sm font-semibold"
+            >
+              Siguiente <ChevronRight size={15} />
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-colors"
+              style={{ backgroundColor: '#ffffff', color: '#000000' }}
+            >
+              Crear mi perfil <ChevronRight size={15} />
+            </Link>
+          )}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -296,27 +473,7 @@ export default function Landing() {
         )}
 
         {/* ════ Vista: CÓMO FUNCIONA ════ */}
-        {view === 'como' && (
-          <section className="flex-1 px-8 py-14">
-            <div className="max-w-5xl mx-auto">
-              <BackButton onClick={() => setView('home')} />
-              <h2 className="text-2xl font-bold text-white mb-7 text-center">Cómo funciona</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {[
-                  { num: '01', titulo: 'Descubre tu ADN Musical',    desc: 'Sube un audio (.mp3 o .wav) y deja que nuestra IA analice el corazón de tu sonido. Obtendrás un perfil único basado en tu ritmo y energía, sin tener que rellenar aburridos formularios.' },
-                  { num: '02', titulo: 'Conecta con tu Banda Ideal', desc: 'Nuestro algoritmo te muestra músicos que realmente vibran en tu misma sintonía. Olvídate de las etiquetas; contacta directamente con colaboradores compatibles para empezar a crear.' },
-                  { num: '03', titulo: 'Encuentra tu Próximo Escenario', desc: 'No solo creas música, también la vives. Explora tocatas, conciertos y eventos locales en Chile para tocar o descubrir nuevos sonidos. ¡La escena musical completa en un solo lugar!' },
-                ].map((step) => (
-                  <div key={step.num} className="bg-white/5 rounded-2xl p-6 border border-white/8">
-                    <p className="text-5xl font-black text-white/8 mb-3">{step.num}</p>
-                    <p className="text-white font-bold text-sm mb-2">{step.titulo}</p>
-                    <p className="text-white/50 text-xs leading-relaxed">{step.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {view === 'como' && <ComoFunciona onBack={() => setView('home')} />}
 
         <Footer onLogoClick={() => setView('home')} />
       </div>
