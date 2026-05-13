@@ -162,21 +162,17 @@ exports.eliminarUsuario = async (req, res, next) => {
     // Las borramos manualmente. En migraciones nuevas ya tienen CASCADE,
     // pero este cleanup explícito funciona en cualquier estado del schema.
 
-    // mensajes: tiene 2 FKs (de_id y para_id), ambos pueden bloquear
-    await client.query('DELETE FROM mensajes   WHERE de_id   = $1 OR para_id = $1', [id]);
-
-    // jobs / audio_jobs: ya tienen CASCADE vía migración, pero defensivo
-    await client.query('DELETE FROM jobs       WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM audio_jobs WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM perfiles   WHERE usuario_id = $1', [id]);
-
-    // tocatas que el usuario organizó (defensivo — depende del schema base)
-    // Esto cascadeará tickets vía sus propias FKs si están bien definidas.
-    await client.query('DELETE FROM tocatas    WHERE organizador_id = $1', [id]);
-
-    // El resto debería tener ON DELETE CASCADE o SET NULL en sus FKs
-    // (demos, tickets.buyer_id, notificaciones, password_resets, reportes, noticias)
-    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
+    // Limpieza explícita de todas las tablas con FK hacia usuarios
+    await client.query('DELETE FROM mensajes          WHERE de_id   = $1 OR para_id = $1', [id]);
+    await client.query('DELETE FROM notificaciones    WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM password_resets   WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM tickets           WHERE buyer_id   = $1', [id]);
+    await client.query('DELETE FROM demos             WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM audio_jobs        WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM jobs              WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM tocatas           WHERE organizador_id = $1', [id]);
+    await client.query('DELETE FROM perfiles          WHERE usuario_id = $1', [id]);
+    await client.query('DELETE FROM usuarios          WHERE id = $1',         [id]);
 
     await client.query('COMMIT');
     res.json({ message: 'Usuario eliminado con éxito' });
