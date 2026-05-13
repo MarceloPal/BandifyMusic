@@ -392,53 +392,90 @@ export default function Landing() {
         {/* ════ Vista: HOME ════ */}
         {view === 'home' && (
           <>
-            <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/8 border border-white/12 text-white/50 text-sm mb-8">
-                <MapPin size={12} />
-                Músico independiente, Santiago de Chile
-              </div>
+            {/* Hero */}
+            <section className="flex flex-col items-center justify-center text-center px-6 pt-24 pb-10">
 
-              <h1 className="text-5xl md:text-6xl font-black text-white leading-tight tracking-tight mb-5">
-                Encuentra tu<br />próximo sonido
+              {/* Nombre de la marca */}
+              <h1
+                className="text-7xl md:text-9xl font-black tracking-widest mb-4 select-none"
+                style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #c4b5fd 50%, #818cf8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: 'none',
+                  letterSpacing: '0.15em',
+                }}
+              >
+                BANDIFY
               </h1>
 
-              <p className="text-white/50 text-base max-w-xs mb-9 leading-relaxed">
-                Tu música merece al colaborador indicado.<br />
-                Déjanos encontrarlo por ti.
+              {/* Tagline */}
+              <p className="text-white/50 text-sm font-semibold uppercase tracking-[0.3em] mb-10">
+                La escena musical chilena
               </p>
 
+              {/* Subtítulo */}
+              <p className="text-white/45 text-base max-w-sm mb-10 leading-relaxed">
+                Analiza tu ADN Musical con IA, conecta con músicos compatibles y encuentra tocatas en tu ciudad.
+              </p>
+
+              {/* CTAs */}
               {user ? (
                 <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/8 border border-white/12 text-sm text-white/60">
+                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/8 border border-white/12 text-sm text-white/60 backdrop-blur-sm">
                     <Sparkles size={13} className="text-purple-400" />
                     Hola de nuevo,{' '}
                     <span className="text-white font-bold">{user.nombre?.split(' ')[0]}</span>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap justify-center">
                     <WhiteBtn to="/explore" className="px-7 py-3.5">Explorar músicos</WhiteBtn>
-                    <Link
-                      to="/profile"
-                      className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors"
-                    >
+                    <Link to="/profile" className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors">
                       Mi perfil
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 flex-wrap justify-center">
-                  <WhiteBtn to="/auth" className="px-7 py-3.5">Crear mi perfil</WhiteBtn>
-                  <Link
-                    to="/auth?mode=login"
-                    className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors"
-                  >
+                  <WhiteBtn to="/auth" className="px-7 py-3.5">Crear mi perfil gratis</WhiteBtn>
+                  <Link to="/auth?mode=login" className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors">
                     Iniciar sesión
                   </Link>
                 </div>
               )}
-
-              <p className="mt-7 text-white/25 text-sm">+500 músicos independientes en Chile</p>
             </section>
 
+            {/* Stats */}
+            <div className="flex items-center justify-center gap-8 md:gap-16 px-6 pb-10">
+              {[
+                { valor: '+500', label: 'Músicos' },
+                { valor: '+30',  label: 'Tocatas' },
+                { valor: '5',    label: 'Ciudades' },
+              ].map((s) => (
+                <div key={s.label} className="flex flex-col items-center gap-0.5">
+                  <span className="text-white font-black text-2xl">{s.valor}</span>
+                  <span className="text-white/35 text-xs font-medium">{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Marquee géneros */}
+            <div className="overflow-hidden py-4 border-t border-white/6 mb-2" style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}>
+              <div className="flex gap-3 animate-marquee whitespace-nowrap" style={{ animation: 'marquee 20s linear infinite' }}>
+                {['Jazz', 'Rock', 'Cumbia', 'Indie', 'Electrónica', 'Hip-Hop', 'Reggaetón', 'Folk', 'Metal', 'Pop', 'Funk', 'Blues', 'Trap', 'Bossa Nova', 'Jazz', 'Rock', 'Cumbia', 'Indie', 'Electrónica', 'Hip-Hop', 'Reggaetón', 'Folk', 'Metal', 'Pop', 'Funk', 'Blues'].map((g, i) => (
+                  <span key={i} className="px-4 py-1.5 rounded-full border border-white/10 text-white/35 text-xs font-medium bg-white/3 flex-shrink-0">
+                    {g}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <style>{`
+              @keyframes marquee {
+                from { transform: translateX(0); }
+                to   { transform: translateX(-50%); }
+              }
+            `}</style>
           </>
         )}
 
