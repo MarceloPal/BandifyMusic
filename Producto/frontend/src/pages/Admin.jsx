@@ -308,24 +308,26 @@ const Admin = () => {
 
   /* ── Handlers ── */
   const handleDeleteUsuario = (id) => {
+    const userId = id; // captura explícita antes de pasar al modal
     showConfirm(
       'Esta acción eliminará al usuario permanentemente de la plataforma.',
       async () => {
         hideConfirm();
         try {
-          const res = await fetch(`${API_URL}/api/admin/usuarios/${id}`, {
+          const res = await fetch(`${API_URL}/api/admin/usuarios/${userId}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
           });
           if (res.ok) {
-            setUsuarios(prev => prev.filter(u => u.id !== id));
+            setUsuarios(prev => prev.filter(u => u.id !== userId));
             fetchStats();
             showToast('Usuario eliminado correctamente');
           } else {
-            showToast('Error al eliminar usuario', 'error');
+            const data = await res.json().catch(() => ({}));
+            showToast(data.error || `Error al eliminar usuario (${res.status})`, 'error');
           }
-        } catch {
-          showToast('Error de conexión', 'error');
+        } catch (err) {
+          showToast(`Error de conexión: ${err.message}`, 'error');
         }
       },
       'Eliminar usuario'
@@ -652,7 +654,7 @@ const Admin = () => {
     <>
       <ConfirmModal
         modal={confirmModal}
-        onConfirm={() => confirmModal.onConfirm?.()}
+        onConfirm={confirmModal.onConfirm ?? (() => {})}
         onCancel={hideConfirm}
       />
       <Toast toast={toast} />
