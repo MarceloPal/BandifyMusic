@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { HelpCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react'
 
 const FAQS = [
@@ -72,17 +73,17 @@ export default function Help() {
 
       {/* Contacto */}
       <div className="bg-zinc-800 rounded-2xl p-6 flex items-start gap-4 border border-white/8 shadow-sm">
-        <Mail size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
-        <div>
+        <Mail size={18} className="text-purple-400 mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
           <p className="text-zinc-100 text-sm font-semibold mb-1">¿No encontraste tu respuesta?</p>
-          <p className="text-zinc-400 text-sm mb-3">Escríbenos y te respondemos a la brevedad.</p>
-          <a
-            href="mailto:soporte@bandify.cl"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-full text-xs font-semibold hover:bg-purple-500 transition-colors"
+          <p className="text-zinc-400 text-sm mb-4">Escríbenos y te respondemos a la brevedad.</p>
+          <Link
+            to="/soporte"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full text-sm font-semibold hover:from-purple-500 hover:to-purple-400 transition-all duration-200 shadow-lg hover:shadow-purple-500/50"
           >
-            <Mail size={12} />
-            soporte@bandify.cl
-          </a>
+            <Mail size={16} />
+            Ir al Centro de Soporte
+          </Link>
         </div>
       </div>
     </div>
