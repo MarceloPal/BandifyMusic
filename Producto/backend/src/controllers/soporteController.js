@@ -4,6 +4,7 @@
  */
 
 const pool = require('../db/index');
+const mailer = require('../utils/mailer');
 
 /**
  * POST /api/soporte — crear un ticket de soporte.
@@ -11,6 +12,8 @@ const pool = require('../db/index');
  * Opcionalmente: usuario_id desde req.usuario (si está autenticado)
  */
 exports.crearTicket = async (req, res, next) => {
+  console.log('📡 1. Petición de soporte recibida en el backend:', req.body);
+
   try {
     const { email, asunto, mensaje } = req.body;
 
@@ -38,6 +41,20 @@ exports.crearTicket = async (req, res, next) => {
        RETURNING id, usuario_id, email, asunto, mensaje, created_at`,
       [usuario_id, email.trim(), asunto.trim(), mensaje.trim()]
     );
+
+    // Enviar correo de confirmación al usuario
+    try {
+      await mailer.sendSupportTicketEmail({
+        to: email,
+        nombre: req.usuario?.nombre || 'Usuario',
+        asunto: asunto.trim(),
+        mensaje: mensaje.trim(),
+        ticketId: result.rows[0].id,
+      });
+    } catch (mailError) {
+      console.error('Error enviando correo de soporte:', mailError);
+      // No fallar la petición por error de correo
+    }
 
     res.status(201).json({
       message: 'Ticket de soporte creado con éxito',
