@@ -2,14 +2,14 @@
  * Mailer — Envío de correos transaccionales con Nodemailer y Gmail.
  *
  * Variables de entorno requeridas:
- *   EMAIL_USER — dirección de Gmail usada para enviar correos
- *   EMAIL_PASS — contraseña de aplicación de Gmail (App Password)
- *   FRONTEND_URL — URL del frontend (para links en los emails)
+ * EMAIL_USER — dirección de Gmail usada para enviar correos
+ * EMAIL_PASS — contraseña de aplicación de Gmail (App Password)
+ * FRONTEND_URL — URL del frontend (para links en los emails)
  *
  * Funciones exportadas:
- *   sendAdnReadyEmail      — ADN listo tras análisis Hi-Fi
- *   sendNewMessageEmail    — aviso de mensaje nuevo
- *   sendPasswordResetEmail — enlace para restablecer contraseña
+ * sendAdnReadyEmail      — ADN listo tras análisis Hi-Fi
+ * sendNewMessageEmail    — aviso de mensaje nuevo
+ * sendPasswordResetEmail — enlace para restablecer contraseña
  */
 
 const nodemailer = require('nodemailer');
@@ -19,18 +19,16 @@ const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const FROM = EMAIL_USER ? `"Equipo Bandify" <${EMAIL_USER}>` : 'Equipo Bandify <no-reply@bandify.cl>';
 
+// NÚCLEO MODIFICADO PARA EVITAR TIMEOUTS EN RAILWAY
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
+  port: 465,
+  secure: true, // Obligatorio para puerto 465
   auth: {
     user: EMAIL_USER,
     pass: EMAIL_PASS,
   },
-  tls: {
-    // A veces Railway tiene problemas con los certificados en conexiones salientes
-    rejectUnauthorized: false
-  }
+  family: 4 // OBLIGA el uso de IPv4, solucionando el bug de red de Railway
 });
 
 function isMailerConfigured() {
@@ -84,7 +82,7 @@ async function sendMail({ to, subject, html }) {
   if (!isMailerConfigured()) return;
 
   try {
-    console.log('✉️ 2. Intentando enviar correo a través de Gmail...');
+    console.log('✉️ 2. Intentando enviar correo a través de Gmail (Puerto 465 IPv4)...');
     const info = await transporter.sendMail({
       from: FROM,
       to,
