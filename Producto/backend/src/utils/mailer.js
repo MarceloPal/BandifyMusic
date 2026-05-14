@@ -13,6 +13,9 @@
  */
 
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+dns.setDefaultResultOrder('ipv4first');
 
 const APP_URL = process.env.FRONTEND_URL || 'https://bandify.cl';
 const EMAIL_USER = process.env.EMAIL_USER;
