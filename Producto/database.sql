@@ -198,3 +198,20 @@ CREATE INDEX idx_admin_logs_accion ON public.admin_logs USING btree (accion);
 CREATE INDEX idx_admin_logs_admin_id ON public.admin_logs USING btree (admin_id);
 CREATE INDEX idx_admin_logs_created_at ON public.admin_logs USING btree (created_at DESC);
 CREATE INDEX idx_admin_logs_entidad ON public.admin_logs USING btree (entidad_tipo, entidad_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- 6. MÓDULO DE SOPORTE AL CLIENTE
+-- ──────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE public.soporte_tickets (
+    id SERIAL PRIMARY KEY,
+    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    email varchar(255) NOT NULL,
+    asunto varchar(255) NOT NULL,
+    mensaje text NOT NULL,
+    created_at timestamptz DEFAULT NOW()
+);
+
+-- Índices de optimización para soporte_tickets
+CREATE INDEX idx_soporte_tickets_usuario_id ON public.soporte_tickets USING btree (usuario_id);
+CREATE INDEX idx_soporte_tickets_created_at ON public.soporte_tickets USING btree (created_at DESC);

@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext'
 import Landing        from './pages/Landing'
 import PrivacyPolicy  from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
+import Support       from './pages/Support'
 import Auth          from './pages/Auth'
 import Onboarding    from './pages/Onboarding'
 import MiAdn         from './pages/MiAdn'
@@ -43,6 +44,7 @@ export default function App() {
       <Route path="/auth"    element={<Auth />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms"   element={<TermsOfService />} />
+      <Route path="/soporte" element={<Support />} />
 
       {/* Onboarding — requiere sesión pero layout propio (oscuro) */}
       <Route

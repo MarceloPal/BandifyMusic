@@ -502,7 +502,41 @@ function PanelContrasena() {
 }
 
 function PanelSeguridad() {
+  const { logout }      = useAuth()
+  const navigate        = useNavigate()
   const [confirmar, setConfirmar] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleEliminarCuenta = async () => {
+    try {
+      setDeleting(true)
+      setError('')
+      const { token } = useAuth()
+      
+      const res = await fetch(`${API_URL}/usuarios/cuenta`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al eliminar cuenta')
+      }
+
+      // Logout y redirigir
+      logout()
+      navigate('/')
+    } catch (err) {
+      setError(err.message || 'Error al eliminar cuenta')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <>
@@ -533,16 +567,46 @@ function PanelSeguridad() {
           </button>
         ) : (
           <div className="flex flex-col gap-3">
-            <p className="text-zinc-300 text-sm">¿Estás seguro? Esta acción eliminará todos tus datos permanentemente.</p>
+            <p className="text-zinc-300 text-sm font-medium">
+              ¿Estás seguro? Esta acción eliminará permanentemente tu cuenta y todos tus datos.
+            </p>
+            <p className="text-zinc-400 text-xs">
+              Para confirmar, escribe <span className="font-mono font-bold text-red-300">ELIMINAR</span> en el campo de abajo.
+            </p>
+            <input
+              type="text"
+              placeholder="Escribe ELIMINAR"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="px-3 py-2 text-sm bg-zinc-900 border border-red-500/20 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-red-500/50"
+            />
+            {error && (
+              <p className="text-red-400 text-xs">{error}</p>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setConfirmar(false)}
+                onClick={() => {
+                  setConfirmar(false)
+                  setConfirmText('')
+                  setError('')
+                }}
                 className="px-4 py-2 text-sm font-medium text-zinc-400 border border-white/10 rounded-xl hover:bg-white/5 transition-colors"
               >
                 Cancelar
               </button>
-              <button className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors">
-                Sí, eliminar cuenta
+              <button
+                onClick={handleEliminarCuenta}
+                disabled={confirmText !== 'ELIMINAR' || deleting}
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  'Sí, eliminar mi cuenta'
+                )}
               </button>
             </div>
           </div>
