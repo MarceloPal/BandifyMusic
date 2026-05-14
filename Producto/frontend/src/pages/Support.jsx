@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 
 export default function Support() {
+  const navigate = useNavigate()
   const { user, token } = useAuth()
   const [formData, setFormData] = useState({
     email: user?.email || '',
@@ -68,6 +70,14 @@ export default function Support() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col pt-20 pb-20">
       <div className="max-w-2xl mx-auto px-6 w-full">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-6"
+        >
+          <ArrowLeft size={20} />
+          Volver
+        </button>
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">

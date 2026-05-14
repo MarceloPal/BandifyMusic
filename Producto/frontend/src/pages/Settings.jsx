@@ -3,8 +3,8 @@ import {
   Bell, Shield, User, Mail, Lock, AlertTriangle, ChevronRight,
   Camera, ImagePlus, Check, Loader2, CreditCard,
 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth }     from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import { TAG_OPTIONS, OFICIOS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
@@ -456,12 +456,12 @@ function PanelEmail({ user }) {
       {/* Ayuda */}
       <p className="text-zinc-600 text-xs">
         ¿Tienes problemas?{' '}
-        <a
-          href="mailto:soporte@bandify.cl"
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+        <Link
+          to="/soporte"
+          className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
         >
           Contáctanos en Soporte al cliente
-        </a>
+        </Link>
         .
       </p>
     </>
@@ -489,12 +489,12 @@ function PanelContrasena() {
 
       <p className="text-zinc-600 text-xs">
         ¿Tienes problemas?{' '}
-        <a
-          href="mailto:soporte@bandify.cl"
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+        <Link
+          to="/soporte"
+          className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
         >
           Contáctanos en Soporte al cliente
-        </a>
+        </Link>
         .
       </p>
     </>
@@ -502,7 +502,7 @@ function PanelContrasena() {
 }
 
 function PanelSeguridad() {
-  const { logout }      = useAuth()
+  const { logout , token}      = useAuth()
   const navigate        = useNavigate()
   const [confirmar, setConfirmar] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -513,7 +513,7 @@ function PanelSeguridad() {
     try {
       setDeleting(true)
       setError('')
-      const { token } = useAuth()
+      
       
       const res = await fetch(`${API_URL}/usuarios/cuenta`, {
         method: 'DELETE',
@@ -661,12 +661,12 @@ function PanelSuscripcion() {
             Detalles del Pedido
           </a>
           . Si tienes alguna pregunta, por favor contacta con{' '}
-          <a
-            href="mailto:soporte@bandify.cl"
-            className="text-purple-400 hover:underline transition-colors"
+          <Link
+            to="/soporte"
+            className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
           >
             Soporte al Cliente
-          </a>
+          </Link>
           .
         </p>
       </div>
