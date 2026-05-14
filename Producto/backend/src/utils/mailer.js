@@ -1,10 +1,10 @@
 /**
- * Mailer — Envío de correos transaccionales con Resend.
+ * Mailer — Envío de correos transaccionales con Nodemailer y Gmail.
  *
  * Variables de entorno requeridas:
- *   RESEND_API_KEY  — clave de API de Resend
- *   RESEND_FROM     — dirección de envío (ej: "Bandify <noreply@bandify.cl>")
- *   FRONTEND_URL    — URL del frontend (para links en los emails)
+ *   EMAIL_USER — dirección de Gmail usada para enviar correos
+ *   EMAIL_PASS — contraseña de aplicación de Gmail (App Password)
+ *   FRONTEND_URL — URL del frontend (para links en los emails)
  *
  * Funciones exportadas:
  *   sendAdnReadyEmail      — ADN listo tras análisis Hi-Fi
@@ -12,18 +12,28 @@
  *   sendPasswordResetEmail — enlace para restablecer contraseña
  */
 
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-let _resend = null;
-function getResend() {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
-  return _resend;
+const APP_URL = process.env.FRONTEND_URL || 'https://bandify.cl';
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const FROM = EMAIL_USER ? `"Equipo Bandify" <${EMAIL_USER}>` : 'Equipo Bandify <no-reply@bandify.cl>';
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
+  },
+});
+
+function isMailerConfigured() {
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    console.warn('[MAILER] EMAIL_USER o EMAIL_PASS no configurados — correo omitido');
+    return false;
+  }
+  return true;
 }
-
-const FROM    = process.env.RESEND_FROM     || 'Bandify <noreply@bandify.cl>';
-const APP_URL = process.env.FRONTEND_URL    || 'https://bandify.cl';
-
-/* ─── Helpers de layout ────────────────────────────────────────────────────── */
 
 function wrapHtml(title, bodyHtml) {
   return `<!DOCTYPE html>
@@ -37,20 +47,14 @@ function wrapHtml(title, bodyHtml) {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f4;padding:32px 0;">
     <tr><td align="center">
       <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e7e5e4;">
-
-        <!-- Logo strip -->
         <tr>
           <td style="background:#09090b;padding:20px 32px;">
             <span style="color:#fff;font-weight:900;font-size:14px;letter-spacing:4px;">BANDIFY</span>
           </td>
         </tr>
-
-        <!-- Body -->
         <tr><td style="padding:32px;">
           ${bodyHtml}
         </td></tr>
-
-        <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;">
             <p style="margin:0;font-size:11px;color:#a8a29e;text-align:center;">
@@ -59,7 +63,6 @@ function wrapHtml(title, bodyHtml) {
             </p>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
@@ -71,14 +74,26 @@ function btnHtml(href, text, color = '#09090b') {
   return `<a href="${href}" style="display:inline-block;background:${color};color:#fff;font-size:14px;font-weight:700;padding:13px 28px;border-radius:100px;text-decoration:none;margin-top:20px;">${text}</a>`;
 }
 
-/* ─── Email 1: ADN listo ───────────────────────────────────────────────────── */
+async function sendMail({ to, subject, html }) {
+  if (!isMailerConfigured()) return;
+
+  try {
+    console.log('✉️ 2. Intentando enviar correo a través de Gmail...');
+    const info = await transporter.sendMail({
+      from: FROM,
+      to,
+      subject,
+      html,
+    });
+    console.log('✅ 3. ¡Correo enviado con éxito! Message ID:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('❌ ERROR FATAL EN NODEMAILER:', error);
+    throw error; // Es vital volver a lanzar el error para que el controlador se entere
+  }
+}
 
 async function sendAdnReadyEmail({ to, nombre }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[MAILER] RESEND_API_KEY no configurada — email ADN omitido');
-    return;
-  }
-
   const body = `
     <h2 style="margin:0 0 8px;font-size:22px;color:#09090b;">Tu ADN musical está listo ✦</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#57534e;line-height:1.6;">
@@ -94,21 +109,18 @@ async function sendAdnReadyEmail({ to, nombre }) {
     ${btnHtml(`${APP_URL}/mi-adn`, 'Ver mi ADN musical →')}`;
 
   try {
-    await getResend().emails.send({ from: FROM, to, subject: 'Tu ADN musical Hi-Fi está listo ✦', html: wrapHtml('ADN listo', body) });
+    await sendMail({
+      to,
+      subject: 'Tu ADN musical Hi-Fi está listo ✦',
+      html: wrapHtml('ADN listo', body),
+    });
     console.log(`[MAILER] ✓ ADN-ready email → ${to}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando ADN-ready a ${to}:`, err.message);
+    console.error(`[MAILER] Error enviando ADN-ready a ${to}:`, err.message || err);
   }
 }
 
-/* ─── Email 2: Mensaje nuevo ────────────────────────────────────────────────── */
-
 async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[MAILER] RESEND_API_KEY no configurada — email mensaje omitido');
-    return;
-  }
-
   const previewText = preview
     ? `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #e7e5e4;color:#57534e;font-size:14px;font-style:italic;">"${preview.slice(0, 120)}${preview.length > 120 ? '…' : ''}"</blockquote>`
     : '';
@@ -126,26 +138,18 @@ async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
     ${btnHtml(`${APP_URL}/messages`, 'Responder →')}`;
 
   try {
-    await getResend().emails.send({
-      from:    FROM,
+    await sendMail({
       to,
       subject: `💬 ${de_nombre} te escribió en Bandify`,
-      html:    wrapHtml('Mensaje nuevo', body),
+      html: wrapHtml('Mensaje nuevo', body),
     });
     console.log(`[MAILER] ✓ New-message email → ${to}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando mensaje a ${to}:`, err.message);
+    console.error(`[MAILER] Error enviando mensaje a ${to}:`, err.message || err);
   }
 }
 
-/* ─── Email 3: Recuperación de contraseña ─────────────────────────────────── */
-
 async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[MAILER] RESEND_API_KEY no configurada — email reset omitido');
-    return;
-  }
-
   const body = `
     <h2 style="margin:0 0 8px;font-size:22px;color:#09090b;">Recupera tu contraseña</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#57534e;line-height:1.6;">
@@ -162,16 +166,45 @@ async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
     </p>`;
 
   try {
-    await getResend().emails.send({
-      from:    FROM,
+    await sendMail({
       to,
       subject: 'Restablece tu contraseña de Bandify',
-      html:    wrapHtml('Recuperar contraseña', body),
+      html: wrapHtml('Recuperar contraseña', body),
     });
     console.log(`[MAILER] ✓ Password-reset email → ${to}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando reset a ${to}:`, err.message);
+    console.error(`[MAILER] Error enviando reset a ${to}:`, err.message || err);
   }
 }
 
-module.exports = { sendAdnReadyEmail, sendNewMessageEmail, sendPasswordResetEmail };
+async function sendSupportTicketEmail({ to, nombre, asunto, mensaje, ticketId }) {
+  const body = `
+    <h2 style="margin:0 0 8px;font-size:22px;color:#09090b;">Ticket de soporte recibido</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#57534e;line-height:1.6;">
+      Hola <strong>${nombre}</strong>, hemos recibido tu ticket de soporte.
+    </p>
+    <p style="font-size: 14px; color: #a1a1aa; margin-bottom: 20px;"><strong>Número de ticket:</strong> #${ticketId}</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#57534e;">
+      <strong>Asunto:</strong> ${asunto}
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#57534e;">
+      <strong>Mensaje:</strong><br/>
+      ${mensaje.replace(/\n/g, '<br/>')}
+    </p>
+    <p style="margin:0;font-size:13px;color:#a8a29e;">
+      Nuestro equipo revisará tu consulta y te responderemos a la brevedad posible.
+    </p>`;
+
+  try {
+    await sendMail({
+      to,
+      subject: `Ticket de soporte #${ticketId}: ${asunto}`,
+      html: wrapHtml('Ticket de soporte', body),
+    });
+    console.log(`[MAILER] ✓ Support ticket email → ${to}`);
+  } catch (err) {
+    console.error(`[MAILER] Error enviando ticket de soporte a ${to}:`, err.message || err);
+  }
+}
+
+module.exports = { sendAdnReadyEmail, sendNewMessageEmail, sendPasswordResetEmail, sendSupportTicketEmail };
