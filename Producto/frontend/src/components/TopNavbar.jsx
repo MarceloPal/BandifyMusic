@@ -117,20 +117,25 @@ export default function TopNavbar() {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/5"
             aria-label="Menú de usuario"
           >
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={user?.nombre}
-                className="w-8 h-8 rounded-full object-cover border border-white/20"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold border border-white/20">
-                {getInitials(user?.nombre)}
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-white hidden sm:inline">
+                Hola, {user?.nombre?.split(' ')[0]}
+              </span>
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={user?.nombre}
+                  className="w-8 h-8 rounded-full object-cover border border-white/20"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold border border-white/20">
+                  {getInitials(user?.nombre)}
+                </div>
+              )}
+            </div>
             <ChevronDown
               size={14}
               className={`text-white/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}

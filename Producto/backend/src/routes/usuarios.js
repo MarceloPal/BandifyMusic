@@ -77,4 +77,18 @@ router.put('/perfil', authMiddleware, usuariosController.actualizarPerfil);
  */
 router.put('/cambiar-password', authMiddleware, usuariosController.cambiarPassword);
 
+/**
+ * @swagger
+ * /usuarios/cuenta:
+ *   delete:
+ *     summary: Elimina la cuenta del usuario autenticado
+ *     description: Elimina permanentemente la cuenta y todos sus datos asociados
+ *     tags: [Usuarios]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Cuenta eliminada con éxito }
+ *       500: { description: Error al eliminar cuenta }
+ */
+router.delete('/cuenta', authMiddleware, usuariosController.eliminarMiCuenta);
+
 module.exports = router;

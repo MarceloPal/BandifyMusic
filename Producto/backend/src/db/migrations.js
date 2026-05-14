@@ -103,6 +103,15 @@ async function runMigrations() {
     )`,
     // Imagen opcional en notificaciones (anuncios admin con foto)
     'ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS imagen_url TEXT',
+    // Tabla de tickets de soporte al cliente
+    `CREATE TABLE IF NOT EXISTS soporte_tickets (
+      id            SERIAL PRIMARY KEY,
+      usuario_id    UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+      email         VARCHAR(255) NOT NULL,
+      asunto        VARCHAR(255),
+      mensaje       TEXT NOT NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`,
     // ── ROLLBACK: Épica 2 Carpetas de Proyectos (cancelada) ──
     // Estos DROPs revierten DBs que ya tenían la feature creada. Son idempotentes
     // (IF EXISTS) → no-op en DBs nuevas que nunca crearon estas tablas.

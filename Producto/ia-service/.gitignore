@@ -56,3 +56,5 @@ temp/
 .pytest_cache/
 .coverage
 htmlcov/
+
+.copilot/

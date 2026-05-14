@@ -422,18 +422,14 @@ export default function Landing() {
 
               {/* CTAs */}
               {user ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/8 border border-white/12 text-sm text-white/60 backdrop-blur-sm">
-                    <Sparkles size={13} className="text-purple-400" />
-                    Hola de nuevo,{' '}
-                    <span className="text-white font-bold">{user.nombre?.split(' ')[0]}</span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap justify-center">
-                    <WhiteBtn to="/explore" className="px-7 py-3.5">Explorar músicos</WhiteBtn>
-                    <Link to="/profile" className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors">
-                      Mi perfil
-                    </Link>
-                  </div>
+                <div className="flex items-center gap-3 flex-wrap justify-center">
+                  <WhiteBtn to="/explore" className="px-7 py-3.5">Explorar músicos</WhiteBtn>
+                  <Link
+                    to="/profile"
+                    className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors"
+                  >
+                    Mi perfil
+                  </Link>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 flex-wrap justify-center">
