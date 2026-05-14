@@ -20,11 +20,17 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 const FROM = EMAIL_USER ? `"Equipo Bandify" <${EMAIL_USER}>` : 'Equipo Bandify <no-reply@bandify.cl>';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
   auth: {
     user: EMAIL_USER,
     pass: EMAIL_PASS,
   },
+  tls: {
+    // A veces Railway tiene problemas con los certificados en conexiones salientes
+    rejectUnauthorized: false
+  }
 });
 
 function isMailerConfigured() {
