@@ -49,6 +49,7 @@ function HeroSlider({ eventos }) {
   }, [startTimer])
 
   useEffect(() => {
+     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current >= len) setCurrent(0)
   }, [len, current])
 

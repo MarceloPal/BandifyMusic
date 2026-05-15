@@ -14,7 +14,7 @@ const FULL_BLEED_ROUTES = ['/messages', '/profile']
 
 export default function MainLayout() {
   const { pathname }                = useLocation()
-  const { token, updateUser, user } = useAuth()
+  const { token, updateUser } = useAuth()
 
   useEffect(() => {
     if (!token) return
