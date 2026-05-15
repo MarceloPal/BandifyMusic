@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X,
@@ -676,7 +676,8 @@ const TABS = [
 ══════════════════════════════════════════════ */
 
 export default function TocatasBoard({ isHome = false, limit = 6, onBack = null }) {
-  const { token }                           = useAuth()
+  const { token, user }                     = useAuth()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams]     = useSearchParams()
   const [selectedTocata, setSelectedTocata] = useState(null)
   const [showCreate, setShowCreate]         = useState(false)
@@ -804,7 +805,13 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
 
         {!isHome && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => {
+              if (user?.es_premium) {
+                setShowCreate(true)
+              } else {
+                navigate('/planes')
+              }
+            }}
             className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors flex-shrink-0 mt-1"
           >
             <Plus size={16} />
@@ -903,7 +910,16 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             <p className="text-zinc-500 text-sm mt-1">Intenta más tarde o sé el primero en publicar.</p>
           </div>
           {!isHome && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors">
+            <button
+              onClick={() => {
+                if (user?.es_premium) {
+                  setShowCreate(true)
+                } else {
+                  navigate('/planes')
+                }
+              }}
+              className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors"
+            >
               <Plus size={16} />
               Publicar tocata
             </button>

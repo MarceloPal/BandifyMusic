@@ -60,6 +60,13 @@ exports.listar = async (req, res, next) => {
  */
 exports.crear = async (req, res, next) => {
   try {
+    // ── INICIO: VALIDACIÓN PREMIUM ──
+    const userCheck = await pool.query('SELECT es_premium FROM usuarios WHERE id = $1', [req.usuario.id]);
+    if (!userCheck.rows[0]?.es_premium) {
+      return res.status(403).json({ error: 'La creación de tocatas es una funcionalidad exclusiva del Plan Premium. Actualiza tu plan para publicar eventos.' });
+    }
+    // ── FIN: VALIDACIÓN PREMIUM ──
+
     const { nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible } = req.body;
 
     if (!nombre || !fecha || !ciudad) {
