@@ -364,7 +364,7 @@ function PanelNotificaciones() {
   )
 
   const allOn  = NOTIF_ITEMS.every((item) => prefs[item.id])
-  const allOff = NOTIF_ITEMS.every((item) => !prefs[item.id])
+  
 
   const toggleMaster = (val) =>
     setPrefs(Object.fromEntries(NOTIF_ITEMS.map((item) => [item.id, val])))

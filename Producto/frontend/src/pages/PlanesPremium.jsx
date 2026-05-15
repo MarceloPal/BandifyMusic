@@ -114,7 +114,7 @@ export default function PlanesPremium() {
               </tr>
             </thead>
             <tbody>
-              {features.map((feature, index) => (
+              {features.map((feature) => (
                 <tr key={feature.name} className="border-b border-zinc-800/30 hover:bg-zinc-900/20 transition-colors">
                   <td className="px-12 py-6 text-zinc-300 font-medium">{feature.name}</td>
                   <td className="px-12 py-6 text-center">{renderCell(feature.basico)}</td>

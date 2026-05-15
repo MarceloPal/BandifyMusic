@@ -81,7 +81,7 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {TABS.map(({ id, label}) => {
             const active = activeTab === id
             return (
               <button
