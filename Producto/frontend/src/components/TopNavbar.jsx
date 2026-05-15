@@ -155,7 +155,7 @@ export default function TopNavbar() {
 
                 {/* Nav items */}
                 <div className="py-1">
-                  {NAV_ITEMS.map(({ label, path }) => (
+                  {NAV_ITEMS.map(({ label, path, icon: Icon }) => (
                     <NavLink
                       key={path}
                       to={path}
