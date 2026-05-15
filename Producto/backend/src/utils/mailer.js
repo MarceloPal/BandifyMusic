@@ -1,42 +1,25 @@
 /**
- * Mailer — Envío de correos transaccionales con Nodemailer y Gmail.
+ * Mailer — Envío de correos transaccionales con Brevo API (HTTP).
  *
  * Variables de entorno requeridas:
- * EMAIL_USER — dirección de Gmail usada para enviar correos
- * EMAIL_PASS — contraseña de aplicación de Gmail (App Password)
+ * EMAIL_USER — dirección autorizada en Brevo (ej. bandify.app@gmail.com)
+ * BREVO_API_KEY — clave API generada en Brevo
  * FRONTEND_URL — URL del frontend (para links en los emails)
  *
  * Funciones exportadas:
  * sendAdnReadyEmail      — ADN listo tras análisis Hi-Fi
  * sendNewMessageEmail    — aviso de mensaje nuevo
  * sendPasswordResetEmail — enlace para restablecer contraseña
+ * sendSupportTicketEmail - confirmación de ticket de soporte
  */
-
-const nodemailer = require('nodemailer');
-const dns = require('dns');
-
-dns.setDefaultResultOrder('ipv4first');
 
 const APP_URL = process.env.FRONTEND_URL || 'https://bandify.cl';
 const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-const FROM = EMAIL_USER ? `"Equipo Bandify" <${EMAIL_USER}>` : 'Equipo Bandify <no-reply@bandify.cl>';
-
-// NÚCLEO MODIFICADO PARA EVITAR TIMEOUTS EN RAILWAY
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Obligatorio para puerto 465
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
-  family: 4 // OBLIGA el uso de IPv4, solucionando el bug de red de Railway
-});
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 function isMailerConfigured() {
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.warn('[MAILER] EMAIL_USER o EMAIL_PASS no configurados — correo omitido');
+  if (!EMAIL_USER || !BREVO_API_KEY) {
+    console.warn('[MAILER] EMAIL_USER o BREVO_API_KEY no configurados — correo omitido');
     return false;
   }
   return true;
@@ -81,22 +64,40 @@ function btnHtml(href, text, color = '#09090b') {
   return `<a href="${href}" style="display:inline-block;background:${color};color:#fff;font-size:14px;font-weight:700;padding:13px 28px;border-radius:100px;text-decoration:none;margin-top:20px;">${text}</a>`;
 }
 
+// MOTOR DE ENVÍO VÍA BREVO API (Puerto 443 - Inmune a bloqueos de Railway)
 async function sendMail({ to, subject, html }) {
   if (!isMailerConfigured()) return;
 
   try {
-    console.log('✉️ 2. Intentando enviar correo a través de Gmail (Puerto 465 IPv4)...');
-    const info = await transporter.sendMail({
-      from: FROM,
-      to,
-      subject,
-      html,
+    console.log('✉️ 2. Intentando enviar correo a través de Brevo API (Puerto 443)...');
+    
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: "Equipo Bandify", email: EMAIL_USER },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: html
+      })
     });
-    console.log('✅ 3. ¡Correo enviado con éxito! Message ID:', info.messageId);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error de Brevo: ${JSON.stringify(errorData)}`);
+    }
+
+    const info = await response.json();
+    console.log('✅ 3. ¡Correo enviado con éxito por Brevo! Message ID:', info.messageId);
     return info;
+
   } catch (error) {
-    console.error('❌ ERROR FATAL EN NODEMAILER:', error);
-    throw error; // Es vital volver a lanzar el error para que el controlador se entere
+    console.error('❌ ERROR FATAL EN BREVO API:', error.message);
+    throw error; 
   }
 }
 
