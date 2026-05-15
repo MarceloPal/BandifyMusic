@@ -28,6 +28,7 @@ const noticiasRoutes       = require('./routes/noticias');
 const adminRoutes          = require('./routes/admin');
 const eventosRoutes        = require('./routes/eventos');
 const soporteRoutes        = require('./routes/soporte');
+const subscriptionsRoutes  = require('./routes/subscriptions');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/noticias',    noticiasRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/eventos',     eventosRoutes);
 app.use('/api/soporte',     soporteRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 /**
  * @swagger

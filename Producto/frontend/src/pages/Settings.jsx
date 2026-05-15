@@ -647,7 +647,7 @@ function PanelSeguridad() {
   )
 }
 
-function PanelSuscripcion() {
+function PanelSuscripcion({ navigate }) {
   return (
     <>
       <h2 className="text-xl font-bold text-white mb-1">Información de suscripción</h2>
@@ -677,6 +677,7 @@ function PanelSuscripcion() {
         </p>
         <button
           type="button"
+          onClick={() => navigate('/planes')}
           className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold tracking-wide rounded-xl transition-colors"
         >
           VER OPCIONES DE PLAN
@@ -748,7 +749,7 @@ export default function Settings() {
       case 'email':          return <PanelEmail  user={user} />
       case 'contrasena':     return <PanelContrasena />
       case 'seguridad':      return <PanelSeguridad />
-      case 'suscripcion':    return <PanelSuscripcion />
+      case 'suscripcion':    return <PanelSuscripcion navigate={navigate} />
       default:               return null
     }
   }
