@@ -16,6 +16,7 @@ import Help          from './pages/Help'
 import Notifications from './pages/Notifications'
 import Settings        from './pages/Settings'
 import ChangePassword  from './pages/ChangePassword'
+import PlanesPremium   from './pages/PlanesPremium'
 import NoticiasPage    from './pages/Noticias'
 import Admin           from './pages/Admin'
 import MainLayout      from './layouts/MainLayout'
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/messages"      element={<Messages />}      />
         <Route path="/tocatas"       element={<Tocatas />}       />
         <Route path="/help"          element={<Help />}          />
+        <Route path="/planes"        element={<PlanesPremium />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings"      element={<Settings />}      />
         <Route path="/noticias"      element={<NoticiasPage />}  />
