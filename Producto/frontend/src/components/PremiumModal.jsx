@@ -52,7 +52,7 @@ export default function PremiumModal({ onClose }) {
 
           {/* Benefits */}
           <div className="flex flex-col gap-3 mb-7">
-            {BENEFITS.map(({ text }) => (
+            {BENEFITS.map(({ text, Icon }) => (
               <div key={text} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center flex-shrink-0">
                   <Icon size={14} className="text-yellow-600" />
