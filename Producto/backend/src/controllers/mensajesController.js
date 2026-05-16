@@ -85,21 +85,29 @@ exports.enviar = async (req, res, next) => {
       esPremium = premiumRow.rows[0]?.es_premium ?? false;
     }
 
+    // ── INICIO: VALIDACIÓN PREMIUM (CONEXIONES ÚNICAS) ──
     if (!esPremium) {
-      const mensajeCount = await pool.query(
-        `SELECT COUNT(*) AS total
+      const destinatarioId = para_id || req.body.receptor_id;
+
+      const conteoResult = await pool.query(
+        `SELECT COUNT(DISTINCT para_id) AS conexiones_nuevas
          FROM mensajes
          WHERE de_id = $1
-           AND created_at >= date_trunc('month', now())`,
-        [req.usuario.id]
+           AND para_id != $2
+           AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+           AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)`,
+        [req.usuario.id, destinatarioId]
       );
 
-      if (parseInt(mensajeCount.rows[0]?.total, 10) >= 5) {
+      const conexionesNuevas = parseInt(conteoResult.rows[0]?.conexiones_nuevas, 10) || 0;
+
+      if (conexionesNuevas >= 10) {
         return res.status(403).json({
-          error: 'Has alcanzado el límite de 5 mensajes mensuales de tu cuenta gratuita. Pásate a Premium para mensajería ilimitada.',
+          error: 'Has alcanzado el límite de tu cuenta gratuita: solo puedes iniciar conversaciones con 10 músicos diferentes al mes. Pásate a Premium para hacer networking sin límites.',
         });
       }
     }
+    // ── FIN: VALIDACIÓN PREMIUM ──
 
     const destinatario = await pool.query('SELECT id FROM usuarios WHERE id = $1', [para_id]);
     if (destinatario.rows.length === 0)
