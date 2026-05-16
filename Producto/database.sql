@@ -1,217 +1,403 @@
--- ==============================================================================
--- SCRIPT DE BASE DE DATOS: BANDIFY
--- Motor: PostgreSQL 18.3 | Extensiones: pgcrypto, pgvector
--- ==============================================================================
+-- =====================================================
+-- BASE DE DATOS: BANDIFY
+-- Script ordenado con:
+-- 14 tablas
+-- Claves primarias y foráneas
+-- Procedimientos almacenados (P.A.)
+-- 5 datos de prueba
+-- PostgreSQL
+-- =====================================================
 
--- ------------------------------------------------------------------------------
--- 1. CONFIGURACIÓN Y EXTENSIONES
--- ------------------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
-COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
-
-
--- ------------------------------------------------------------------------------
--- 2. MÓDULO DE USUARIOS Y AUTENTICACIÓN
--- ------------------------------------------------------------------------------
-
-CREATE TABLE public.usuarios (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    nombre character varying(100) NOT NULL,
-    email character varying(150) NOT NULL UNIQUE,
-    password_hash character varying(255) NOT NULL,
-    instrumento character varying(100),
-    ciudad character varying(100),
-    estilo_detectado text,
-    tags_musicales jsonb,
-    fecha_nacimiento date,
-    es_premium boolean DEFAULT false,
-    email_secundario text,
-    role character varying(20) DEFAULT 'usuario' CHECK (role IN ('usuario', 'admin')),
-    es_verificado boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT now()
+-- =====================================================
+-- TABLA: usuarios
+-- =====================================================
+CREATE TABLE usuarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    instrumento VARCHAR(100),
+    ciudad VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW(),
+    estilo_detectado TEXT,
+    tags_musicales JSONB,
+    fecha_nacimiento DATE,
+    es_premium BOOLEAN DEFAULT FALSE,
+    role VARCHAR(20) DEFAULT 'usuario'
 );
 
-CREATE TABLE public.perfiles (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    usuario_id uuid UNIQUE REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    audio_vector public.vector(27),
-    s3_key character varying(255),
-    audio_metadata jsonb,
-    user_tags jsonb DEFAULT '[]'::jsonb,
-    oficio jsonb DEFAULT '[]'::jsonb,
-    experiencia character varying(50),
-    bio text,
-    foto_url text,
-    banner_url text,
-    es_premium boolean DEFAULT false,
-    instagram_url text,
-    spotify_url text,
-    discord_username text,
-    discord_url text,
-    card_settings jsonb,
-    updated_at timestamp without time zone DEFAULT now()
+-- =====================================================
+-- TABLA: perfiles
+-- =====================================================
+CREATE TABLE perfiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    audio_vector VECTOR(27),
+    s3_key VARCHAR(255),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    audio_metadata JSONB,
+    user_tags JSONB DEFAULT '[]',
+    oficio JSONB DEFAULT '[]',
+    experiencia VARCHAR(50),
+    bio TEXT,
+    foto_url TEXT,
+    es_premium BOOLEAN DEFAULT FALSE,
+    instagram_url TEXT,
+    spotify_url TEXT
 );
 
-CREATE TABLE public.password_resets (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    usuario_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    token text NOT NULL UNIQUE,
-    expires_at timestamp with time zone NOT NULL,
-    used boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+-- =====================================================
+-- TABLA: demos
+-- =====================================================
+CREATE TABLE demos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    nombre VARCHAR(255),
+    s3_key TEXT NOT NULL,
+    cover_url TEXT,
+    audio_metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    formato_original TEXT,
+    peso_original_mb DOUBLE PRECISION,
+    audio_vector JSONB,
+    activo BOOLEAN DEFAULT TRUE
 );
 
-
--- ------------------------------------------------------------------------------
--- 3. MÓDULO DE CONTENIDO (Tocatas, Demos y Entradas)
--- ------------------------------------------------------------------------------
-
-CREATE TABLE public.tocatas (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    organizador_id uuid REFERENCES public.usuarios(id),
-    nombre character varying(200) NOT NULL,
-    descripcion text,
-    fecha date,
-    ciudad character varying(100),
-    direccion character varying(255),
-    genero character varying(100),
-    lat numeric(9,6),
-    lng numeric(9,6),
-    afiche_url text,
-    contacto_email text,
-    precio numeric(10,2),
-    cantidad_disponible integer,
-    created_at timestamp without time zone DEFAULT now()
+-- =====================================================
+-- TABLA: jobs
+-- =====================================================
+CREATE TABLE jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    s3_key VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'processing',
+    created_at TIMESTAMP DEFAULT NOW(),
+    ia_job_id TEXT,
+    demo_id UUID REFERENCES demos(id)
 );
 
-CREATE TABLE public.tickets (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    event_id uuid NOT NULL,
-    buyer_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    price_clp integer NOT NULL CHECK (price_clp >= 0),
-    purchased_at timestamp with time zone DEFAULT now() NOT NULL
+-- =====================================================
+-- TABLA: audio_jobs
+-- =====================================================
+CREATE TABLE audio_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    s3_key TEXT NOT NULL,
+    status TEXT DEFAULT 'processing',
+    audio_vector VECTOR(27),
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    audio_metadata JSONB
 );
 
-CREATE TABLE public.demos (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    usuario_id uuid NOT NULL,
-    nombre character varying(255),
-    s3_key text NOT NULL,
-    cover_url text,
-    formato_original text,
-    peso_original_mb double precision,
-    audio_metadata jsonb,
-    audio_vector jsonb,
-    activo boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+-- =====================================================
+-- TABLA: mensajes
+-- =====================================================
+CREATE TABLE mensajes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    de_id UUID REFERENCES usuarios(id),
+    para_id UUID REFERENCES usuarios(id),
+    contenido TEXT NOT NULL,
+    leido BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-
--- ------------------------------------------------------------------------------
--- 4. MÓDULO DE INTERACCIONES Y COMUNICACIÓN
--- ------------------------------------------------------------------------------
-
-CREATE TABLE public.mensajes (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    de_id uuid REFERENCES public.usuarios(id),
-    para_id uuid REFERENCES public.usuarios(id),
-    contenido text NOT NULL,
-    leido boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT now()
-);
-
-CREATE TABLE public.notificaciones (
+-- =====================================================
+-- TABLA: noticias
+-- =====================================================
+CREATE TABLE noticias (
     id SERIAL PRIMARY KEY,
-    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    titulo character varying(255) NOT NULL,
-    descripcion text NOT NULL,
-    tipo character varying(50) DEFAULT 'sistema',
-    link text,
-    leida boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now()
+    titulo VARCHAR(255) NOT NULL,
+    contenido TEXT NOT NULL,
+    imagen_url TEXT,
+    fuente VARCHAR(100) DEFAULT 'Bandify',
+    autor_id UUID REFERENCES usuarios(id),
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE public.noticias (
+-- =====================================================
+-- TABLA: notificaciones
+-- =====================================================
+CREATE TABLE notificaciones (
     id SERIAL PRIMARY KEY,
-    autor_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
-    titulo character varying(255) NOT NULL,
-    contenido text NOT NULL,
-    imagen_url text,
-    fuente character varying(100) DEFAULT 'Bandify',
-    created_at timestamp with time zone DEFAULT now()
+    usuario_id UUID REFERENCES usuarios(id),
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT NOT NULL,
+    tipo VARCHAR(50) DEFAULT 'sistema',
+    leida BOOLEAN DEFAULT FALSE,
+    link TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    imagen_url TEXT
 );
 
-CREATE TABLE public.reportes (
+-- =====================================================
+-- TABLA: password_resets
+-- =====================================================
+CREATE TABLE password_resets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    token TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =====================================================
+-- TABLA: reportes
+-- =====================================================
+CREATE TABLE reportes (
     id SERIAL PRIMARY KEY,
-    emisor_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
-    tipo_contenido character varying(50) NOT NULL,
-    contenido_id uuid NOT NULL,
-    motivo text NOT NULL,
-    estado character varying(20) DEFAULT 'pendiente',
-    created_at timestamp with time zone DEFAULT now()
+    emisor_id UUID REFERENCES usuarios(id),
+    tipo_contenido VARCHAR(50) NOT NULL,
+    contenido_id UUID NOT NULL,
+    motivo TEXT NOT NULL,
+    estado VARCHAR(20) DEFAULT 'pendiente',
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-
--- ------------------------------------------------------------------------------
--- 5. MÓDULO DE SISTEMA E IA (Jobs y Logs)
--- ------------------------------------------------------------------------------
-
-CREATE TABLE public.jobs (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    demo_id uuid,
-    ia_job_id text,
-    s3_key character varying(255) NOT NULL,
-    status character varying(20) DEFAULT 'processing',
-    created_at timestamp without time zone DEFAULT now()
-);
-
-CREATE TABLE public.audio_jobs (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    s3_key text NOT NULL,
-    status text DEFAULT 'processing',
-    audio_vector public.vector(27),
-    audio_metadata jsonb,
-    error_message text,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
-
-CREATE TABLE public.admin_logs (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    admin_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    accion character varying(100) NOT NULL,
-    entidad_tipo character varying(50) NOT NULL,
-    entidad_id uuid,
-    detalles jsonb,
-    ip_address character varying(45),
-    user_agent text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
--- Índices de optimización para logs
-CREATE INDEX idx_admin_logs_accion ON public.admin_logs USING btree (accion);
-CREATE INDEX idx_admin_logs_admin_id ON public.admin_logs USING btree (admin_id);
-CREATE INDEX idx_admin_logs_created_at ON public.admin_logs USING btree (created_at DESC);
-CREATE INDEX idx_admin_logs_entidad ON public.admin_logs USING btree (entidad_tipo, entidad_id);
-
--- ──────────────────────────────────────────────────────────────────────────
--- 6. MÓDULO DE SOPORTE AL CLIENTE
--- ──────────────────────────────────────────────────────────────────────────
-
-CREATE TABLE public.soporte_tickets (
+-- =====================================================
+-- TABLA: soporte_tickets
+-- =====================================================
+CREATE TABLE soporte_tickets (
     id SERIAL PRIMARY KEY,
-    usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
-    email varchar(255) NOT NULL,
-    asunto varchar(255) NOT NULL,
-    mensaje text NOT NULL,
-    created_at timestamptz DEFAULT NOW()
+    usuario_id UUID REFERENCES usuarios(id),
+    email VARCHAR(255) NOT NULL,
+    asunto VARCHAR(255),
+    mensaje TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Índices de optimización para soporte_tickets
-CREATE INDEX idx_soporte_tickets_usuario_id ON public.soporte_tickets USING btree (usuario_id);
-CREATE INDEX idx_soporte_tickets_created_at ON public.soporte_tickets USING btree (created_at DESC);
+-- =====================================================
+-- TABLA: tocatas
+-- =====================================================
+CREATE TABLE tocatas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organizador_id UUID REFERENCES usuarios(id),
+    nombre VARCHAR(200) NOT NULL,
+    descripcion TEXT,
+    fecha DATE,
+    ciudad VARCHAR(100),
+    direccion VARCHAR(255),
+    genero VARCHAR(100),
+    lat NUMERIC(9,6),
+    lng NUMERIC(9,6),
+    created_at TIMESTAMP DEFAULT NOW(),
+    afiche_url TEXT,
+    contacto_email TEXT,
+    precio NUMERIC(10,2),
+    cantidad_disponible INTEGER
+);
+
+-- =====================================================
+-- TABLA: tickets
+-- =====================================================
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES tocatas(id),
+    buyer_id UUID REFERENCES usuarios(id),
+    price_clp INTEGER NOT NULL CHECK(price_clp >= 0),
+    purchased_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =====================================================
+-- TABLA: admin_logs
+-- =====================================================
+CREATE TABLE admin_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_id UUID REFERENCES usuarios(id),
+    accion VARCHAR(100) NOT NULL,
+    entidad_tipo VARCHAR(50) NOT NULL,
+    entidad_id UUID,
+    detalles JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =====================================================
+-- TABLA: tickets_extra
+-- =====================================================
+CREATE TABLE tickets_extra (
+    id SERIAL PRIMARY KEY,
+    usuario_id UUID REFERENCES usuarios(id),
+    descripcion TEXT,
+    estado VARCHAR(50) DEFAULT 'abierto',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =====================================================
+-- PROCEDIMIENTOS ALMACENADOS (P.A.)
+-- =====================================================
+
+-- Registrar usuario
+CREATE OR REPLACE PROCEDURE registrar_usuario(
+    p_nombre VARCHAR,
+    p_email VARCHAR,
+    p_password VARCHAR
+)
+LANGUAGE SQL
+AS $$
+    INSERT INTO usuarios(nombre, email, password_hash)
+    VALUES(p_nombre, p_email, p_password);
+$$;
+
+-- Crear notificación
+CREATE OR REPLACE PROCEDURE crear_notificacion(
+    p_usuario UUID,
+    p_titulo VARCHAR,
+    p_descripcion TEXT
+)
+LANGUAGE SQL
+AS $$
+    INSERT INTO notificaciones(usuario_id, titulo, descripcion)
+    VALUES(p_usuario, p_titulo, p_descripcion);
+$$;
+
+-- =====================================================
+-- DATOS DE PRUEBA (5)
+-- =====================================================
+
+INSERT INTO usuarios(nombre, email, password_hash, instrumento, ciudad, estilo_detectado)
+VALUES
+('Carlos Vega', 'carlos@gmail.com', '1234', 'Guitarra', 'Santiago', 'Rock'),
+('Ana Torres', 'ana@gmail.com', '1234', 'Batería', 'Valparaíso', 'Metal'),
+('Luis Rojas', 'luis@gmail.com', '1234', 'Bajo', 'Concepción', 'Jazz'),
+('María Soto', 'maria@gmail.com', '1234', 'Voz', 'La Serena', 'Pop'),
+('Pedro Díaz', 'pedro@gmail.com', '1234', 'Teclado', 'Temuco', 'Indie');
+
+INSERT INTO perfiles(usuario_id, experiencia, bio)
+SELECT id, 'Intermedio', 'Perfil de músico en Bandify'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO demos(usuario_id, nombre, s3_key, formato_original, peso_original_mb)
+SELECT id, 'Demo Musical', 'audio/demo.mp3', 'mp3', 4.5
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO mensajes(de_id, para_id, contenido)
+SELECT u1.id, u2.id, 'Hola, ¿quieres colaborar en una banda?'
+FROM usuarios u1, usuarios u2
+WHERE u1.id <> u2.id
+LIMIT 5;
+
+INSERT INTO noticias(titulo, contenido, fuente, autor_id)
+SELECT
+'Nueva Tocata',
+'Evento musical este fin de semana',
+'Bandify',
+id
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO notificaciones(usuario_id, titulo, descripcion)
+SELECT
+id,
+'Nueva Notificación',
+'Tienes una nueva actividad en tu cuenta'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO password_resets(usuario_id, token, expires_at)
+SELECT
+id,
+md5(random()::text),
+NOW() + INTERVAL '1 day'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO soporte_tickets(usuario_id, email, asunto, mensaje)
+SELECT
+id,
+email,
+'Problema de acceso',
+'No puedo iniciar sesión'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO tocatas(
+organizador_id,
+nombre,
+descripcion,
+fecha,
+ciudad,
+direccion,
+genero,
+precio,
+cantidad_disponible
+)
+SELECT
+id,
+'Tocata Rock 2026',
+'Evento musical en vivo',
+CURRENT_DATE + INTERVAL '7 day',
+'Santiago',
+'Av. Principal 123',
+'Rock',
+5000,
+100
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO tickets(event_id, buyer_id, price_clp)
+SELECT t.id, u.id, 5000
+FROM tocatas t, usuarios u
+LIMIT 5;
+
+INSERT INTO reportes(emisor_id, tipo_contenido, contenido_id, motivo)
+SELECT
+id,
+'usuario',
+gen_random_uuid(),
+'Contenido inapropiado'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO admin_logs(admin_id, accion, entidad_tipo, entidad_id)
+SELECT
+id,
+'CREATE',
+'usuario',
+gen_random_uuid()
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO audio_jobs(usuario_id, s3_key)
+SELECT
+id,
+'audio/procesando.mp3'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO jobs(usuario_id, s3_key, status)
+SELECT
+id,
+'audio/job.mp3',
+'completed'
+FROM usuarios
+LIMIT 5;
+
+INSERT INTO tickets_extra(usuario_id, descripcion)
+SELECT
+id,
+'Solicitud extra de soporte'
+FROM usuarios
+LIMIT 5;
+
+-- =====================================================
+-- CONSULTA DE VERIFICACIÓN
+-- =====================================================
+
+SELECT * FROM usuarios;
+SELECT * FROM perfiles;
+SELECT * FROM demos;
+SELECT * FROM mensajes;
+SELECT * FROM tocatas;
+
+-- =====================================================
+-- FIN DEL SCRIPT
+-- =====================================================
