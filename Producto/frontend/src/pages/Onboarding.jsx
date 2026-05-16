@@ -43,7 +43,7 @@ function TagPill({ label, selected, disabled, onClick }) {
 }
 
 export default function Onboarding() {
-  const { token, updateUser } = useAuth()
+  const { user, token, updateUser } = useAuth()
   const navigate              = useNavigate()
 
   // Step 1: Ciudad
@@ -138,14 +138,16 @@ export default function Onboarding() {
   const progressMsg = useProgressMessage(isProcessing)
 
   const handleFile = (file) => {
-    if (!file) return
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError(`El archivo es demasiado pesado (máximo ${MAX_FILE_MB} MB). Prueba con un archivo más corto o en formato MP3.`)
-      // Auto-reset so the user can pick another file immediately
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
+    if (!file) return;
+    const limitMB = user?.es_premium ? 100 : 60;
+    const limitBytes = limitMB * 1024 * 1024;
+
+    if (file.size > limitBytes) {
+      setFileError(`Tu cuenta ${user?.es_premium ? 'Premium' : 'Básica'} permite archivos de hasta ${limitMB} MB. Prueba con un archivo más ligero o actualiza tu plan.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
-    setFileError('')
+    setFileError('');
     uploadMutation.mutate(file)
   }
   const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files[0]) }

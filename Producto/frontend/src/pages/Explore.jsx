@@ -190,12 +190,38 @@ export default function Explore() {
     else refetch()
   }
 
-  const toggleTag = (tag) =>
+  const premiumFilterAlert = () => {
+    alert('Los filtros avanzados por género y ubicación son exclusivos del Plan Premium.');
+  }
+
+  const toggleTag = (tag) => {
+    if (!user?.es_premium) {
+      premiumFilterAlert()
+      return
+    }
     setTagFiltros((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     )
+  }
 
-  const commitCiudad = () => setCiudadFiltro(ciudadInput.trim())
+  const handleOficioChange = (e) => {
+    if (!user?.es_premium) {
+      setOficioFiltro('')
+      premiumFilterAlert()
+      return
+    }
+    setOficioFiltro(e.target.value)
+  }
+
+  const commitCiudad = () => {
+    if (!user?.es_premium) {
+      setCiudadInput('')
+      setCiudadFiltro('')
+      premiumFilterAlert()
+      return
+    }
+    setCiudadFiltro(ciudadInput.trim())
+  }
 
   const limpiarFiltros = () => {
     setTagFiltros([])
@@ -433,7 +459,7 @@ export default function Explore() {
                 </label>
                 <select
                   value={oficioFiltro}
-                  onChange={(e) => setOficioFiltro(e.target.value)}
+                  onChange={handleOficioChange}
                   className="w-full bg-zinc-900 text-zinc-100 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/40 border border-white/8"
                 >
                   <option value="">Todos los roles</option>

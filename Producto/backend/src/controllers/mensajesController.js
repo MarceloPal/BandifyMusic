@@ -76,6 +76,31 @@ exports.enviar = async (req, res, next) => {
     if (para_id === req.usuario.id)
       return res.status(400).json({ error: 'No puedes enviarte un mensaje a ti mismo' });
 
+    let esPremium = req.usuario.es_premium;
+    if (typeof esPremium !== 'boolean') {
+      const premiumRow = await pool.query(
+        'SELECT COALESCE(es_premium, false) AS es_premium FROM usuarios WHERE id = $1',
+        [req.usuario.id]
+      );
+      esPremium = premiumRow.rows[0]?.es_premium ?? false;
+    }
+
+    if (!esPremium) {
+      const mensajeCount = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM mensajes
+         WHERE de_id = $1
+           AND created_at >= date_trunc('month', now())`,
+        [req.usuario.id]
+      );
+
+      if (parseInt(mensajeCount.rows[0]?.total, 10) >= 5) {
+        return res.status(403).json({
+          error: 'Has alcanzado el límite de 5 mensajes mensuales de tu cuenta gratuita. Pásate a Premium para mensajería ilimitada.',
+        });
+      }
+    }
+
     const destinatario = await pool.query('SELECT id FROM usuarios WHERE id = $1', [para_id]);
     if (destinatario.rows.length === 0)
       return res.status(400).json({ error: 'El destinatario no existe' });

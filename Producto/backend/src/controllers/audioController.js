@@ -39,6 +39,10 @@ exports.uploadUrl = async (req, res, next) => {
       });
     }
 
+    const userRow = await pool.query('SELECT COALESCE(es_premium, false) AS es_premium FROM usuarios WHERE id = $1', [req.usuario.id]);
+    const esPremium = userRow.rows[0]?.es_premium ?? false;
+    const maxSizeAllowed = esPremium ? 104857600 : 62914560;
+
     const rand  = crypto.randomBytes(4).toString('hex');
     const s3Key = `demos/${req.usuario.id}-${Date.now()}-${rand}.${ext}`;
 
@@ -50,7 +54,7 @@ exports.uploadUrl = async (req, res, next) => {
 
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
 
-    res.json({ uploadUrl, s3Key });
+    res.json({ uploadUrl, s3Key, maxSizeAllowed });
   } catch (error) {
     next(error);
   }

@@ -216,7 +216,7 @@ export default function Profile() {
               </h1>
               {user.es_premium && (
                 <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                  âœ¦ Premium
+                  PRO
                 </span>
               )}
             </div>
@@ -304,7 +304,7 @@ export default function Profile() {
             ) : user?.bio ? (
               <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
             ) : (
-              <p className="text-zinc-600 text-sm italic">Sin biografÃ­a registrada.</p>
+              <p className="text-zinc-600 text-sm italic">Sin biografía registrada.</p>
             )}
           </section>
 
