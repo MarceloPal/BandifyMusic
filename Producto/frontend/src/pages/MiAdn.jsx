@@ -275,6 +275,7 @@ export default function MiAdn() {
   const { token, user, updateUser } = useAuth()
   const queryClient                 = useQueryClient()
   const navigate                    = useNavigate()
+  const isPremium                   = user?.es_premium
 
   /* adn view toggle */
   const [simpleView, setSimpleView] = useState(
@@ -475,12 +476,15 @@ export default function MiAdn() {
 
   /* ── File handlers ── */
   const handleFile = (file) => {
-    if (!file) return
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError(`El archivo supera el límite de ${MAX_FILE_MB} MB. Para archivos muy grandes exporta en MP3 320 kbps.`)
-      return
+    if (!file) return;
+    const limitMB = user?.es_premium ? 100 : 60;
+    const limitBytes = limitMB * 1024 * 1024;
+
+    if (file.size > limitBytes) {
+      setFileError(`El archivo supera el límite de ${limitMB} MB de tu cuenta ${user?.es_premium ? 'Premium' : 'Básica'}. Exporta en MP3 o pásate a Premium.`);
+      return;
     }
-    setFileError('')
+    setFileError('');
     setIsHifi(file.size > HIFI_THRESHOLD)
     uploadMutation.mutate(file)
   }
@@ -856,70 +860,79 @@ export default function MiAdn() {
 
           {/* Vista Técnica */}
           {!simpleView && (
-            <div key="tecnico" className="adn-fade-in grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Parámetros principales — full width */}
-              <div className="lg:col-span-2">
-                <AnaCard title="Parámetros de audio">
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatBox label="BPM"     value={stats.bpm}     accent />
-                    <StatBox label="Brillo"  value={stats.brillo}  unit="%" />
-                    <StatBox label="Energía" value={stats.energia} unit="%" />
+            <div key="tecnico" className="adn-fade-in relative">
+              <div className={`${!isPremium ? 'blur-md pointer-events-none' : ''} grid grid-cols-1 lg:grid-cols-2 gap-4`}>
+                {/* Parámetros principales — full width */}
+                <div className="lg:col-span-2">
+                  <AnaCard title="Parámetros de audio">
+                    <div className="grid grid-cols-3 gap-3">
+                      <StatBox label="BPM"     value={stats.bpm}     accent />
+                      <StatBox label="Brillo"  value={stats.brillo}  unit="%" />
+                      <StatBox label="Energía" value={stats.energia} unit="%" />
+                    </div>
+                  </AnaCard>
+                </div>
+
+                {/* Descriptores Sonoros */}
+                <AnaCard title="Descriptores Sonoros">
+                  <div className="flex flex-col gap-4">
+                    <DescriptorBar
+                      label="Densidad Rítmica"
+                      value={stats.densidadRitmica}
+                      color="#f97316"
+                      description="BPM y presencia percusiva — qué tan 'pulsante' es el sonido"
+                    />
+                    <DescriptorBar
+                      label="Brillo Espectral"
+                      value={stats.brilloEspectral}
+                      color="#06b6d4"
+                      description="Contenido de altas frecuencias — agresividad y ataque del timbre"
+                    />
+                    <DescriptorBar
+                      label="Riqueza Armónica"
+                      value={stats.riquezaArmonica}
+                      color="#7c3aed"
+                      description="Componente melódico y diversidad de notas (HPSS + Chroma)"
+                    />
+                  </div>
+                  <div className="mt-4 flex items-center gap-1.5">
+                    {TextureIcon && <TextureIcon size={13} className="text-zinc-500 flex-shrink-0" />}
+                    <p className="text-zinc-500 text-xs">
+                      Textura general: <span className="font-medium text-zinc-300">{stats.texture.label}</span>
+                    </p>
                   </div>
                 </AnaCard>
-              </div>
 
-              {/* Descriptores Sonoros */}
-              <AnaCard title="Descriptores Sonoros">
-                <div className="flex flex-col gap-4">
-                  <DescriptorBar
-                    label="Densidad Rítmica"
-                    value={stats.densidadRitmica}
-                    color="#f97316"
-                    description="BPM y presencia percusiva — qué tan 'pulsante' es el sonido"
-                  />
-                  <DescriptorBar
-                    label="Brillo Espectral"
-                    value={stats.brilloEspectral}
-                    color="#06b6d4"
-                    description="Contenido de altas frecuencias — agresividad y ataque del timbre"
-                  />
-                  <DescriptorBar
-                    label="Riqueza Armónica"
-                    value={stats.riquezaArmonica}
-                    color="#7c3aed"
-                    description="Componente melódico y diversidad de notas (HPSS + Chroma)"
-                  />
-                </div>
-                <div className="mt-4 flex items-center gap-1.5">
-                  {TextureIcon && <TextureIcon size={13} className="text-zinc-500 flex-shrink-0" />}
-                  <p className="text-zinc-500 text-xs">
-                    Textura general: <span className="font-medium text-zinc-300">{stats.texture.label}</span>
-                  </p>
-                </div>
-              </AnaCard>
-
-              {/* HPSS */}
-              <AnaCard title="Presencia rítmica vs. melódica (HPSS)">
-                <div className="flex flex-col gap-3">
-                  <HpsBar label="Melódico / Armónico" pct={stats.harmonyPct}    color="#7c3aed" />
-                  <HpsBar label="Rítmico / Percusivo"  pct={stats.percussivePct} color="#f97316" />
-                </div>
-                <p className="text-zinc-500 text-xs mt-3">
-                  {stats.fromServer
-                    ? 'Separación armónica/percusiva calculada por Librosa (HPSS) en el servidor.'
-                    : 'Aproximación a partir del contenido de Chroma STFT.'}
-                </p>
-              </AnaCard>
-
-              {/* Chroma — full width abajo */}
-              <div className="lg:col-span-2">
-                <AnaCard title="Distribución de notas musicales">
-                  <ChromaChart chroma={stats.chroma} />
+                {/* HPSS */}
+                <AnaCard title="Presencia rítmica vs. melódica (HPSS)">
+                  <div className="flex flex-col gap-3">
+                    <HpsBar label="Melódico / Armónico" pct={stats.harmonyPct}    color="#7c3aed" />
+                    <HpsBar label="Rítmico / Percusivo"  pct={stats.percussivePct} color="#f97316" />
+                  </div>
                   <p className="text-zinc-500 text-xs mt-3">
-                    Intensidad de cada nota en el rango cromático completo (Chroma STFT).
+                    {stats.fromServer
+                      ? 'Separación armónica/percusiva calculada por Librosa (HPSS) en el servidor.'
+                      : 'Aproximación a partir del contenido de Chroma STFT.'}
                   </p>
                 </AnaCard>
+
+                {/* Chroma — full width abajo */}
+                <div className="lg:col-span-2">
+                  <AnaCard title="Distribución de notas musicales">
+                    <ChromaChart chroma={stats.chroma} />
+                    <p className="text-zinc-500 text-xs mt-3">
+                      Intensidad de cada nota en el rango cromático completo (Chroma STFT).
+                    </p>
+                  </AnaCard>
+                </div>
               </div>
+              {!isPremium && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/70 p-6 text-center">
+                  <p className="text-sm font-semibold text-zinc-100 max-w-md">
+                    Actualiza a Premium para desbloquear la Tonalidad, BPM exacto y métricas de Energía
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
