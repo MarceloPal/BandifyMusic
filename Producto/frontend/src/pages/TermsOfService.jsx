@@ -226,11 +226,17 @@ export default function TermsOfService() {
         <div className="border-t border-white/8 pt-8">
           <p className="text-white text-sm font-semibold mb-1">¿Tienes dudas sobre estos términos?</p>
           <p className="text-zinc-300 text-sm mb-4">Escríbenos y te respondemos a la brevedad.</p>
+          
           <a
             href="mailto:soporte@bandify.cl"
             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-full text-xs font-semibold hover:bg-purple-500 transition-colors"
           >
-            soporte@bandify.cl
+          <Link
+            to="/soporte"
+            className="text-white hover:underline transition-colors"
+          >
+            bandifysupport@gmail.com
+          </Link>
           </a>
         </div>
 
