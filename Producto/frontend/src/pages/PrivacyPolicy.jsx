@@ -183,7 +183,12 @@ export default function PrivacyPolicy() {
             href="mailto:soporte@bandify.cl"
             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-full text-xs font-semibold hover:bg-purple-500 transition-colors"
           >
-            soporte@bandify.cl
+          <Link
+            to="/soporte"
+            className="text-white hover:underline transition-colors"
+          >
+            bandifysupport@gmail.com
+          </Link>
           </a>
         </div>
 
