@@ -32,9 +32,9 @@ export function useProgressMessage(isActive) {
   }, [isActive])
 
   if (!isActive) return { text: '', sub: '', secs: 0 }
-  if (secs < 6)  return { text: 'Subiendo archivo...',     sub: 'Transfiriendo a la nube',                                          secs }
-  if (secs < 18) return { text: 'Descargando audio...',    sub: 'El servicio de IA está obteniendo el archivo de S3',              secs }
-  if (secs < 38) return { text: 'Analizando segmentos...', sub: 'Procesando MFCCs, Chroma y HPSS en 3 ventanas',                   secs }
-  if (secs < 58) return { text: 'Calculando ADN musical...', sub: 'Aplicando votación y promediando segmentos ganadores',          secs }
+  if (secs < 6)  return { text: 'Subiendo archivo...',     sub: 'Bandify esta subiendo el archivo',                                          secs }
+  if (secs < 18) return { text: 'Descargando audio...',    sub: 'Bandify esta descargando el audio',              secs }
+  if (secs < 38) return { text: 'Analizando segmentos...', sub: 'Bandify esta analizando tu demo',                   secs }
+  if (secs < 58) return { text: 'Calculando ADN musical...', sub: 'Bandify esta calculando tu ADN musical',          secs }
   return           { text: 'Finalizando análisis...',      sub: 'Casi listo — guardando resultados',                                secs }
 }

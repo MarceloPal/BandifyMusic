@@ -19,7 +19,7 @@ Puedes contactarnos en soporte@bandify.cl ante cualquier consulta relacionada co
           'Redes sociales (Instagram, Spotify, Discord) si decides ingresarlas.',
           'Archivos de audio (.mp3 o .wav) que subas para el análisis.',
           'Mensajes enviados a otros usuarios dentro de la plataforma.',
-          'Información de eventos (Tocatas) que publiques.',
+          'Información de eventos (Tocatas) y tickets digitales que publiques o adquieras.',
         ],
       },
       {
@@ -34,11 +34,11 @@ Puedes contactarnos en soporte@bandify.cl ante cualquier consulta relacionada co
   {
     title: '3. ¿Para qué usamos tus datos?',
     items: [
-      'Crear y gestionar tu cuenta de usuario.',
+      'Crear y gestionar tu cuenta de usuario y nivel de suscripción (Freemium o Premium).',
       'Analizar tus archivos de audio con nuestra IA para generar tu ADN Musical.',
       'Calcular compatibilidad sonora y mostrarte músicos afines en la sección Explorar.',
       'Permitirte comunicarte con otros músicos a través del chat de Mensajes.',
-      'Mostrarte y permitirte publicar eventos musicales en la sección Tocatas.',
+      'Mostrarte y permitirte gestionar eventos musicales y tickets en la sección Tocatas.',
       'Enviarte correos transaccionales (confirmación de registro, restablecimiento de contraseña).',
       'Mejorar la plataforma durante su fase de desarrollo académico.',
     ],
@@ -55,7 +55,7 @@ Bandify no distribuirá, venderá ni utilizará tu música con fines comerciales
     items: [
       'Amazon Web Services (AWS): para el almacenamiento seguro de archivos de audio e imágenes.',
       'Resend: para el envío de correos electrónicos transaccionales.',
-      'Pasarelas de pago (a futuro): cuando se habilite la compra de entradas, el procesamiento lo realizará un tercero (como Transbank o MercadoPago). Bandify no almacenará datos bancarios.',
+      'Mercado Pago (Checkout Pro): para el procesamiento seguro de transacciones, suscripciones y venta de entradas. Bandify delega toda la gestión financiera y NO almacena información de tarjetas de crédito o cuentas bancarias en sus servidores.',
       'Requerimiento legal: si una autoridad competente lo exige conforme a la ley chilena.',
     ],
   },
@@ -91,7 +91,7 @@ Bandify no distribuirá, venderá ni utilizará tu música con fines comerciales
   },
   {
     title: '10. Plataforma en fase Beta',
-    content: 'Bandify es actualmente un proyecto académico en desarrollo activo. Esto significa que el servicio puede experimentar interrupciones, pérdidas de datos o cambios en su funcionamiento sin previo aviso. Te recomendamos mantener copias de tus archivos de audio fuera de la plataforma.',
+    content: 'Bandify es actualmente un proyecto académico en desarrollo activo operando en modalidades de prueba (incluyendo pasarelas Sandbox). Esto significa que el servicio puede experimentar interrupciones, pérdidas de datos o cambios en su funcionamiento sin previo aviso. Te recomendamos mantener copias de tus archivos de audio fuera de la plataforma.',
   },
   {
     title: '11. Cambios en esta política',

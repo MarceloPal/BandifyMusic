@@ -11,12 +11,14 @@ const SECTIONS = [
     ],
   },
   {
-    title: '2. Cuentas de usuario',
-    intro: 'Para usar Bandify debes:',
+    title: '2. Cuentas de usuario y niveles de suscripción',
+    intro: 'Para usar Bandify debes cumplir con las siguientes normas de acceso:',
     items: [
       'Ser mayor de 18 años, o contar con la autorización expresa de un tutor legal si eres menor de edad.',
       'Proporcionar información veraz: nombre o nombre artístico real, correo electrónico válido y datos de perfil honestos.',
       'Mantener tu contraseña segura: eres el único responsable de la confidencialidad de tu cuenta. No la compartas con terceros.',
+      'Plan Freemium (Gratuito): Permite almacenar un máximo de 3 maquetas de audio activas en el sistema, con un peso límite estricto de 60 MB por archivo.',
+      'Plan Premium (Suscripción): Desbloquea cuotas avanzadas de almacenamiento ilimitado de pistas en la nube y eleva la capacidad de carga por archivo hasta un máximo de 100 MB.',
     ],
     footer: 'Si sospechas que tu cuenta fue comprometida, notifícanos de inmediato a soporte@bandify.cl. Bandify no se hace responsable por daños derivados del acceso no autorizado causado por negligencia del propio usuario.',
   },
@@ -74,14 +76,14 @@ const SECTIONS = [
     footer: 'Bandify puede eliminar contenido que infrinja estas normas sin previo aviso.',
   },
   {
-    title: '5. Pagos y transacciones',
-    intro: 'La plataforma puede mostrar la opción "Comprar Entradas" en la sección de Tocatas. Debes tener en cuenta que:',
+    title: '5. Pagos, Monetización y Entorno Sandbox',
+    intro: 'La plataforma implementa flujos transaccionales mediante un modelo híbrido para suscripciones Premium y venta de entradas en el mapa de Tocatas:',
     items: [
-      'Las transacciones financieras, en caso de implementarse, serán procesadas íntegramente por pasarelas de pago de terceros (como Transbank o MercadoPago), sujetas a sus propios términos.',
-      'Bandify no almacena, procesa ni tiene acceso a tus datos bancarios o de tarjeta.',
-      'La responsabilidad sobre la realización del evento, cancelaciones y reembolsos recae en el organizador del mismo, no en Bandify.',
+      'Procesamiento Tercerizado: Todas las transacciones financieras son procesadas a través del SDK oficial de Checkout Pro de Mercado Pago. Bandify no almacena, procesa ni posee acceso a datos bancarios, números de tarjetas de crédito o credenciales de pago.',
+      'Tasa de Servicio Técnica (Marketplace Fee): La plataforma aplica una retención automatizada del 5% sobre el valor neto de cada ticket digital transaccionado en la sección de Tocatas, destinada exclusivamente al financiamiento de los costos de servidores Cloud.',
+      'Fase de Pruebas Académicas: En cumplimiento con el alcance del hito evaluativo actual, la pasarela de pago opera estrictamente bajo el entorno seguro "Sandbox" de Mercado Pago, utilizando credenciales de prueba y dinero simulado. No se ejecutan cobros bancarios reales ni flujos tributarios comerciales en esta versión.',
     ],
-    footer: 'En la versión actual Beta, esta funcionalidad es referencial y no implica transacciones reales.',
+    footer: 'La responsabilidad última sobre la correcta ejecución de los eventos presenciales recae en el músico u organizador que publica la tocata, actuando Bandify únicamente como intermediario tecnológico.',
   },
   {
     title: '6. Limitación de responsabilidad',

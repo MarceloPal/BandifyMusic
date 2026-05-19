@@ -15,7 +15,7 @@ import AudioPlayer from '../components/AudioPlayer'
 
 const TEXTURE_ICONS = { Zap, Wind, Activity, Sparkles }
 
-/* â”€â”€â”€ SectionHeader tÃ©cnico â”€â”€â”€ */
+
 function SectionHeader({ children }) {
   return (
     <div className="mb-4">
@@ -27,7 +27,7 @@ function SectionHeader({ children }) {
   )
 }
 
-/* â”€â”€â”€ main component â”€â”€â”€ */
+
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
@@ -145,7 +145,7 @@ export default function Profile() {
   const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
 
   return (
-    // MainLayout aÃ±ade /profile a FULL_BLEED_ROUTES â†’ este div ocupa el ancho
+    // MainLayout añade /profile a FULL_BLEED_ROUTES  este div ocupa el ancho
     // total de la ventana. No usamos negative margins; el negro fluye directo
     // hasta los bordes de la pantalla.
     <div className="min-h-screen w-full bg-black pb-20">
@@ -156,21 +156,21 @@ export default function Profile() {
       <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
         onChange={(e) => handleBannerUpload(e.target.files[0])} />
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          BANNER â€” full-width, gradiente morado oscuro â†’ negro
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* 
+          BANNER  full-width, gradiente morado oscuro  negro
+ */}
       <div className="relative w-full h-56 group/banner overflow-hidden bg-gradient-to-b from-purple-950 via-zinc-950 to-black">
         {bannerUrl && (
           <img src={bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity" />
         )}
-        {/* LÃ­neas tÃ©cnicas decorativas */}
+        {/* Lineas tecnicas decorativas */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'linear-gradient(to right, rgba(168,85,247,0.05) 1px, transparent 1px)',
           backgroundSize: '40px 100%',
         }} />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-800" />
 
-        {/* BotÃ³n cambiar banner */}
+        {/* Boton cambiar banner */}
         <button
           onClick={() => bannerInputRef.current?.click()}
           disabled={bannerUploading}
@@ -182,13 +182,12 @@ export default function Profile() {
 
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          FRANJA DE IDENTIDAD
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* 
+          FRANJA DE IDENTIDAD */}
       <div className="border-b border-zinc-800 bg-zinc-950">
         <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-end gap-5">
 
-          {/* Avatar cuadrado con borde tÃ©cnico */}
+          {/* Avatar cuadrado con borde tecnico */}
           <button
             onClick={() => photoInputRef.current?.click()}
             disabled={photoUploading}
@@ -231,11 +230,11 @@ export default function Profile() {
                   {user.ciudad}
                 </span>
               )}
-              <span className="text-zinc-700 font-mono">ID://{user.id?.slice(0, 8) ?? 'â”€â”€â”€â”€â”€â”€â”€â”€'}</span>
+              <span className="text-zinc-700 font-mono">ID://{user.id?.slice(0, 8) ?? 'm'}</span>
             </div>
           </div>
 
-          {/* BotÃ³n editar â€” borde sÃ³lido, sin fondo */}
+          {/* Boton editar borde, sin fondo */}
           <button
             onClick={() => navigate('/settings')}
             className="flex-shrink-0 flex items-center gap-2 border border-purple-500 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors"
@@ -246,21 +245,17 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          GRID PRINCIPAL â€” 3 columnas con divisores full-bleed
-          Sin max-w para que las lÃ­neas divisoras lleguen hasta los bordes
-          de la pantalla (parte clave del look brutalista/dashboard).
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+  
       <div className="w-full grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
 
-        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA IZQUIERDA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+    
         <div className="p-6 flex flex-col gap-8">
 
-          {/* BIOGRAFÃA */}
+          {/* BIOGRAFiA */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <p className="text-zinc-300 text-[11px] font-bold uppercase tracking-[0.25em]">
-                BiografÃ­a
+                Biografía
               </p>
               {!editingBio && (
                 <button
@@ -343,7 +338,7 @@ export default function Profile() {
           </section>
         </div>
 
-        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA CENTRAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+
         <div className="p-6">
           <SectionHeader>Más herramientas</SectionHeader>
           <div className="border border-dashed border-zinc-800 bg-zinc-950/50 p-10 flex flex-col items-center text-center gap-4">
@@ -361,7 +356,7 @@ export default function Profile() {
           </div>
           </div>
 
-        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COLUMNA DERECHA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+    
         <div className="p-6 flex flex-col gap-8">
 
           {/* DEMOS PUBLICADOS */}
@@ -430,7 +425,7 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Stats tÃ©cnicos del demo activo */}
+                {/* Stats tecnicos del demo activo */}
                 {stats && (
                   <div className="mt-3 grid grid-cols-2 gap-px bg-zinc-800 border border-zinc-800">
                     {mood && (
@@ -462,13 +457,13 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Link a anÃ¡lisis completo */}
+                {/* Link a analisis completo */}
                 <Link
                   to="/mi-adn"
                   className="mt-3 flex items-center justify-center gap-2 border border-zinc-800 hover:border-purple-500 px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-400 hover:text-purple-400 transition-colors"
                 >
                   <BarChart2 size={11} />
-                  Ver anÃ¡lisis completo
+                  Ver análisis completo
                 </Link>
               </>
             ) : (
@@ -551,7 +546,7 @@ export default function Profile() {
   )
 }
 
-/* â”€â”€â”€ Brand SVG icons â”€â”€â”€ */
+
 function IgIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
