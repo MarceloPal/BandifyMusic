@@ -141,7 +141,9 @@ export function suggestGenres(stats) {
 export const OFICIOS = [
   'Músico', 'Productor', 'DJ', 'Técnico de Sonido',
   'Compositor', 'Cantante', 'Arreglista', 'Ingeniero de Mezcla',
-  'Banda / Agrupación',
+  'Banda / Agrupación', 'Beatmaker', 'Remixer', 'Baterista',
+  'Guitarrista', 'Bajista', 'Tecladista', 'Vocalista',
+  'Otro',
 ]
 
 /**
@@ -161,7 +163,7 @@ export const TAG_OPTIONS = [
   'Post-Punk', 'Math Rock', 'Indie Shoegaze',
   // ── Electrónica ──
   'House', 'Drum & Bass', 'Jungle', 'Ambient', 'Synthwave',
-  'Lo-fi Beats', 'Techno Progresivo',
+  'Lo-fi Beats', 'Techno Progresivo', 'Dubstep', 'EDM',
   // ── Cantautor / Soul ──
   'Cantautor', 'Trova', 'Neo-Soul',
 ]

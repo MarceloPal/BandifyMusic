@@ -33,7 +33,7 @@ export default function PlanesPremium() {
     { name: 'Subida de canciones y maquetas', basico: 'Hasta 3 demos', premium: 'Ilimitado (Archivos de alta calidad)' },
     { name: 'Publicación y venta de entradas', basico: false, premium: true },
     { name: 'Análisis inteligente de sonido', basico: 'Estándar', premium: 'Avanzado (Identifica timbres, ritmo y armonías)' },
-    { name: 'Mensajería con otros músicos', basico: '5 conversaciones al mes', premium: 'Ilimitado' },
+    { name: 'Mensajería con otros músicos', basico: '10 conversaciones al mes', premium: 'Ilimitado' },
     { name: 'Visibilidad en las búsquedas', basico: 'Estándar', premium: 'Prioritaria en el Radar de músicos' },
     { name: 'Filtros de búsqueda detallados', basico: 'Básicos', premium: 'Avanzados (Por género exacto y comuna)' },
     { name: 'Guardar favoritos y colaboradores', basico: false, premium: true },
