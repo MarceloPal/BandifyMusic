@@ -65,7 +65,7 @@ export default function MapaTocatas({ tocatas = [] }) {
   const points = items.map(t => [t.lat, t.lng])
 
   return (
-    // ⚠️ relative z-0 → crea un stacking context que CONTIENE los z-index altos
+    // relative z-0 → crea un stacking context que CONTIENE los z-index altos
     // que Leaflet usa internamente (controles, popups van hasta z-1000).
     // Sin esto, el navbar sticky/fixed queda tapado por el mapa.
     <div className="relative z-0">
