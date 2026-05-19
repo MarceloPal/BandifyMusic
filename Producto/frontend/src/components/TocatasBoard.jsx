@@ -5,7 +5,7 @@ import {
   CalendarDays, MapPin, Music2, Plus, X,
   Loader2, User, ChevronLeft, ChevronRight, ImagePlus, Trash2,
   Ticket, ExternalLink, Clock, Users, ArrowRight,
-  LayoutGrid, Map as MapIcon,
+  LayoutGrid, Map as MapIcon, Sparkles
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
@@ -155,6 +155,7 @@ function HeroSlider({ eventos }) {
         <div className="absolute bottom-4 right-6 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <button
+              稳定={i}
               key={i}
               onClick={() => goTo(i)}
               className={`rounded-full transition-all duration-300 ${
@@ -668,11 +669,7 @@ const TABS = [
 ]
 
 /* ══════════════════════════════════════════════
-   TocatasBoard — componente exportado
-   Props:
-     isHome  {boolean}  — modo landing: sin publicar, límite de grilla
-     limit   {number}   — máx. cards en grilla cuando isHome=true (default 6)
-     onBack  {function} — botón "volver" para el landing
+    TocatasBoard — componente exportado
 ══════════════════════════════════════════════ */
 
 export default function TocatasBoard({ isHome = false, limit = 6, onBack = null }) {
@@ -694,9 +691,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
     return () => clearTimeout(t)
   }, [pagoStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Tocatas de la comunidad:
-     - isHome usa el endpoint público (sin auth) limitado a 6
-     - vista completa usa el endpoint autenticado  */
   const { data: tocatas = [], isLoading: tocatasLoading } = useQuery({
     queryKey: isHome ? ['tocatas-publicas', limit] : ['tocatas'],
     queryFn: async () => {
@@ -711,7 +705,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
     staleTime: 3 * 60 * 1000,
   })
 
-  /* Eventos Ticketmaster — endpoint público */
   const { data: tmData, isLoading: tmLoading } = useQuery({
     queryKey: ['eventos-ticketmaster'],
     queryFn: async () => {
@@ -730,7 +723,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
 
   const isLoading = tocatasLoading || tmLoading
 
-  /* Grilla unificada */
   const allItems = (() => {
     if (filtroActivo === 'comunidad')       return tocatas.map((t) => ({ ...t, _source: 'comunidad' }))
     if (filtroActivo === 'grandes-eventos') return eventos.map((e) => ({ ...e, _source: 'ticketmaster' }))
@@ -769,7 +761,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         <CreateTocataModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
       )}
 
-      {/* ── Hero Slider: siempre visible cuando hay eventos, breakout full-width ── */}
+      {/* Hero Slider */}
       {eventos.length > 0 && !isLoading && (
         <div
           className="mb-8"
@@ -778,14 +770,14 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             position: 'relative',
             left: '50%',
             marginLeft: '-50vw',
-            marginTop: '-2rem',   /* cancela el py-8 del MainLayout container */
+            marginTop: '-2rem',
           }}
         >
           <HeroSlider eventos={eventos} />
         </div>
       )}
 
-      {/* ── Header: debajo del carrusel, dentro de los márgenes normales ── */}
+      {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           {onBack && (
@@ -820,10 +812,9 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         )}
       </div>
 
-      {/* ── Fila de filtros + toggle Carrusel/Mapa — solo en vista completa ── */}
+      {/* Filtros + Toggle */}
       {!isHome && (
         <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          {/* Tabs (Todo, Comunidad, Grandes Eventos) */}
           <div className="flex items-center gap-2 flex-wrap">
             {TABS.map((tab) => (
               <button
@@ -850,7 +841,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             ))}
           </div>
 
-          {/* Toggle Carrusel / Mapa — al lado de los filtros */}
           {(tocatas.length > 0 || eventos.length > 0) && (
             <div className="flex bg-zinc-800 border border-white/8 rounded-xl p-1">
               <button
@@ -880,7 +870,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         </div>
       )}
 
-      {/* ── Loading ── */}
+      {/* Loading */}
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-500">
           <Loader2 size={28} className="animate-spin" />
@@ -888,18 +878,12 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Vista de datos: Mapa o Grilla (según vistaPrincipal)
-          - isHome siempre fuerza grilla (landing page simple)
-          - Resto de vistas respeta el toggle del usuario
-      ══════════════════════════════════════════════ */}
-
-      {/* ── Vista MAPA ── */}
+      {/* Vista MAPA */}
       {!isLoading && !isHome && vistaPrincipal === 'mapa' && (
         <MapaTocatas tocatas={gridItems} />
       )}
 
-      {/* ── Vista GRILLA: empty state ── */}
+      {/* Empty State */}
       {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length === 0 && (
         <div className="bg-zinc-800 rounded-2xl p-10 border border-white/8 shadow-sm flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-zinc-700 flex items-center justify-center">
@@ -927,22 +911,39 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         </div>
       )}
 
-      {/* ── Vista GRILLA: cards ── */}
+      {/* Vista GRILLA / CUADRÍCULA + Backlog Roadmap Card */}
       {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {gridItems.map((item) =>
-              item._source === 'comunidad' ? (
-                <TocataCard key={`t-${item.id}`} tocata={item} onClick={setSelectedTocata} />
-              ) : (
-                <EventoCard key={`e-${item.id}`} evento={item} />
-              )
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
+            {/* Contenedor de las Tarjetas Reales (Ocupa 3 de 4 columnas en pantallas grandes) */}
+            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {gridItems.map((item) =>
+                item._source === 'comunidad' ? (
+                  <TocataCard key={`t-${item.id}`} tocata={item} onClick={setSelectedTocata} />
+                ) : (
+                  <EventoCard key={`e-${item.id}`} evento={item} />
+                )
+              )}
+            </div>
+
+            {/* Tarjeta del Roadmap del Backlog (Ocupa 1 columna a la derecha) */}
+            <div className="bg-gradient-to-br from-zinc-900 to-purple-950/30 border border-purple-500/20 rounded-2xl p-5 relative overflow-hidden shadow-xl md:sticky md:top-24">
+              <span className="absolute top-3 right-3 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles size={10} />
+                Versión 2.0
+              </span>
+              <h3 className="text-white text-base font-black mb-1.5 mt-2">
+                ¿Buscas escenarios donde tocar?
+              </h3>
+              <p className="text-zinc-400 text-xs leading-relaxed mb-4">
+                Estamos diseñando el módulo de postulación automatizada. Podrás enviar tu ADN Musical directo a personas que busquen músicos para sus eventos y agendar fechas con un clic.
+              </p>
+            </div>
           </div>
 
-          {/* Ver todos — solo en isHome cuando hay más items que el límite */}
+          {/* Ver todos */}
           {hasMore && (
-            <div className="mt-6 text-center">
+            <div className="mt-8 text-center">
               <Link
                 to="/tocatas"
                 className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-white/8 text-zinc-200 font-semibold px-6 py-3 rounded-full text-sm transition-colors"

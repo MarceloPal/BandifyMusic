@@ -390,7 +390,7 @@ export default function Profile() {
                               <span className="text-zinc-500 font-mono">{stats.bpm} BPM</span>
                             )}
                             {isActive && (
-                              <span className="text-purple-400 font-bold">â— Activo</span>
+                              <span className="text-purple-400 font-bold">Activo</span>
                             )}
                           </div>
                         </li>
@@ -445,7 +445,7 @@ export default function Profile() {
                       <span className="text-[11px] font-mono font-bold text-zinc-200">{stats.bpm}</span>
                     </div>
                     <div className="bg-black p-2.5 flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">EnergÃ­a</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">Energí­a</span>
                       <span className="text-[11px] font-mono font-bold text-purple-400">{stats.energia}%</span>
                     </div>
                     {TextureIcon && (
