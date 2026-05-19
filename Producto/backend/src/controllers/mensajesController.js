@@ -47,13 +47,15 @@ exports.listarConversaciones = async (req, res, next) => {
        SELECT
          c.partner_id,
          u.nombre                                                            AS partner_nombre,
+         p.foto_url                                                         AS partner_foto_url,
          MAX(c.created_at)                                                   AS last_at,
          BOOL_OR(c.es_mio)                                                   AS yo_respondi,
          COUNT(*) FILTER (WHERE c.es_no_leido)::integer                      AS sin_leer,
          (ARRAY_AGG(c.contenido ORDER BY c.created_at DESC))[1]              AS last_mensaje
        FROM conv c
        JOIN usuarios u ON u.id = c.partner_id
-       GROUP BY c.partner_id, u.nombre
+       LEFT JOIN perfiles p ON p.usuario_id = u.id
+       GROUP BY c.partner_id, u.nombre, p.foto_url
        ORDER BY last_at DESC`,
       [miId]
     );
