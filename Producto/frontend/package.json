@@ -7,7 +7,23 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:lighthouse": "npx lighthouse http://localhost:5173/explore --output=html --output-path=./lighthouse-report.html --only-categories=performance,accessibility --chrome-flags='--headless' && echo 'Reporte generado: ./lighthouse-report.html'"
+  },
+  "jest": {
+    "testEnvironment": "jest-environment-jsdom",
+    "testMatch": ["**/tests/**/*.test.{js,jsx}"],
+    "transform": {
+      "^.+\\.[jt]sx?$": "babel-jest"
+    },
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "<rootDir>/tests/__mocks__/styleMock.js",
+      "\\.(jpg|jpeg|png|gif|svg|webp)$": "<rootDir>/tests/__mocks__/fileMock.js"
+    },
+    "setupFilesAfterEnv": ["<rootDir>/tests/setupTests.js"],
+    "extensionsToTreatAsEsm": [".jsx"],
+    "clearMocks": true
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -25,14 +41,23 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
     "@eslint/js": "^9.39.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "babel-jest": "^30.4.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "jsdom": "^29.1.1",
     "vite": "^8.0.4"
   }
 }
