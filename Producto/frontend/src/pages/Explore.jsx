@@ -22,6 +22,7 @@ import { API_URL, getInitials } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import { OFICIOS, TAG_OPTIONS } from '../utils/audioHelpers'
 import ProfileDrawer from '../components/ProfileDrawer'
+import UserLink from '../components/UserLink'
 
 const FETCH_LIMIT = 20
 
@@ -140,7 +141,9 @@ function MusicianCard({ musico, rank, onClick }) {
           <span className="text-purple-400">✦</span>
           {' '}{matchReason}
         </p>
-        <p className="text-purple-400 text-xs font-semibold shrink-0">Ver perfil →</p>
+        <UserLink username={musico.nombre} className="text-purple-400 text-xs font-semibold shrink-0">
+          Ver perfil →
+        </UserLink>
       </div>
     </button>
   )

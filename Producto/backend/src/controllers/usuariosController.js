@@ -81,6 +81,66 @@ exports.obtenerPerfil = async (req, res, next) => {
 };
 
 /**
+ * GET /usuarios/publico/:username
+ * Perfil público — sin autenticación. Excluye explícitamente email, password_hash,
+ * fecha_nacimiento, role, es_premium y card_settings.
+ */
+exports.perfilPublico = async (req, res, next) => {
+  try {
+    const { username } = req.params;
+    if (!username) return res.status(400).json({ error: 'username requerido' });
+
+    let resultado;
+    try {
+      resultado = await pool.query(
+        `SELECT u.id, u.nombre, u.ciudad, u.instrumento,
+                p.bio, p.oficio, p.experiencia, p.user_tags,
+                p.foto_url, p.banner_url,
+                p.instagram_url, p.spotify_url, p.discord_url,
+                p.audio_vector, p.audio_metadata, p.s3_key
+         FROM usuarios u
+         LEFT JOIN perfiles p ON p.usuario_id = u.id
+         WHERE LOWER(u.nombre) = LOWER($1)`,
+        [username.trim()]
+      );
+    } catch (colErr) {
+      if (colErr.code === '42703') {
+        resultado = await pool.query(
+          `SELECT u.id, u.nombre, u.ciudad, u.instrumento,
+                  NULL::text AS bio, NULL::jsonb AS oficio, NULL::integer AS experiencia,
+                  NULL::jsonb AS user_tags, NULL::text AS foto_url, NULL::text AS banner_url,
+                  NULL::text AS instagram_url, NULL::text AS spotify_url, NULL::text AS discord_url,
+                  NULL AS audio_vector, NULL::jsonb AS audio_metadata, NULL::text AS s3_key
+           FROM usuarios u
+           WHERE LOWER(u.nombre) = LOWER($1)`,
+          [username.trim()]
+        );
+      } else {
+        throw colErr;
+      }
+    }
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const row = resultado.rows[0];
+
+    if (row.audio_vector) {
+      const str = String(row.audio_vector);
+      row.audio_vector = str.replace(/[[\]]/g, '').split(',').map(Number);
+    }
+    if (row.audio_metadata && typeof row.audio_metadata === 'string') {
+      try { row.audio_metadata = JSON.parse(row.audio_metadata); } catch { row.audio_metadata = null; }
+    }
+
+    res.json(row);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * PUT /usuarios/perfil
  * Acepta campos de usuarios (nombre, instrumento, ciudad, fecha_nacimiento)
  * Y campos de identidad artística en perfiles (bio, oficio, experiencia, user_tags, redes, card_settings).

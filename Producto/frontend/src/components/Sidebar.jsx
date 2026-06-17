@@ -48,10 +48,14 @@ export default function Sidebar({ isOpen, onClose }) {
         </Link>
       </div>
 
-      {/* Avatar */}
+      {/* Avatar — enlaza al perfil público propio */}
       {user && (
         <div className="px-4 py-4 border-b border-white/8 flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <Link
+            to={user.nombre ? `/u/${user.nombre}` : '/profile'}
+            onClick={onClose}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             {photoUrl ? (
               <img
                 src={photoUrl}
@@ -69,7 +73,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 {user.es_premium ? '✦ Premium' : user.email}
               </p>
             </div>
-          </div>
+          </Link>
         </div>
       )}
 
