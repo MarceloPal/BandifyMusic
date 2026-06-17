@@ -39,7 +39,7 @@ export default function Auth() {
       const isLogin  = view === 'login'
       const endpoint = isLogin ? '/auth/login' : '/auth/registro'
       const body = isLogin
-        ? { email: formData.email, password: formData.password }
+        ? { identifier: formData.identifier, password: formData.password }
         : { nombre: formData.username, fecha_nacimiento: formData.fecha_nacimiento || null, email: formData.email, password: formData.password }
 
       const res  = await fetch(`${API_URL}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -160,7 +160,11 @@ export default function Auth() {
                         <Field name="fecha_nacimiento" label="Fecha de nacimiento" type="date" />
                       </>
                     )}
-                    <Field name="email" label="Correo electrónico" placeholder="info@example.com" type="email" required />
+                    {view === 'login' ? (
+                      <Field name="identifier" label="Correo o nombre de usuario" placeholder="info@example.com o janesmithmusic" type="text" required />
+                    ) : (
+                      <Field name="email" label="Correo electrónico" placeholder="info@example.com" type="email" required />
+                    )}
 
                     {view === 'register' ? (
                       <>
@@ -326,7 +330,7 @@ function PasswordField({ name, label, placeholder, required = false, value, onCh
           required={required}
           value={value}
           onChange={onChange}
-          className={`w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 pr-11 text-sm outline-none focus:ring-2 border transition-colors ${
+          className={`w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 pr-11 text-sm outline-none focus:ring-2 border transition-colors [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
             hasError
               ? 'border-red-500 focus:ring-red-500/30'
               : 'border-white/10 focus:ring-white/30'
