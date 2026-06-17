@@ -15,6 +15,7 @@ import { Send, MessageCircle, Inbox } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useImageUrl } from '../hooks/useImageUrl'
 import { API_URL, getInitials } from '../utils/helpers'
+import UserLink from '../components/UserLink'
 
 function formatTime(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -193,7 +194,9 @@ export default function Messages() {
                   {getInitials(selectedUser.nombre)}
                 </div>
               )}
-              <span className="text-white font-semibold text-sm">{selectedUser.nombre}</span>
+              <UserLink username={selectedUser.nombre} className="text-white font-semibold text-sm">
+                {selectedUser.nombre}
+              </UserLink>
             </div>
 
             {/* Mensajes */}
@@ -274,9 +277,9 @@ function ConversationButton({ conv, isSelected, onSelect }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <p className={`text-sm truncate ${conv.sin_leer > 0 ? 'text-white font-semibold' : 'text-zinc-300 font-medium'}`}>
+          <UserLink username={conv.partner_nombre} className={`text-sm truncate ${conv.sin_leer > 0 ? 'text-white font-semibold' : 'text-zinc-300 font-medium'}`}>
             {conv.partner_nombre}
-          </p>
+          </UserLink>
           <span className="text-zinc-500 text-xs flex-shrink-0">
             {formatTime(conv.last_at)}
           </span>

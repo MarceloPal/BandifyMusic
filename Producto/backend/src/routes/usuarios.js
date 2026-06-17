@@ -20,6 +20,24 @@ router.get('/perfil', authMiddleware, usuariosController.obtenerPerfil);
 
 /**
  * @swagger
+ * /usuarios/publico/{username}:
+ *   get:
+ *     summary: Perfil público de un músico por username
+ *     description: No requiere autenticación. Excluye email, password y datos privados.
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Perfil público }
+ *       404: { description: Usuario no encontrado }
+ */
+router.get('/publico/:username', usuariosController.perfilPublico);
+
+/**
+ * @swagger
  * /usuarios/perfil:
  *   put:
  *     summary: Actualiza datos del usuario y/o su perfil

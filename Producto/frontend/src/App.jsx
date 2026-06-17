@@ -67,6 +67,11 @@ export default function App() {
         }
       />
 
+      {/* Perfiles públicos — accesibles sin login, usan MainLayout sin guard */}
+      <Route element={<MainLayout />}>
+        <Route path="/u/:username" element={<Profile />} />
+      </Route>
+
       {/* Rutas privadas — MainLayout provee Sidebar + Footer */}
       <Route
         element={

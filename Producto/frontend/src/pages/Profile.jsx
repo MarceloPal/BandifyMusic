@@ -1,9 +1,9 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Upload, Zap, Wind, Activity, Sparkles,
   Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil,
-  Share2, MessageCircle, Headphones, Music2,
+  Share2, MessageCircle, Headphones, Music2, UserX,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
@@ -36,39 +36,87 @@ function SectionHeader({ children }) {
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
   const navigate                    = useNavigate()
+  const { username }                = useParams()
+  const isOwnProfile                = !username
 
-  const [activeTab, setActiveTab]               = useState('demos')
-  const [editingBio, setEditingBio]             = useState(false)
-  const [bioValue, setBioValue]                 = useState(user?.bio ?? '')
-  const [bioSaving, setBioSaving]               = useState(false)
-  const [activeCoverKey, setActiveCoverKey]     = useState(null)
-  const [photoUploading, setPhotoUploading]     = useState(false)
-  const [bannerUploading, setBannerUploading]   = useState(false)
-  const [demos, setDemos]                       = useState([])
-  const [copied, setCopied]                     = useState(false)
+  // ── Estado: perfil público ──────────────────────────────────────────────
+  const [publicProfile,   setPublicProfile]   = useState(null)
+  const [profileLoading,  setProfileLoading]  = useState(false)
+  const [profileNotFound, setProfileNotFound] = useState(false)
+
+  // ── Estado: UI ──────────────────────────────────────────────────────────
+  const [activeTab,       setActiveTab]       = useState('demos')
+  const [editingBio,      setEditingBio]      = useState(false)
+  const [bioValue,        setBioValue]        = useState(user?.bio ?? '')
+  const [bioSaving,       setBioSaving]       = useState(false)
+  const [activeCoverKey,  setActiveCoverKey]  = useState(null)
+  const [photoUploading,  setPhotoUploading]  = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [demos,           setDemos]           = useState([])
+  const [copied,          setCopied]          = useState(false)
 
   const photoInputRef  = useRef(null)
   const bannerInputRef = useRef(null)
 
-  const { url: photoUrl }     = useImageUrl(user?.foto_url   ?? null)
-  const { url: bannerUrl }    = useImageUrl(user?.banner_url ?? null)
+  // ── Fuente de datos unificada ───────────────────────────────────────────
+  // En vista pública usa publicProfile; en vista propia usa user del contexto.
+  const perfilData = isOwnProfile ? user : publicProfile
+
+  // Hooks de imagen: dependen de perfilData (se actualizan cuando cambia)
+  const { url: photoUrl }     = useImageUrl(perfilData?.foto_url   ?? null)
+  const { url: bannerUrl }    = useImageUrl(perfilData?.banner_url ?? null)
   const { url: activeCoverUrl } = useImageUrl(activeCoverKey)
 
+  // ── Effect: refrescar perfil propio al montar ───────────────────────────
+  useEffect(() => {
+    if (!isOwnProfile || !token) return
+    let cancelled = false
+    fetch(`${API_URL}/usuarios/perfil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && data?.id) updateUser(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [token, isOwnProfile]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Effect: cargar perfil público por username ──────────────────────────
+  useEffect(() => {
+    if (isOwnProfile) return
+    setProfileLoading(true)
+    setProfileNotFound(false)
+    setPublicProfile(null)
+    fetch(`${API_URL}/usuarios/publico/${encodeURIComponent(username)}`)
+      .then((r) => {
+        if (r.status === 404) { setProfileNotFound(true); return null }
+        return r.ok ? r.json() : null
+      })
+      .then((data) => { if (data) setPublicProfile(data) })
+      .catch(() => {})
+      .finally(() => setProfileLoading(false))
+  }, [username, isOwnProfile])
+
+  // ── Effect: URL de audio (presigned) ───────────────────────────────────
   const [audioUrl, setAudioUrl] = useState(null)
   useEffect(() => {
-    if (!user?.s3_key || !token) { setAudioUrl(null); return }
+    if (!perfilData?.s3_key || !token) { setAudioUrl(null); return }
     let cancelled = false
-    fetch(`${API_URL}/audio/listen-url?key=${encodeURIComponent(user.s3_key)}`, {
+    fetch(`${API_URL}/audio/listen-url?key=${encodeURIComponent(perfilData.s3_key)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && data?.url) setAudioUrl(data.url) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [user?.s3_key, token])
+  }, [perfilData?.s3_key, token])
 
+  // ── Effect: lista de demos (solo perfil propio) ─────────────────────────
   useEffect(() => {
-    if (!user?.s3_key || !token) { setActiveCoverKey(null); setDemos([]); return }
+    if (!isOwnProfile || !user?.s3_key || !token) {
+      setActiveCoverKey(null)
+      setDemos([])
+      return
+    }
     let cancelled = false
     fetch(`${API_URL}/demos`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : [])
@@ -81,8 +129,9 @@ export default function Profile() {
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [user?.s3_key, token])
+  }, [user?.s3_key, token, isOwnProfile])
 
+  // ── Handlers: solo activos en perfil propio ─────────────────────────────
   const saveBio = async () => {
     setBioSaving(true)
     try {
@@ -134,39 +183,78 @@ export default function Profile() {
   }
 
   const handleShare = () => {
-    const url = window.location.href
+    const shareUrl = isOwnProfile
+      ? `${window.location.origin}/u/${perfilData?.nombre}`
+      : window.location.href
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => {
+      navigator.clipboard.writeText(shareUrl).then(() => {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       })
     }
   }
 
-  const v           = useMemo(() => parseVector(user?.audio_vector),     [user?.audio_vector])
-  const meta        = useMemo(() => parseMetadata(user?.audio_metadata), [user?.audio_metadata])
-  const stats       = useMemo(() => v ? deriveStats(v, meta) : null,     [v, meta])
-  const mood        = useMemo(() => stats ? deriveMood(stats) : null,    [stats])
-  const detectedKey = useMemo(() => stats ? detectKey(stats.chroma) : null, [stats])
-  const gens        = useMemo(() => stats ? suggestGenres(stats) : [],   [stats])
+  // ── Audio + estadísticas ────────────────────────────────────────────────
+  const v           = useMemo(() => parseVector(perfilData?.audio_vector),     [perfilData?.audio_vector])
+  const meta        = useMemo(() => parseMetadata(perfilData?.audio_metadata), [perfilData?.audio_metadata])
+  const stats       = useMemo(() => v ? deriveStats(v, meta) : null,           [v, meta])
+  const mood        = useMemo(() => stats ? deriveMood(stats) : null,          [stats])
+  const detectedKey = useMemo(() => stats ? detectKey(stats.chroma) : null,    [stats])
+  const gens        = useMemo(() => stats ? suggestGenres(stats) : [],         [stats])
   const TextureIcon = stats ? (TEXTURE_ICONS[stats.texture.icon] ?? Activity) : null
 
-  if (!user) return null
-  const tieneAnalisis = Boolean(user?.s3_key)
-  const oficioUser    = Array.isArray(user?.oficio)    ? user.oficio    : []
-  const tagsUser      = Array.isArray(user?.user_tags) ? user.user_tags : []
+  // ── Early returns ───────────────────────────────────────────────────────
+  if (isOwnProfile && !user) return null
+
+  if (!isOwnProfile && profileLoading) {
+    return (
+      <div className="min-h-screen w-full bg-black flex items-center justify-center">
+        <Loader2 size={32} className="text-purple-400 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isOwnProfile && profileNotFound) {
+    return (
+      <div className="min-h-screen w-full bg-black flex flex-col items-center justify-center gap-4 px-6">
+        <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+          <UserX size={28} className="text-zinc-600" />
+        </div>
+        <h1 className="text-white text-xl font-bold">Usuario no encontrado</h1>
+        <p className="text-zinc-500 text-sm text-center max-w-xs">
+          No existe ningún músico con el nombre <span className="text-purple-400">@{username}</span> en Bandify.
+        </p>
+        <button onClick={() => navigate(-1)}
+          className="mt-2 px-5 py-2 border border-zinc-700 hover:border-purple-500 text-zinc-400 hover:text-purple-400 text-xs font-semibold uppercase tracking-widest rounded-xl transition-colors">
+          Volver
+        </button>
+      </div>
+    )
+  }
+
+  if (!isOwnProfile && !publicProfile) return null
+
+  // ── Valores derivados de display ────────────────────────────────────────
+  const displayName   = perfilData?.nombre || (isOwnProfile ? user?.email?.split('@')[0] || '' : '')
+  const tieneAnalisis = Boolean(perfilData?.s3_key)
+  const oficioUser    = Array.isArray(perfilData?.oficio)    ? perfilData.oficio    : []
+  const tagsUser      = Array.isArray(perfilData?.user_tags) ? perfilData.user_tags : []
 
   return (
     <div className="min-h-screen w-full bg-black pb-20">
 
-      {/* ── Hidden file inputs ── */}
-      <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-        onChange={(e) => handlePhotoUpload(e.target.files[0])} />
-      <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-        onChange={(e) => handleBannerUpload(e.target.files[0])} />
+      {/* ── Hidden file inputs (solo perfil propio) ── */}
+      {isOwnProfile && (
+        <>
+          <input ref={photoInputRef}  type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+            onChange={(e) => handlePhotoUpload(e.target.files[0])} />
+          <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+            onChange={(e) => handleBannerUpload(e.target.files[0])} />
+        </>
+      )}
 
       {/* ════════════════════════════════════════════════
-          BANNER — full-width, gradiente púrpura → negro
+          BANNER
           ════════════════════════════════════════════════ */}
       <div className="relative w-full h-48 md:h-60 group/banner overflow-hidden bg-gradient-to-b from-purple-950 via-zinc-950 to-black">
         {bannerUrl && (
@@ -179,59 +267,77 @@ export default function Profile() {
         }} />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-800" />
 
-        <button
-          onClick={() => bannerInputRef.current?.click()}
-          disabled={bannerUploading}
-          className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] uppercase tracking-widest hover:border-purple-500 hover:text-purple-400 rounded-lg"
-        >
-          {bannerUploading ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
-          Cambiar banner
-        </button>
+        {isOwnProfile && (
+          <button
+            onClick={() => bannerInputRef.current?.click()}
+            disabled={bannerUploading}
+            className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] uppercase tracking-widest hover:border-purple-500 hover:text-purple-400 rounded-lg"
+          >
+            {bannerUploading ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
+            Cambiar banner
+          </button>
+        )}
       </div>
 
       {/* ════════════════════════════════════════════════
-          HERO — Avatar circular + identidad + pills
+          HERO — Avatar + identidad
           ════════════════════════════════════════════════ */}
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 md:-mt-14 pb-6 border-b border-zinc-800/60">
 
-          {/* Avatar circular superpuesto al banner */}
-          <button
-            onClick={() => photoInputRef.current?.click()}
-            disabled={photoUploading}
-            className="group/avatar relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 border-zinc-950 bg-zinc-900 focus:outline-none flex-shrink-0 hover:border-purple-600 transition-colors z-10"
-          >
-            {photoUrl ? (
-              <img src={photoUrl} alt={user.nombre} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl">
-                {getInitials(user.nombre)}
+          {/* Avatar */}
+          {isOwnProfile ? (
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading}
+              className="group/avatar relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 border-zinc-950 bg-zinc-900 focus:outline-none flex-shrink-0 hover:border-purple-600 transition-colors z-10"
+            >
+              {photoUrl ? (
+                <img src={photoUrl} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl">
+                  {getInitials(displayName)}
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                {photoUploading
+                  ? <Loader2 size={20} className="text-purple-400 animate-spin" />
+                  : <Camera size={20} className="text-purple-400" />}
               </div>
-            )}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
-              {photoUploading
-                ? <Loader2 size={20} className="text-purple-400 animate-spin" />
-                : <Camera size={20} className="text-purple-400" />}
+            </button>
+          ) : (
+            <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 border-zinc-950 bg-zinc-900 flex-shrink-0 z-10">
+              {photoUrl ? (
+                <img src={photoUrl} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-700 to-zinc-900 flex items-center justify-center text-white font-black text-3xl">
+                  {getInitials(displayName)}
+                </div>
+              )}
             </div>
-          </button>
+          )}
 
-          {/* Nombre · @username · pills · social */}
+          {/* Nombre · @username · hashtags · redes */}
           <div className="flex-1 min-w-0 sm:pb-1 mt-1 sm:mt-0">
             <div className="flex flex-wrap items-center gap-2.5 mb-0.5">
               <h1 className="text-white text-2xl md:text-3xl font-black tracking-tight leading-none">
-                {user.nombre}
+                {displayName || (
+                  <span className="text-zinc-600 font-normal text-base italic">Sin nombre configurado</span>
+                )}
               </h1>
-              {user.es_premium && (
+              {perfilData?.es_premium && (
                 <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded">
                   PRO
                 </span>
               )}
             </div>
 
-            <p className="text-purple-400 font-medium text-sm mt-0.5 mb-3">@{user.nombre}</p>
+            {displayName && (
+              <p className="text-purple-400 font-medium text-sm mt-0.5 mb-3">@{displayName}</p>
+            )}
 
-            {/* Hashtags: oficios + tags musicales + ciudad */}
-            {(oficioUser.length > 0 || tagsUser.length > 0 || user.ciudad) && (
+            {/* Hashtags */}
+            {(oficioUser.length > 0 || tagsUser.length > 0 || perfilData?.ciudad) && (
               <div className="flex flex-wrap gap-3 mb-3">
                 {oficioUser.map((o) => (
                   <span key={o} className="text-purple-400 font-medium text-sm hover:text-purple-300 transition-colors cursor-default">
@@ -243,32 +349,32 @@ export default function Profile() {
                     #{t}
                   </span>
                 ))}
-                {user.ciudad && (
+                {perfilData?.ciudad && (
                   <span className="text-zinc-500 text-sm flex items-center gap-1">
                     <MapPin size={11} />
-                    {user.ciudad}
+                    {perfilData.ciudad}
                   </span>
                 )}
               </div>
             )}
 
-            {/* Íconos de redes sociales */}
-            {(user?.instagram_url || user?.spotify_url || user?.discord_url) && (
+            {/* Redes sociales */}
+            {(perfilData?.instagram_url || perfilData?.spotify_url || perfilData?.discord_url) && (
               <div className="flex items-center gap-3">
-                {user.instagram_url && (
-                  <a href={user.instagram_url} target="_blank" rel="noopener noreferrer"
+                {perfilData.instagram_url && (
+                  <a href={perfilData.instagram_url} target="_blank" rel="noopener noreferrer"
                     className="text-zinc-500 hover:text-pink-400 transition-colors">
                     <IgIcon />
                   </a>
                 )}
-                {user.spotify_url && (
-                  <a href={user.spotify_url} target="_blank" rel="noopener noreferrer"
+                {perfilData.spotify_url && (
+                  <a href={perfilData.spotify_url} target="_blank" rel="noopener noreferrer"
                     className="text-zinc-500 hover:text-green-400 transition-colors">
                     <SpotifyIcon />
                   </a>
                 )}
-                {user.discord_url && (
-                  <a href={user.discord_url} target="_blank" rel="noopener noreferrer"
+                {perfilData.discord_url && (
+                  <a href={perfilData.discord_url} target="_blank" rel="noopener noreferrer"
                     className="text-zinc-500 hover:text-indigo-400 transition-colors">
                     <DiscordIcon />
                   </a>
@@ -277,19 +383,36 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Botón editar perfil */}
-          <button
-            onClick={() => navigate('/settings')}
-            className="self-start sm:self-auto flex-shrink-0 flex items-center gap-2 border border-purple-500/60 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors rounded-xl"
-          >
-            <Edit3 size={12} />
-            Editar perfil
-          </button>
+          {/* CTA: editar (propio) vs enviar mensaje (público) */}
+          {isOwnProfile ? (
+            <button
+              onClick={() => navigate('/settings')}
+              className="self-start sm:self-auto flex-shrink-0 flex items-center gap-2 border border-purple-500/60 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors rounded-xl"
+            >
+              <Edit3 size={12} />
+              Editar perfil
+            </button>
+          ) : token ? (
+            <Link
+              to="/messages"
+              className="self-start sm:self-auto flex-shrink-0 flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors rounded-xl"
+            >
+              <MessageCircle size={12} />
+              Enviar mensaje
+            </Link>
+          ) : (
+            <Link
+              to="/auth"
+              className="self-start sm:self-auto flex-shrink-0 flex items-center gap-2 border border-purple-500/60 text-purple-400 hover:bg-purple-500/10 px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors rounded-xl"
+            >
+              Inicia sesión para contactar
+            </Link>
+          )}
         </div>
       </div>
 
       {/* ════════════════════════════════════════════════
-          TABS — barra de navegación interna
+          TABS
           ════════════════════════════════════════════════ */}
       <div className="sticky top-14 z-20 bg-black/90 backdrop-blur-sm border-b border-zinc-800/60">
         <div className="max-w-6xl mx-auto px-4 md:px-6">
@@ -317,90 +440,18 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-          {/* ── Columna principal (2 fracciones) ── */}
+          {/* ── Columna principal ── */}
           <div className="md:col-span-2 flex flex-col gap-6">
 
-            {/* ── TAB: ADN Musical ── */}
-            {activeTab === 'adn' && (
-              <>
-                {tieneAnalisis && stats ? (
-                  <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-6">
-                    <SectionHeader>Análisis de ADN Musical</SectionHeader>
-
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                      <StatCard label="BPM" value={stats.bpm} />
-                      <StatCard label="Energía" value={`${stats.energia}%`} accent />
-                      {detectedKey && <StatCard label="Tonalidad" value={detectedKey} />}
-                      {mood && (
-                        <div className="bg-white/5 border border-white/8 rounded-xl p-3 flex flex-col gap-1">
-                          <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Mood</span>
-                          <div className="flex items-center gap-2 mt-auto">
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: mood.color }} />
-                            <span className="text-white text-sm font-bold truncate">{mood.label}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Textura */}
-                    {TextureIcon && stats.texture && (
-                      <div className="flex items-center gap-2 mb-5 px-3 py-2 bg-white/3 border border-white/6 rounded-xl">
-                        <TextureIcon size={14} className="text-purple-400 flex-shrink-0" />
-                        <span className="text-zinc-400 text-xs uppercase tracking-widest">{stats.texture.label}</span>
-                      </div>
-                    )}
-
-                    {/* Géneros sugeridos */}
-                    {gens.length > 0 && (
-                      <div>
-                        <p className="text-zinc-600 text-[10px] uppercase tracking-widest mb-2">Géneros detectados por IA</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {gens.map((g) => (
-                            <span key={g}
-                              className="bg-purple-600/10 text-purple-300 border border-purple-500/20 rounded-full px-2.5 py-0.5 text-[11px]">
-                              {g}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <Link to="/mi-adn"
-                      className="mt-5 inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 text-xs font-semibold uppercase tracking-widest transition-colors">
-                      <BarChart2 size={12} />
-                      Ver análisis completo
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-10 flex flex-col items-center text-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center">
-                      <Music2 size={24} className="text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-white font-bold text-sm mb-1">Sin ADN Musical</p>
-                      <p className="text-zinc-500 text-xs leading-relaxed max-w-xs">
-                        Sube tu primer demo para que la IA analice tu sonido y genere tu ADN Musical único.
-                      </p>
-                    </div>
-                    <Link to="/mi-adn"
-                      className="mt-1 px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
-                      Subir primer demo
-                    </Link>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ── TAB: Demos ── */}
+            {/* TAB: Demos */}
             {activeTab === 'demos' && (
               <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-6">
                 <SectionHeader>Demos Publicados</SectionHeader>
 
                 {tieneAnalisis ? (
                   <>
-                    {/* Tracklist */}
-                    {demos.length > 0 ? (
+                    {/* Tracklist: lista completa en perfil propio, entrada única en público */}
+                    {isOwnProfile && demos.length > 0 ? (
                       <ul className="border border-zinc-800 rounded-xl divide-y divide-zinc-800 overflow-hidden mb-4">
                         {demos.map((d, i) => {
                           const isActive = d.s3_key === user.s3_key
@@ -429,12 +480,24 @@ export default function Profile() {
                           )
                         })}
                       </ul>
+                    ) : !isOwnProfile ? (
+                      <div className="border border-zinc-800 rounded-xl overflow-hidden mb-4">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-purple-500/8 border-l-2 border-l-purple-500">
+                          <span className="text-zinc-600 text-[11px] font-mono flex-shrink-0 w-5">01</span>
+                          <span className="truncate flex-1 text-[13px] text-purple-300 font-semibold">
+                            Demo principal
+                          </span>
+                          {stats?.bpm && (
+                            <span className="text-zinc-600 text-[10px] font-mono flex-shrink-0">{stats.bpm} BPM</span>
+                          )}
+                        </div>
+                      </div>
                     ) : (
                       <p className="text-zinc-600 text-sm italic mb-4">Cargando demos...</p>
                     )}
 
                     {/* Reproductor */}
-                    {audioUrl && (
+                    {audioUrl ? (
                       <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
                         <div className="relative"
                           style={activeCoverUrl ? {
@@ -453,7 +516,15 @@ export default function Profile() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : !isOwnProfile && !token ? (
+                      <div className="border border-zinc-800 rounded-xl p-5 text-center">
+                        <p className="text-zinc-500 text-sm mb-3">Inicia sesión para escuchar este demo.</p>
+                        <Link to="/auth"
+                          className="inline-flex px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                          Iniciar sesión
+                        </Link>
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <div className="flex flex-col items-center text-center gap-4 py-6">
@@ -462,25 +533,28 @@ export default function Profile() {
                     </div>
                     <div>
                       <p className="text-white text-sm font-bold mb-1">Sin demos publicados</p>
-                      <p className="text-zinc-500 text-xs">Sube tu primer demo para activar el ADN.</p>
+                      <p className="text-zinc-500 text-xs">
+                        {isOwnProfile ? 'Sube tu primer demo para activar el ADN.' : 'Este músico aún no ha publicado demos.'}
+                      </p>
                     </div>
-                    <Link to="/mi-adn"
-                      className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
-                      Subir demo
-                    </Link>
+                    {isOwnProfile && (
+                      <Link to="/mi-adn"
+                        className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                        Subir demo
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── TAB: Biografía ── */}
+            {/* TAB: Biografía */}
             {activeTab === 'bio' && (
               <div className="flex flex-col gap-5">
-                {/* Sección Bio */}
                 <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <SectionHeader>Biografía</SectionHeader>
-                    {!editingBio && (
+                    {isOwnProfile && !editingBio && (
                       <button
                         onClick={() => { setBioValue(user?.bio ?? ''); setEditingBio(true) }}
                         className="flex items-center gap-1 text-zinc-600 hover:text-purple-400 transition-colors text-[10px] uppercase tracking-widest -mt-4"
@@ -491,7 +565,7 @@ export default function Profile() {
                     )}
                   </div>
 
-                  {editingBio ? (
+                  {isOwnProfile && editingBio ? (
                     <div className="flex flex-col gap-2">
                       <textarea
                         value={bioValue}
@@ -513,10 +587,12 @@ export default function Profile() {
                         </button>
                       </div>
                     </div>
-                  ) : user?.bio ? (
-                    <p className="text-zinc-300 text-sm leading-relaxed">{user.bio}</p>
+                  ) : perfilData?.bio ? (
+                    <p className="text-zinc-300 text-sm leading-relaxed">{perfilData.bio}</p>
                   ) : (
-                    <p className="text-zinc-600 text-sm italic">Sin biografía. Haz clic en Agregar para escribir la tuya.</p>
+                    <p className="text-zinc-600 text-sm italic">
+                      {isOwnProfile ? 'Sin biografía. Haz clic en Agregar para escribir la tuya.' : 'Este músico aún no ha escrito su biografía.'}
+                    </p>
                   )}
                 </div>
 
@@ -537,20 +613,22 @@ export default function Profile() {
                           </span>
                         ))}
                       </div>
-                      {gens.length > 0 && (
+                      {isOwnProfile && gens.length > 0 && (
                         <p className="text-zinc-700 text-[10px] mt-3 uppercase tracking-widest">
                           Tags grises = sugerencias IA Bandify
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-zinc-600 text-sm italic">Sin estilos definidos. Agrégalos en Configuración.</p>
+                    <p className="text-zinc-600 text-sm italic">
+                      {isOwnProfile ? 'Sin estilos definidos. Agrégalos en Configuración.' : 'Sin estilos definidos aún.'}
+                    </p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ── TAB: Tocatas ── */}
+            {/* TAB: Tocatas */}
             {activeTab === 'tocatas' && (
               <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-10 flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -561,7 +639,9 @@ export default function Profile() {
                     Tocatas próximamente
                   </p>
                   <p className="text-zinc-600 text-xs leading-relaxed max-w-xs">
-                    Aquí aparecerán los eventos y tocatas que organices o en los que participes.
+                    {isOwnProfile
+                      ? 'Aquí aparecerán los eventos y tocatas que organices o en los que participes.'
+                      : `Aquí aparecerán los eventos en los que participe @${displayName}.`}
                   </p>
                 </div>
                 <Link to="/tocatas"
@@ -573,12 +653,14 @@ export default function Profile() {
 
           </div>{/* /main col */}
 
-          {/* ── Sidebar (1 fracción) ── */}
+          {/* ── Sidebar ── */}
           <div className="md:col-span-1 flex flex-col gap-4">
 
-            {/* Widget: ADN Snapshot */}
+            {/* Widget: ADN en cifras */}
             <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-5">
-              <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-4">Tu ADN en cifras</p>
+              <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+                {isOwnProfile ? 'Tu ADN en cifras' : 'ADN Musical'}
+              </p>
 
               {stats ? (
                 <div className="flex flex-col gap-3">
@@ -595,20 +677,24 @@ export default function Profile() {
                     </div>
                   )}
 
-                  <Link to="/mi-adn"
-                    className="mt-1 w-full flex items-center justify-center gap-2 py-2 border border-purple-500/30 hover:border-purple-500 text-purple-400 hover:text-purple-300 text-xs font-semibold rounded-xl transition-colors">
-                    <BarChart2 size={12} />
-                    Ver análisis completo
-                  </Link>
+                  {isOwnProfile && (
+                    <Link to="/mi-adn"
+                      className="mt-1 w-full flex items-center justify-center gap-2 py-2 border border-purple-500/30 hover:border-purple-500 text-purple-400 hover:text-purple-300 text-xs font-semibold rounded-xl transition-colors">
+                      <BarChart2 size={12} />
+                      Ver análisis completo
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-3">
                   <p className="text-zinc-600 text-xs">
-                    Sube un demo para ver tus estadísticas de ADN.
+                    {isOwnProfile ? 'Sube un demo para ver tus estadísticas de ADN.' : 'Sin datos de ADN disponibles.'}
                   </p>
-                  <Link to="/mi-adn" className="mt-3 inline-block text-purple-400 hover:text-purple-300 text-xs font-semibold transition-colors">
-                    Ir a Mi ADN →
-                  </Link>
+                  {isOwnProfile && (
+                    <Link to="/mi-adn" className="mt-3 inline-block text-purple-400 hover:text-purple-300 text-xs font-semibold transition-colors">
+                      Ir a Mi ADN →
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -617,27 +703,53 @@ export default function Profile() {
             <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-5 flex flex-col gap-2.5">
               <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Acciones</p>
 
-              <Link to="/matching/buscar"
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
-                <MessageCircle size={13} />
-                Ver mis matches
-              </Link>
+              {isOwnProfile ? (
+                <>
+                  <Link to="/matching/buscar"
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                    <MessageCircle size={13} />
+                    Ver mis matches
+                  </Link>
 
-              <button onClick={handleShare}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-zinc-200 text-xs font-semibold rounded-xl transition-colors">
-                {copied ? <Check size={13} className="text-green-400" /> : <Share2 size={13} />}
-                {copied ? 'Enlace copiado' : 'Compartir perfil'}
-              </button>
+                  <button onClick={handleShare}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-zinc-200 text-xs font-semibold rounded-xl transition-colors">
+                    {copied ? <Check size={13} className="text-green-400" /> : <Share2 size={13} />}
+                    {copied ? 'Enlace copiado' : 'Compartir mi perfil'}
+                  </button>
 
-              <button onClick={() => navigate('/settings')}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-purple-500/40 text-zinc-400 hover:text-purple-400 text-xs font-semibold rounded-xl transition-colors">
-                <Edit3 size={13} />
-                Editar configuración
-              </button>
+                  <button onClick={() => navigate('/settings')}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-purple-500/40 text-zinc-400 hover:text-purple-400 text-xs font-semibold rounded-xl transition-colors">
+                    <Edit3 size={13} />
+                    Editar configuración
+                  </button>
+                </>
+              ) : (
+                <>
+                  {token ? (
+                    <Link to="/messages"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                      <MessageCircle size={13} />
+                      Enviar mensaje
+                    </Link>
+                  ) : (
+                    <Link to="/auth"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                      <MessageCircle size={13} />
+                      Conectar con este músico
+                    </Link>
+                  )}
+
+                  <button onClick={handleShare}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-zinc-200 text-xs font-semibold rounded-xl transition-colors">
+                    {copied ? <Check size={13} className="text-green-400" /> : <Share2 size={13} />}
+                    {copied ? 'Enlace copiado' : 'Compartir perfil'}
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Widget: Redes sociales (si no están en el hero por falta de espacio) */}
-            {!(user?.instagram_url || user?.spotify_url || user?.discord_url) && (
+            {/* Widget: sugerencia de redes cuando no están configuradas (solo propio) */}
+            {isOwnProfile && !(perfilData?.instagram_url || perfilData?.spotify_url || perfilData?.discord_url) && (
               <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-5">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-3">Redes sociales</p>
                 <p className="text-zinc-600 text-xs leading-relaxed mb-3">

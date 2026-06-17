@@ -8,7 +8,7 @@ import { API_URL }  from '../utils/helpers'
 const HIDE_FOOTER_ON = ['/messages']
 
 // Palabras clave base. Si la URL contiene cualquiera de estas, será Full Bleed (ancho completo)
-const FULL_BLEED_KEYWORDS = ['/messages', '/profile', 'planes']
+const FULL_BLEED_KEYWORDS = ['/messages', '/profile', '/u/', 'planes']
 
 export default function MainLayout() {
   const { pathname }          = useLocation()
