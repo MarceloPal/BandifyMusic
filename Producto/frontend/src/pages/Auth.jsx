@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Music, ArrowLeft, CheckCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
@@ -23,10 +23,15 @@ export default function Auth() {
     ? 'login'
     : 'register'
 
-  const [view, setView]   = useState(initialView)
-  const [error, setError] = useState('')
-  const navigate          = useNavigate()
-  const { token, user, login } = useAuth()
+  const [view, setView]               = useState(initialView)
+  const [error, setError]             = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regConfirm, setRegConfirm]   = useState('')
+  const navigate                      = useNavigate()
+  const { token, user, login }        = useAuth()
+
+  const passwordMismatch = regPassword && regConfirm && regPassword !== regConfirm
+  const regFormInvalid   = !regPassword || !regConfirm || !!passwordMismatch
 
   // ── Mutación login / registro ─────────────────────────────────────────────
   const authMutation = useMutation({
@@ -35,7 +40,7 @@ export default function Auth() {
       const endpoint = isLogin ? '/auth/login' : '/auth/registro'
       const body = isLogin
         ? { email: formData.email, password: formData.password }
-        : { nombre: formData.nombre, fecha_nacimiento: formData.fecha_nacimiento || null, email: formData.email, password: formData.password }
+        : { nombre: formData.username, fecha_nacimiento: formData.fecha_nacimiento || null, email: formData.email, password: formData.password }
 
       const res  = await fetch(`${API_URL}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
@@ -77,7 +82,6 @@ export default function Auth() {
     onSuccess: () => {
       setView('login')
       setError('')
-      // Limpiar el token de la URL
       navigate('/auth?mode=login', { replace: true })
     },
     onError: (err) => setError(err.message),
@@ -87,15 +91,32 @@ export default function Auth() {
     e.preventDefault()
     setError('')
     const fd = Object.fromEntries(new FormData(e.target))
-    if (view === 'login' || view === 'register') authMutation.mutate(fd)
-    else if (view === 'forgot') forgotMutation.mutate(fd)
-    else if (view === 'reset')  resetMutation.mutate(fd)
+
+    if (view === 'login') {
+      authMutation.mutate(fd)
+    } else if (view === 'register') {
+      if (regPassword !== regConfirm) {
+        setError('Las contraseñas no coinciden.')
+        return
+      }
+      authMutation.mutate({ ...fd, password: regPassword })
+    } else if (view === 'forgot') {
+      forgotMutation.mutate(fd)
+    } else if (view === 'reset') {
+      resetMutation.mutate(fd)
+    }
   }
 
-  const switchTo = (v) => { setView(v); setError(''); authMutation.reset(); forgotMutation.reset(); resetMutation.reset() }
+  const switchTo = (v) => {
+    setView(v)
+    setError('')
+    setRegPassword('')
+    setRegConfirm('')
+    authMutation.reset()
+    forgotMutation.reset()
+    resetMutation.reset()
+  }
 
-  // Si ya hay sesión y NO acabamos de hacer login en esta vista, redirigir
-  // según el rol: admin → panel admin, resto → mi-adn
   if (token && !authMutation.isSuccess) {
     return <Navigate to={user?.role === 'admin' ? '/admin' : '/mi-adn'} replace />
   }
@@ -135,21 +156,47 @@ export default function Auth() {
                   <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     {view === 'register' && (
                       <>
-                        <Field name="nombre"           label="Nombre completo"    placeholder="Jane Smith" required />
+                        <Field name="username" label="Nombre de usuario" placeholder="janesmithmusic" required />
                         <Field name="fecha_nacimiento" label="Fecha de nacimiento" type="date" />
                       </>
                     )}
-                    <Field name="email"    label="Correo electrónico" placeholder="info@example.com" type="email"    required />
-                    <Field name="password" label="Contraseña"         placeholder="••••••••"          type="password" required />
+                    <Field name="email" label="Correo electrónico" placeholder="info@example.com" type="email" required />
+
+                    {view === 'register' ? (
+                      <>
+                        <PasswordField
+                          name="password"
+                          label="Contraseña"
+                          placeholder="••••••••"
+                          required
+                          value={regPassword}
+                          onChange={e => setRegPassword(e.target.value)}
+                        />
+                        <PasswordField
+                          name="confirm_password"
+                          label="Confirmar contraseña"
+                          placeholder="••••••••"
+                          required
+                          value={regConfirm}
+                          onChange={e => setRegConfirm(e.target.value)}
+                          hasError={!!passwordMismatch}
+                          errorMsg="Las contraseñas no coinciden"
+                        />
+                      </>
+                    ) : (
+                      <PasswordField name="password" label="Contraseña" placeholder="••••••••" required />
+                    )}
 
                     {error && <p className="text-red-400 text-sm">{error}</p>}
 
-                    <SubmitBtn pending={authMutation.isPending}>
+                    <SubmitBtn
+                      pending={authMutation.isPending}
+                      disabled={view === 'register' && regFormInvalid}
+                    >
                       {view === 'login' ? 'Iniciar sesión' : 'Crear mi perfil'}
                     </SubmitBtn>
                   </form>
 
-                  {/* ¿Olvidaste tu contraseña? — solo visible en login */}
                   {view === 'login' && (
                     <button
                       onClick={() => switchTo('forgot')}
@@ -200,7 +247,7 @@ export default function Auth() {
                   <h2 className="text-white font-bold text-lg mb-2">Nueva contraseña</h2>
                   <p className="text-white/50 text-sm mb-6">Elige una contraseña de al menos 8 caracteres.</p>
                   <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <Field name="password" label="Nueva contraseña" placeholder="••••••••" type="password" required />
+                    <PasswordField name="password" label="Nueva contraseña" placeholder="••••••••" required />
                     {error && <p className="text-red-400 text-sm">{error}</p>}
                     {resetMutation.isSuccess && (
                       <p className="text-green-400 text-sm">✓ Contraseña actualizada. Ahora puedes iniciar sesión.</p>
@@ -238,12 +285,17 @@ function BackLink({ onClick }) {
   )
 }
 
-function SubmitBtn({ pending, children }) {
+function SubmitBtn({ pending, disabled, children }) {
+  const isDisabled = pending || !!disabled
   return (
-    <button type="submit" disabled={pending}
-      className="w-full font-semibold py-3.5 rounded-full text-sm transition-colors disabled:opacity-50 mt-1"
+    <button
+      type="submit"
+      disabled={isDisabled}
+      className={`w-full font-semibold py-3.5 rounded-full text-sm transition-all mt-1 ${
+        isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
       style={{ backgroundColor: '#ffffff', color: '#000000' }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e7e5e4' }}
+      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.backgroundColor = '#e7e5e4' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff' }}
     >
       {pending ? 'Cargando...' : children}
@@ -257,6 +309,41 @@ function Field({ name, label, placeholder, type = 'text', required = false }) {
       <label className="block text-xs font-semibold text-white/50 mb-1.5 uppercase tracking-wide">{label}</label>
       <input name={name} type={type} placeholder={placeholder} required={required}
         className="w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/30 border border-white/10" />
+    </div>
+  )
+}
+
+function PasswordField({ name, label, placeholder, required = false, value, onChange, hasError = false, errorMsg = '' }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-white/50 mb-1.5 uppercase tracking-wide">{label}</label>
+      <div className="relative">
+        <input
+          name={name}
+          type={show ? 'text' : 'password'}
+          placeholder={placeholder}
+          required={required}
+          value={value}
+          onChange={onChange}
+          className={`w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 pr-11 text-sm outline-none focus:ring-2 border transition-colors ${
+            hasError
+              ? 'border-red-500 focus:ring-red-500/30'
+              : 'border-white/10 focus:ring-white/30'
+          }`}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(s => !s)}
+          tabIndex={-1}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {hasError && errorMsg && (
+        <p className="text-red-400 text-xs mt-1.5">{errorMsg}</p>
+      )}
     </div>
   )
 }

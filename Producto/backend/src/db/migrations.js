@@ -195,6 +195,24 @@ async function runMigrations() {
            FOREIGN KEY (organizador_id) REFERENCES usuarios(id) ON DELETE CASCADE;
        END IF;
      END $$`,
+    // Candado final: unicidad del nombre de usuario a nivel de base de datos.
+    // El bloque busca por tabla+columna+tipo para ser idempotente independientemente
+    // del nombre que PostgreSQL le haya asignado a la constraint en cada instancia.
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM   information_schema.table_constraints  tc
+         JOIN   information_schema.constraint_column_usage ccu
+                ON  tc.constraint_name = ccu.constraint_name
+                AND tc.table_schema    = ccu.table_schema
+         WHERE  tc.constraint_type = 'UNIQUE'
+           AND  tc.table_name      = 'usuarios'
+           AND  ccu.column_name    = 'nombre'
+       ) THEN
+         ALTER TABLE usuarios ADD CONSTRAINT usuarios_nombre_key UNIQUE (nombre);
+       END IF;
+     END $$`,
   ];
 
   for (const sql of stmts) {
