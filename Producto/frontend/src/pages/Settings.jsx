@@ -173,15 +173,15 @@ function PanelPerfil({ user, token, updateUser }) {
 
       {/* ── Formulario ── */}
       <form onSubmit={handleSave} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-6">
           {/* Nombre */}
           <div>
-            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nombre</label>
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nombre de usuario</label>
             <input
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Tu nombre artístico"
+              placeholder="janesmithmusic"
               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
             />
           </div>
@@ -771,7 +771,7 @@ export default function Settings() {
             md:self-start → no estira para llenar la altura del flex container,
             requisito de sticky.
             Solo aplica en md+ para que en mobile el menú quede arriba del contenido. */}
-        <aside className="w-full md:w-48 flex-shrink-0 pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0 md:sticky md:top-24 md:self-start">
+        <aside className="w-full md:w-56 flex-shrink-0 md:pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0 md:sticky md:top-24 md:h-[calc(100vh-8rem)] md:overflow-y-auto">
           {NAV_SECTIONS.map((section, si) => (
             <div key={section.group} className={si > 0 ? 'mt-6' : ''}>
               <p className="pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
@@ -801,7 +801,7 @@ export default function Settings() {
 
         {/* ── Panel de contenido derecha — bg-transparent para que herede
               el gris de MainLayout (bg-zinc-900) sin contraste extra. ── */}
-        <div className="flex-1 min-w-0 md:pl-10 bg-transparent">
+        <div className="flex-1 min-w-0 md:pl-12 bg-transparent">
           {renderPanel()}
         </div>
 
