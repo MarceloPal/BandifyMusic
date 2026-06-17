@@ -19,6 +19,7 @@ import ChangePassword  from './pages/ChangePassword'
 import PlanesPremium   from './pages/PlanesPremium'
 import NoticiasPage    from './pages/Noticias'
 import Admin           from './pages/Admin'
+import PublicarTocata  from './pages/PublicarTocata'
 import MainLayout      from './layouts/MainLayout'
 import AdminLayout     from './layouts/AdminLayout'
 
@@ -84,7 +85,8 @@ export default function App() {
         <Route path="/profile"       element={<Profile />}       />
         <Route path="/explore"       element={<Explore />}       />
         <Route path="/messages"      element={<Messages />}      />
-        <Route path="/tocatas"       element={<Tocatas />}       />
+        <Route path="/tocatas"           element={<Tocatas />}        />
+        <Route path="/tocatas/publicar" element={<PublicarTocata />} />
         <Route path="/help"          element={<Help />}          />
         <Route path="/planes"        element={<PlanesPremium />} />
         <Route path="/notifications" element={<Notifications />} />

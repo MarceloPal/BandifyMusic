@@ -34,10 +34,11 @@ exports.listar = async (req, res, next) => {
     const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
 
     const resultado = await pool.query(
-      `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.ciudad, t.direccion,
+      `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.hora, t.ciudad, t.direccion,
               t.genero, t.lat, t.lng, t.created_at,
               t.afiche_url, t.contacto_email,
               t.precio, t.cantidad_disponible,
+              t.edad_minima, t.tipos_entrada,
               u.id AS organizador_id, u.nombre AS organizador_nombre,
               u.email AS organizador_email
        FROM tocatas t
@@ -67,10 +68,13 @@ exports.crear = async (req, res, next) => {
     }
     // ── FIN: VALIDACIÓN PREMIUM ──
 
-    const { nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible } = req.body;
+    const { nombre, descripcion, fecha, hora, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible, edad_minima, tipos_entrada } = req.body;
 
     if (!nombre || !fecha || !ciudad) {
       return res.status(400).json({ error: 'nombre, fecha y ciudad son obligatorios' });
+    }
+    if (!edad_minima) {
+      return res.status(400).json({ error: 'La edad mínima del evento es obligatoria' });
     }
 
     let latFinal = lat != null ? Number(lat) : null;
@@ -84,12 +88,21 @@ exports.crear = async (req, res, next) => {
     }
 
     const resultado = await pool.query(
-      `INSERT INTO tocatas (organizador_id, nombre, descripcion, fecha, ciudad, direccion, genero, lat, lng, afiche_url, contacto_email, precio, cantidad_disponible)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO tocatas
+         (organizador_id, nombre, descripcion, fecha, hora, ciudad, direccion, genero,
+          lat, lng, afiche_url, contacto_email, precio, cantidad_disponible,
+          edad_minima, tipos_entrada)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
-      [req.usuario.id, nombre, descripcion || null, fecha, ciudad, direccion || null,
-       genero || null, latFinal, lngFinal, afiche_url || null, contacto_email || null,
-       precio ? Number(precio) : null, cantidad_disponible ? parseInt(cantidad_disponible) : null]
+      [
+        req.usuario.id, nombre, descripcion || null, fecha, hora || null,
+        ciudad, direccion || null, genero || null, latFinal, lngFinal,
+        afiche_url || null, contacto_email || null,
+        precio ? Number(precio) : null,
+        cantidad_disponible ? parseInt(cantidad_disponible) : null,
+        edad_minima || null,
+        tipos_entrada ? JSON.stringify(tipos_entrada) : null,
+      ]
     );
 
     res.status(201).json(resultado.rows[0]);
@@ -160,8 +173,8 @@ exports.listarPublicas = async (req, res, next) => {
     let resultado;
     try {
       resultado = await pool.query(
-        `SELECT t.id, t.nombre, t.fecha, t.ciudad, t.direccion,
-                t.genero, t.afiche_url,
+        `SELECT t.id, t.nombre, t.fecha, t.hora, t.ciudad, t.direccion,
+                t.genero, t.afiche_url, t.precio, t.edad_minima,
                 u.nombre AS organizador_nombre
          FROM tocatas t
          JOIN usuarios u ON u.id = t.organizador_id
@@ -171,11 +184,11 @@ exports.listarPublicas = async (req, res, next) => {
         [limite]
       );
     } catch (err) {
-      // Fallback si afiche_url no existe aún
+      // Fallback si columnas nuevas no existen aún
       if (err.code === '42703') {
         resultado = await pool.query(
-          `SELECT t.id, t.nombre, t.fecha, t.ciudad, t.direccion,
-                  t.genero, NULL AS afiche_url,
+          `SELECT t.id, t.nombre, t.fecha, NULL AS hora, t.ciudad, t.direccion,
+                  t.genero, NULL AS afiche_url, NULL AS precio, NULL AS edad_minima,
                   u.nombre AS organizador_nombre
            FROM tocatas t
            JOIN usuarios u ON u.id = t.organizador_id
@@ -196,10 +209,11 @@ exports.listarPublicas = async (req, res, next) => {
 exports.obtenerDetalle = async (req, res, next) => {
   try {
     const resultado = await pool.query(
-      `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.ciudad, t.direccion,
+      `SELECT t.id, t.nombre, t.descripcion, t.fecha, t.hora, t.ciudad, t.direccion,
               t.genero, t.lat, t.lng, t.created_at,
               t.afiche_url, t.contacto_email,
               t.precio, t.cantidad_disponible,
+              t.edad_minima, t.tipos_entrada,
               u.id AS organizador_id, u.nombre AS organizador_nombre,
               u.email AS organizador_email, u.instrumento AS organizador_instrumento
        FROM tocatas t
