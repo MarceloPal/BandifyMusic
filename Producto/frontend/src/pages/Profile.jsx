@@ -271,7 +271,7 @@ export default function Profile() {
           <button
             onClick={() => bannerInputRef.current?.click()}
             disabled={bannerUploading}
-            className="absolute top-4 right-4 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] uppercase tracking-widest hover:border-purple-500 hover:text-purple-400 rounded-lg"
+            className="absolute top-4 right-4 z-20 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-zinc-700 text-zinc-300 text-[10px] uppercase tracking-widest hover:border-purple-500 hover:text-purple-400 rounded-lg"
           >
             {bannerUploading ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
             Cambiar banner
@@ -283,7 +283,7 @@ export default function Profile() {
           HERO — Avatar + identidad
           ════════════════════════════════════════════════ */}
       <div className="max-w-6xl mx-auto px-4 md:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 md:-mt-14 pb-6 border-b border-zinc-800/60">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 md:-mt-14 pb-6 border-b border-zinc-800/60">
 
           {/* Avatar */}
           {isOwnProfile ? (
@@ -317,25 +317,21 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Nombre · @username · hashtags · redes */}
-          <div className="flex-1 min-w-0 sm:pb-1 mt-1 sm:mt-0">
-            <div className="flex flex-wrap items-center gap-2.5 mb-0.5">
-              <h1 className="text-white text-2xl md:text-3xl font-black tracking-tight leading-none">
-                {displayName || (
-                  <span className="text-zinc-600 font-normal text-base italic">Sin nombre configurado</span>
+          {/* Nombre · hashtags · redes */}
+          <div className="flex-1 min-w-0 mt-1 sm:mt-0 sm:pb-1">
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <h1 className="text-white text-3xl md:text-4xl font-black tracking-tight leading-none">
+                {displayName || (isOwnProfile
+                  ? <span className="text-zinc-600 font-normal text-base italic">Sin nombre configurado</span>
+                  : null
                 )}
               </h1>
-              {perfilData?.es_premium && (
+              {displayName && perfilData?.es_premium && (
                 <span className="border border-purple-500 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded">
                   PRO
                 </span>
               )}
             </div>
-
-            {displayName && (
-              <p className="text-purple-400 font-medium text-sm mt-0.5 mb-3">@{displayName}</p>
-            )}
-
             {/* Hashtags */}
             {(oficioUser.length > 0 || tagsUser.length > 0 || perfilData?.ciudad) && (
               <div className="flex flex-wrap gap-3 mb-3">
