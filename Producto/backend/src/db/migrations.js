@@ -125,6 +125,11 @@ async function runMigrations() {
     // NUMERIC(10,7) → ~1cm de precisión, suficiente para ubicar un venue
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7)',
+    // Hora del evento (HH:MM)
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS hora          TEXT',
+    // Restricción de edad del evento y tipos de entrada con precio por tier
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS edad_minima   TEXT',
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS tipos_entrada JSONB',
     // Fix FK constraints: reemplazar sin CASCADE por con CASCADE en jobs y audio_jobs
     // (necesario para poder eliminar usuarios desde el panel de admin)
     `DO $$
