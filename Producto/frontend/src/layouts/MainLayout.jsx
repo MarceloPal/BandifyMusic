@@ -36,7 +36,7 @@ export default function MainLayout() {
 
       {/* Contenido — padding-top para compensar el navbar fijo */}
       <div className="flex-1 flex flex-col pt-14">
-        <main className={`flex-1 ${isMessages ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 ${isMessages ? 'overflow-hidden flex flex-col' : ''}`}>
           {isFullBleed ? (
             <Outlet />
           ) : (
