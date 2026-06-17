@@ -19,7 +19,7 @@ function Field({ label, value, onChange, placeholder = '••••••••
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required
-          className={`w-full bg-white/5 border rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 transition-colors ${
+          className={`w-full bg-white/5 border rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 transition-colors [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
             hasError
               ? 'border-red-500 focus:ring-red-500/40'
               : 'border-white/10 focus:ring-purple-500/50'

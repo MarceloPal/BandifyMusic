@@ -69,11 +69,14 @@ exports.registro = async (req, res, next) => {
  */
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email y password son obligatorios' });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'identificador y password son obligatorios' });
     }
+
+    // Normalizar a minúsculas para buscar por email (case-insensitive) o por nombre de usuario
+    const lookup = identifier.trim().toLowerCase();
 
     const resultado = await pool.query(
       `SELECT u.id, u.nombre, u.email, u.password_hash, u.instrumento, u.ciudad,
@@ -81,8 +84,8 @@ exports.login = async (req, res, next) => {
               p.s3_key, p.foto_url
        FROM usuarios u
        LEFT JOIN perfiles p ON p.usuario_id = u.id
-       WHERE u.email = $1`,
-      [email]
+       WHERE LOWER(u.email) = $1 OR u.nombre = $1`,
+      [lookup]
     );
 
     const usuario = resultado.rows[0];
