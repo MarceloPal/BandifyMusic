@@ -498,10 +498,8 @@ export default function Landing() {
 
         {/* ════ Vista: TOCATAS ════ */}
         {view === 'tocatas' && (
-          <section className="flex-1 py-10 overflow-x-hidden">
-            <div className="max-w-5xl mx-auto px-8">
-              <TocatasBoard isHome limit={6} onBack={() => setView('home')} />
-            </div>
+          <section className="flex-1 overflow-x-hidden">
+            <TocatasBoard isHome limit={6} onBack={() => setView('home')} />
           </section>
         )}
 

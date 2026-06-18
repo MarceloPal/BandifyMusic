@@ -43,6 +43,6 @@ router.get('/upload-url', authMiddleware, imagesController.uploadUrl);
  *       200: { description: URL presignada }
  *       403: { description: Carpeta no autorizada }
  */
-router.get('/view-url', authMiddleware, imagesController.viewUrl);
+router.get('/view-url', imagesController.viewUrl);
 
 module.exports = router;

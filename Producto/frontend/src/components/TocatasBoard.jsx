@@ -548,7 +548,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
   const hasMore    = isHome && allItems.length > limit
 
   return (
-    <div className="w-full">
+    <div className="w-full pb-16">
 
       {/* Banner de estado de pago */}
       {pagoStatus && (
