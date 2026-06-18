@@ -4,6 +4,7 @@ import {
   Upload, Zap, Wind, Activity, Sparkles,
   Camera, Loader2, MapPin, Edit3, BarChart2, Check, Pencil,
   Share2, MessageCircle, Headphones, Music2, UserX,
+  CalendarDays, Ticket, Music,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL, getInitials } from '../utils/helpers'
@@ -54,6 +55,8 @@ export default function Profile() {
   const [bannerUploading, setBannerUploading] = useState(false)
   const [demos,           setDemos]           = useState([])
   const [copied,          setCopied]          = useState(false)
+  const [userTocatas,     setUserTocatas]     = useState([])
+  const [tocatasLoading,  setTocatasLoading]  = useState(false)
 
   const photoInputRef  = useRef(null)
   const bannerInputRef = useRef(null)
@@ -193,6 +196,20 @@ export default function Profile() {
       })
     }
   }
+
+  // ── Effect: tocatas del usuario ────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 'tocatas' || !perfilData?.id) return
+    let cancelled = false
+    setTocatasLoading(true)
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch(`${API_URL}/tocatas?organizador_id=${perfilData.id}`, { headers })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (!cancelled) setUserTocatas(Array.isArray(data) ? data : []) })
+      .catch(() => { if (!cancelled) setUserTocatas([]) })
+      .finally(() => { if (!cancelled) setTocatasLoading(false) })
+    return () => { cancelled = true }
+  }, [activeTab, perfilData?.id, token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Audio + estadísticas ────────────────────────────────────────────────
   const v           = useMemo(() => parseVector(perfilData?.audio_vector),     [perfilData?.audio_vector])
@@ -626,24 +643,54 @@ export default function Profile() {
 
             {/* TAB: Tocatas */}
             {activeTab === 'tocatas' && (
-              <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-10 flex flex-col items-center text-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-zinc-600 font-mono text-xl">··</span>
-                </div>
-                <div>
-                  <p className="text-zinc-300 font-bold text-sm uppercase tracking-widest mb-2">
-                    Tocatas próximamente
-                  </p>
-                  <p className="text-zinc-600 text-xs leading-relaxed max-w-xs">
-                    {isOwnProfile
-                      ? 'Aquí aparecerán los eventos y tocatas que organices o en los que participes.'
-                      : `Aquí aparecerán los eventos en los que participe @${displayName}.`}
-                  </p>
-                </div>
-                <Link to="/tocatas"
-                  className="mt-1 px-5 py-2 border border-zinc-700 hover:border-purple-500 text-zinc-400 hover:text-purple-400 text-xs font-semibold uppercase tracking-widest rounded-xl transition-colors">
-                  Explorar tocatas
-                </Link>
+              <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-6">
+                <SectionHeader>Tocatas organizadas</SectionHeader>
+
+                {/* Estado: cargando */}
+                {tocatasLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={28} className="text-purple-400 animate-spin" />
+                  </div>
+                )}
+
+                {/* Estado: con datos */}
+                {!tocatasLoading && userTocatas.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {userTocatas.map((tocata) => (
+                      <TocataProfileCard key={tocata.id} tocata={tocata} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Estado: vacío */}
+                {!tocatasLoading && userTocatas.length === 0 && (
+                  <div className="flex flex-col items-center text-center gap-4 py-8">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Music size={18} className="text-zinc-600" />
+                    </div>
+                    <div>
+                      <p className="text-zinc-300 font-bold text-sm mb-1">
+                        {isOwnProfile ? 'Aún no has publicado tocatas' : 'Sin tocatas programadas'}
+                      </p>
+                      <p className="text-zinc-600 text-xs leading-relaxed max-w-xs">
+                        {isOwnProfile
+                          ? 'Publica tu primer evento y aparecerá aquí para que tu comunidad lo vea.'
+                          : `Este músico aún no tiene tocatas programadas.`}
+                      </p>
+                    </div>
+                    {isOwnProfile ? (
+                      <Link to="/tocatas/publicar"
+                        className="mt-1 px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
+                        Publicar tocata
+                      </Link>
+                    ) : (
+                      <Link to="/tocatas"
+                        className="mt-1 px-5 py-2 border border-zinc-700 hover:border-purple-500 text-zinc-400 hover:text-purple-400 text-xs font-semibold uppercase tracking-widest rounded-xl transition-colors">
+                        Explorar tocatas
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -763,6 +810,78 @@ export default function Profile() {
         </div>
       </div>
 
+    </div>
+  )
+}
+
+/* ─── TocataProfileCard ─── */
+
+function TocataProfileCard({ tocata }) {
+  const { url: afficheUrl } = useImageUrl(tocata.afiche_url ?? null)
+
+  const fechaFormateada = tocata.fecha
+    ? new Date(tocata.fecha + 'T00:00:00').toLocaleDateString('es-CL', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : null
+  const acceso = tocata.precio
+    ? `$${Number(tocata.precio).toLocaleString('es-CL')} CLP`
+    : 'Entrada liberada'
+
+  return (
+    <div className="border border-zinc-800 hover:border-purple-500/40 bg-white/3 hover:bg-white/5 rounded-xl overflow-hidden transition-colors group">
+      {/* Cover / afiche */}
+      <div className="h-36 w-full relative overflow-hidden bg-gradient-to-br from-purple-900/40 to-zinc-900 flex-shrink-0">
+        {afficheUrl ? (
+          <img
+            src={afficheUrl}
+            alt={tocata.nombre}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Music2 size={32} className="text-purple-500/40" />
+          </div>
+        )}
+        {/* Degradado inferior para legibilidad */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        {/* Badge de género sobre la imagen */}
+        {tocata.genero && (
+          <span className="absolute top-3 right-3 bg-zinc-900/80 backdrop-blur-sm text-zinc-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-zinc-700/60">
+            {tocata.genero}
+          </span>
+        )}
+        {/* Fecha flotante en la esquina inferior */}
+        {fechaFormateada && (
+          <span className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white text-[11px] font-semibold drop-shadow">
+            <CalendarDays size={11} className="text-purple-300 flex-shrink-0" />
+            {fechaFormateada}
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-bold text-sm truncate mb-1.5">
+            {tocata.nombre}
+          </p>
+          {tocata.ciudad && (
+            <span className="flex items-center gap-1.5 text-zinc-400 text-xs">
+              <MapPin size={11} className="text-purple-400 flex-shrink-0" />
+              {tocata.ciudad}
+            </span>
+          )}
+        </div>
+        <span className={`flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${
+          tocata.precio
+            ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
+            : 'border-zinc-700 text-zinc-400'
+        }`}>
+          <Ticket size={10} />
+          {acceso}
+        </span>
+      </div>
     </div>
   )
 }
