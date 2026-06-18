@@ -125,6 +125,8 @@ async function runMigrations() {
     // NUMERIC(10,7) → ~1cm de precisión, suficiente para ubicar un venue
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7)',
+    // Estado del evento: 'activo' | 'cancelado' (soft-delete, mantiene historial)
+    "ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'activo'",
     // Hora del evento (HH:MM)
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS hora          TEXT',
     // Restricción de edad del evento y tipos de entrada con precio por tier

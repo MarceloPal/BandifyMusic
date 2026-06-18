@@ -106,6 +106,10 @@ router.get('/publicas', tocatasController.listarPublicas);
  */
 router.post('/:id/checkout', authMiddleware, tocatasController.checkout);
 
+router.patch('/:id/cancelar', authMiddleware, tocatasController.cancelar);
+router.get('/:id/tickets',    authMiddleware, tocatasController.resumenTickets);
+router.patch('/:id',          authMiddleware, tocatasController.actualizar);
+
 /**
  * @swagger
  * /tocatas/{id}:

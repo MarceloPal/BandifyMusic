@@ -2,7 +2,7 @@ import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   BarChart2, User, Compass,
   MessageCircle, CalendarDays, HelpCircle, LogOut, Music,
-  Bell, Settings, Newspaper, Shield,
+  Bell, Settings, Newspaper, Shield, LayoutList,
 } from 'lucide-react'
 import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
@@ -15,6 +15,7 @@ const navItems = [
   { icon: Compass,       label: 'Explorar',       path: '/explore',      end: false },
   { icon: MessageCircle, label: 'Mensajes',       path: '/messages',     end: false },
   { icon: CalendarDays,  label: 'Tocatas',        path: '/tocatas',      end: false },
+  { icon: LayoutList,   label: 'Gestión',        path: '/gestion',      end: false },
   { icon: Bell,          label: 'Notificaciones', path: '/notifications',end: false },
   { icon: Newspaper,     label: 'Noticias',       path: '/noticias',     end: false },
   { icon: HelpCircle,    label: 'Ayuda',          path: '/help',         end: false },

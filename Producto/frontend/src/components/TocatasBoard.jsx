@@ -30,11 +30,31 @@ function formatFechaShort(isoDate) {
 
 /* ─── Hero Slider ─── */
 
-function HeroSlider({ eventos }) {
+// Sub-componente para obtener la URL presignada del afiche de cada slide.
+// Necesita ser un componente propio para poder llamar useImageUrl como hook.
+function SlideBackground({ tocata }) {
+  const { url } = useImageUrl(tocata?.afiche_url ?? null)
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={tocata.nombre}
+        className="w-full h-full object-cover transition-opacity duration-500"
+      />
+    )
+  }
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-purple-950 via-zinc-900 to-black flex items-center justify-center">
+      <Music2 size={48} className="text-purple-800/60" />
+    </div>
+  )
+}
+
+function HeroSlider({ tocatas }) {
   const [current, setCurrent] = useState(0)
   const timerRef = useRef(null)
 
-  const slides = eventos.slice(0, 5)
+  const slides = tocatas.slice(0, 5)
   const len = slides.length
 
   const startTimer = useCallback(() => {
@@ -62,30 +82,31 @@ function HeroSlider({ eventos }) {
   const ev = slides[current] ?? slides[0]
   if (!ev) return null
 
+  const lugar = ev.direccion || ev.ciudad || null
+  const precio = ev.precio != null ? Number(ev.precio) : null
+
   return (
     <div className="relative w-full overflow-hidden select-none" style={{ height: 'clamp(420px, 60vh, 700px)' }}>
       <div className="absolute inset-0">
-        {ev.imagen ? (
-          <img
-            key={ev.id}
-            src={ev.imagen}
-            alt={ev.nombre}
-            className="w-full h-full object-cover transition-opacity duration-500"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
-            <Music2 size={48} className="text-zinc-600" />
-          </div>
-        )}
+        <SlideBackground key={ev.id} tocata={ev} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
       </div>
 
+      <div className="absolute top-4 left-5">
+        <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+          <Users size={9} />
+          Comunidad
+        </span>
+      </div>
+
       <div className="absolute bottom-0 left-0 right-0 p-7 flex flex-col gap-2">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full">
-            {ev.genero && ev.genero !== 'Undefined' ? ev.genero : 'Música en vivo'}
-          </span>
+          {ev.genero && (
+            <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full">
+              {ev.genero}
+            </span>
+          )}
           {ev.ciudad && (
             <span className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1">
               <MapPin size={9} />
@@ -106,31 +127,18 @@ function HeroSlider({ eventos }) {
               {ev.hora && ` · ${ev.hora.slice(0, 5)}`}
             </span>
           )}
-          {ev.recinto && (
+          {lugar && (
             <span className="flex items-center gap-1.5 truncate max-w-xs">
               <MapPin size={13} className="text-purple-400 flex-shrink-0" />
-              {ev.recinto}
+              {lugar}
             </span>
           )}
         </div>
 
-        {ev.precio_min != null && (
+        {precio != null && (
           <p className="text-purple-300 text-sm font-bold">
-            Desde ${Number(ev.precio_min).toLocaleString('es-CL')}
+            {precio === 0 ? 'Entrada liberada' : `Desde $${precio.toLocaleString('es-CL')}`}
           </p>
-        )}
-
-        {ev.url && (
-          <a
-            href={ev.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="mt-1 inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors self-start"
-          >
-            <Ticket size={13} />
-            Ver entradas
-          </a>
         )}
       </div>
 
@@ -480,14 +488,6 @@ function TocataDetailModal({ tocata, onClose }) {
   )
 }
 
-/* ─── Tabs ─── */
-
-const TABS = [
-  { id: 'todo',            label: 'Todo' },
-  { id: 'comunidad',       label: 'Comunidad' },
-  { id: 'grandes-eventos', label: 'Grandes Eventos' },
-]
-
 /* ══════════════════════════════════════════════
     TocatasBoard — componente exportado
 ══════════════════════════════════════════════ */
@@ -497,7 +497,6 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
   const navigate = useNavigate()
   const [searchParams, setSearchParams]     = useSearchParams()
   const [selectedTocata, setSelectedTocata] = useState(null)
-  const [filtroActivo, setFiltroActivo]     = useState('todo')
   const [vistaPrincipal, setVistaPrincipal] = useState('carrusel') // 'carrusel' | 'mapa'
   const [pagoStatus, setPagoStatus]         = useState(() => searchParams.get('pago') || null)
 
@@ -540,14 +539,10 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
 
   const isLoading = tocatasLoading || tmLoading
 
-  const allItems = (() => {
-    if (filtroActivo === 'comunidad')       return tocatas.map((t) => ({ ...t, _source: 'comunidad' }))
-    if (filtroActivo === 'grandes-eventos') return eventos.map((e) => ({ ...e, _source: 'ticketmaster' }))
-    return [
-      ...tocatas.map((t) => ({ ...t, _source: 'comunidad' })),
-      ...eventos.map((e) => ({ ...e, _source: 'ticketmaster' })),
-    ]
-  })()
+  const allItems = [
+    ...tocatas.map((t) => ({ ...t, _source: 'comunidad' })),
+    ...eventos.map((e) => ({ ...e, _source: 'ticketmaster' })),
+  ]
 
   const gridItems  = isHome ? allItems.slice(0, limit) : allItems
   const hasMore    = isHome && allItems.length > limit
@@ -575,21 +570,15 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         <TocataDetailModal tocata={selectedTocata} onClose={() => setSelectedTocata(null)} />
       )}
 
-      {/* Hero Slider */}
-      {eventos.length > 0 && !isLoading && (
-        <div
-          className="mb-8"
-          style={{
-            width: '100vw',
-            position: 'relative',
-            left: '50%',
-            marginLeft: '-50vw',
-            marginTop: '-2rem',
-          }}
-        >
-          <HeroSlider eventos={eventos} />
+      {/* Hero Slider — ancho completo, sin restricción de contenedor */}
+      {tocatas.length > 0 && !isLoading && (
+        <div className="w-full mb-8">
+          <HeroSlider tocatas={tocatas} />
         </div>
       )}
+
+      {/* Contenido principal — max-w-7xl para aprovechar el ancho full-bleed */}
+      <div className="max-w-7xl mx-auto px-6 py-2">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
@@ -623,33 +612,13 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
       {/* Filtros + Toggle */}
       {!isHome && (
         <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFiltroActivo(tab.id)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                  filtroActivo === tab.id
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/8'
-                }`}
-              >
-                {tab.label}
-                {tab.id === 'comunidad' && tocatas.length > 0 && (
-                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                    {tocatas.length}
-                  </span>
-                )}
-                {tab.id === 'grandes-eventos' && eventos.length > 0 && (
-                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                    {eventos.length}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="px-4 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white">
+              Todo
+            </span>
           </div>
 
-          {(tocatas.length > 0 || eventos.length > 0) && (
+          {allItems.length > 0 && (
             <div className="flex bg-zinc-800 border border-white/8 rounded-xl p-1">
               <button
                 onClick={() => setVistaPrincipal('carrusel')}
@@ -757,6 +726,8 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
           )}
         </>
       )}
+
+      </div>{/* /max-w-7xl */}
     </div>
   )
 }
