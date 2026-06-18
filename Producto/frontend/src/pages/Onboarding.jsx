@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, CheckCircle, XCircle, Loader2, Music, SkipForward } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import { OFICIOS, TAG_OPTIONS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
@@ -173,6 +174,7 @@ export default function Onboarding() {
         // Si falla la red, el usuario puede reintentar desde su perfil.
       }
     }
+    toast.success('¡Todo listo! Bienvenido a Bandify 🎸')
     navigate('/mi-adn')
   }
 
