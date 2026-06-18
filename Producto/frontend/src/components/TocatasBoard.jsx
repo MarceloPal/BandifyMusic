@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X,
   Loader2, User, ChevronLeft, ChevronRight, Trash2,
-  Ticket, ExternalLink, Clock, Users, ArrowRight,
-  LayoutGrid, Map as MapIcon, Sparkles
+  Ticket, Clock, Users, ArrowRight,
+  LayoutGrid, Map as MapIcon, Sparkles, Search,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
@@ -236,77 +236,6 @@ function TocataCard({ tocata, onClick }) {
   )
 }
 
-/* ─── EventoCard ─── */
-
-function EventoCard({ evento }) {
-  const precioLabel = evento.precio_min != null
-    ? `Desde $${Number(evento.precio_min).toLocaleString('es-CL')}`
-    : null
-
-  return (
-    <a
-      href={evento.url ?? '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative overflow-hidden rounded-2xl border border-white/8 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all text-left w-full bg-zinc-800 flex flex-col"
-    >
-      <div className="h-44 relative overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-700 flex-shrink-0">
-        {evento.imagen ? (
-          <img
-            src={evento.imagen}
-            alt={evento.nombre}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-600">
-            <Music2 size={32} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute top-3 left-3">
-          <span className="bg-black/70 backdrop-blur-sm text-zinc-300 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-white/10">
-            <Ticket size={9} />
-            Ticketmaster
-          </span>
-        </div>
-        {evento.genero && evento.genero !== 'Undefined' && (
-          <div className="absolute top-3 right-3">
-            <span className="bg-white/90 backdrop-blur-sm text-zinc-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-              {evento.genero}
-            </span>
-          </div>
-        )}
-        <div className="absolute bottom-3 left-3">
-          <span className="text-white text-xs font-bold drop-shadow">{formatFechaShort(evento.fecha)}</span>
-        </div>
-        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ExternalLink size={14} className="text-white" />
-        </div>
-      </div>
-      <div className="p-4 flex flex-col gap-1 flex-1">
-        <h3 className="text-zinc-100 font-bold text-base leading-tight line-clamp-2">{evento.nombre}</h3>
-        {evento.artistas?.length > 0 && (
-          <p className="text-zinc-400 text-xs truncate">{evento.artistas.join(' · ')}</p>
-        )}
-        <div className="flex items-center gap-1.5 mt-1 text-zinc-400 text-xs">
-          <MapPin size={11} className="flex-shrink-0" />
-          <span className="truncate">{[evento.recinto, evento.ciudad].filter(Boolean).join(' · ')}</span>
-        </div>
-        {evento.hora && (
-          <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
-            <Clock size={11} className="flex-shrink-0" />
-            <span>{evento.hora.slice(0, 5)}</span>
-          </div>
-        )}
-        {precioLabel && (
-          <p className="text-purple-400 text-xs font-semibold mt-auto pt-2">{precioLabel}</p>
-        )}
-      </div>
-    </a>
-  )
-}
-
 /* ── TocataDetailModal ── */
 
 function TocataDetailModal({ tocata, onClose }) {
@@ -492,13 +421,30 @@ function TocataDetailModal({ tocata, onClose }) {
     TocatasBoard — componente exportado
 ══════════════════════════════════════════════ */
 
+/* ─── Géneros para chips de filtro ─── */
+const FILTER_GENRES = [
+  'Rock', 'Pop', 'Electrónica', 'Indie', 'Urbano',
+  'Metal', 'Jazz', 'Folk', 'Cantautor', 'Cumbia',
+]
+
 export default function TocatasBoard({ isHome = false, limit = 6, onBack = null }) {
   const { token, user }                     = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams]     = useSearchParams()
   const [selectedTocata, setSelectedTocata] = useState(null)
-  const [vistaPrincipal, setVistaPrincipal] = useState('carrusel') // 'carrusel' | 'mapa'
+  const [vistaPrincipal, setVistaPrincipal] = useState('carrusel')
   const [pagoStatus, setPagoStatus]         = useState(() => searchParams.get('pago') || null)
+
+  /* ── Filtros ── */
+  const [filtroGenero,   setFiltroGenero]   = useState(null)
+  const [filtroArtista,  setFiltroArtista]  = useState('')
+  const [artistaInput,   setArtistaInput]   = useState('')
+
+  /* Debounce del input de artista */
+  useEffect(() => {
+    const t = setTimeout(() => setFiltroArtista(artistaInput.trim()), 400)
+    return () => clearTimeout(t)
+  }, [artistaInput])
 
   useEffect(() => {
     if (!pagoStatus) return
@@ -509,43 +455,33 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
     return () => clearTimeout(t)
   }, [pagoStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: tocatas = [], isLoading: tocatasLoading } = useQuery({
-    queryKey: isHome ? ['tocatas-publicas', limit] : ['tocatas'],
+  const { data: tocatas = [], isLoading } = useQuery({
+    queryKey: isHome
+      ? ['tocatas-publicas', limit]
+      : ['tocatas', filtroGenero, filtroArtista],
     queryFn: async () => {
-      const url = isHome
-        ? `${API_URL}/tocatas/publicas?limite=${limit}`
-        : `${API_URL}/tocatas`
+      if (isHome) {
+        const res = await fetch(`${API_URL}/tocatas/publicas?limite=${limit}`)
+        if (!res.ok) return []
+        return res.json()
+      }
+      const params = new URLSearchParams()
+      if (filtroGenero)   params.set('genero',             filtroGenero)
+      if (filtroArtista)  params.set('organizador_nombre', filtroArtista)
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(url, { headers })
+      const res = await fetch(`${API_URL}/tocatas?${params}`, { headers })
       if (!res.ok) return []
       return res.json()
     },
     staleTime: 3 * 60 * 1000,
   })
 
-  const { data: tmData, isLoading: tmLoading } = useQuery({
-    queryKey: ['eventos-ticketmaster'],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/eventos?limite=20`)
-      if (!res.ok) return { eventos: [] }
-      return res.json()
-    },
-    staleTime: 10 * 60 * 1000,
-  })
-  const eventos = tmData?.eventos ?? []
-
   const navigateToPublicar = () =>
     user?.es_premium ? navigate('/tocatas/publicar') : navigate('/planes')
 
-  const isLoading = tocatasLoading || tmLoading
-
-  const allItems = [
-    ...tocatas.map((t) => ({ ...t, _source: 'comunidad' })),
-    ...eventos.map((e) => ({ ...e, _source: 'ticketmaster' })),
-  ]
-
-  const gridItems  = isHome ? allItems.slice(0, limit) : allItems
-  const hasMore    = isHome && allItems.length > limit
+  const gridItems = isHome ? tocatas.slice(0, limit) : tocatas
+  const hasMore   = isHome && tocatas.length > limit
+  const hayFiltros = Boolean(filtroGenero || filtroArtista)
 
   return (
     <div className="w-full pb-16">
@@ -594,7 +530,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             Tocatas
           </h1>
           <p className="text-zinc-400 mt-1 text-sm">
-            Eventos de la comunidad y grandes conciertos en un solo lugar.
+            Eventos de la comunidad, organizados por músicos como tú.
           </p>
         </div>
 
@@ -609,41 +545,82 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         )}
       </div>
 
-      {/* Filtros + Toggle */}
+      {/* Filtros — solo en vista completa */}
       {!isHome && (
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="px-4 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white">
-              Todo
-            </span>
+        <div className="flex flex-col gap-3 mb-6">
+
+          {/* Búsqueda por artista/organizador */}
+          <div className="relative max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <input
+              type="text"
+              value={artistaInput}
+              onChange={(e) => setArtistaInput(e.target.value)}
+              placeholder="Buscar por organizador o artista..."
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800/80 text-zinc-100 text-sm placeholder:text-zinc-500
+                focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/40 transition-all"
+            />
+            {artistaInput && (
+              <button
+                onClick={() => setArtistaInput('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
-          {allItems.length > 0 && (
-            <div className="flex bg-zinc-800 border border-white/8 rounded-xl p-1">
+          {/* Chips de género + toggle de vista */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
               <button
-                onClick={() => setVistaPrincipal('carrusel')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  vistaPrincipal === 'carrusel'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                onClick={() => setFiltroGenero(null)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  filtroGenero === null
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-sm shadow-purple-500/25'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-purple-500/50 hover:text-zinc-200'
                 }`}
               >
-                <LayoutGrid size={13} />
-                Cuadrícula
+                Todo
               </button>
-              <button
-                onClick={() => setVistaPrincipal('mapa')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  vistaPrincipal === 'mapa'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <MapIcon size={13} />
-                Mapa
-              </button>
+              {FILTER_GENRES.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setFiltroGenero(filtroGenero === g ? null : g)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    filtroGenero === g
+                      ? 'bg-purple-600 border-purple-500 text-white shadow-sm shadow-purple-500/25'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-purple-500/50 hover:text-zinc-200'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
-          )}
+
+            {tocatas.length > 0 && (
+              <div className="flex flex-shrink-0 bg-zinc-800 border border-white/8 rounded-xl p-1">
+                <button
+                  onClick={() => setVistaPrincipal('carrusel')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    vistaPrincipal === 'carrusel' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <LayoutGrid size={13} />
+                  Cuadrícula
+                </button>
+                <button
+                  onClick={() => setVistaPrincipal('mapa')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    vistaPrincipal === 'mapa' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <MapIcon size={13} />
+                  Mapa
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -651,7 +628,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-500">
           <Loader2 size={28} className="animate-spin" />
-          <p className="text-sm font-medium">Cargando eventos...</p>
+          <p className="text-sm font-medium">Cargando tocatas...</p>
         </div>
       )}
 
@@ -667,10 +644,14 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             <CalendarDays size={28} className="text-zinc-600" />
           </div>
           <div className="text-center">
-            <p className="text-zinc-200 font-bold text-base">No hay eventos disponibles</p>
-            <p className="text-zinc-500 text-sm mt-1">Intenta más tarde o sé el primero en publicar.</p>
+            <p className="text-zinc-200 font-bold text-base">
+              {hayFiltros ? 'Sin resultados para estos filtros' : 'No hay tocatas disponibles'}
+            </p>
+            <p className="text-zinc-500 text-sm mt-1">
+              {hayFiltros ? 'Prueba con otro género o busca otro organizador.' : 'Sé el primero en publicar una tocata.'}
+            </p>
           </div>
-          {!isHome && (
+          {!isHome && !hayFiltros && (
             <button
               onClick={navigateToPublicar}
               className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors"
@@ -679,37 +660,25 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
               Publicar tocata
             </button>
           )}
+          {hayFiltros && (
+            <button
+              onClick={() => { setFiltroGenero(null); setArtistaInput('') }}
+              className="flex items-center gap-2 border border-zinc-600 text-zinc-300 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-zinc-700 transition-colors"
+            >
+              <X size={14} />
+              Limpiar filtros
+            </button>
+          )}
         </div>
       )}
 
-      {/* Vista GRILLA / CUADRÍCULA + Backlog Roadmap Card */}
+      {/* Grid de tocatas */}
       {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length > 0 && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
-            {/* Contenedor de las Tarjetas Reales (Ocupa 3 de 4 columnas en pantallas grandes) */}
-            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {gridItems.map((item) =>
-                item._source === 'comunidad' ? (
-                  <TocataCard key={`t-${item.id}`} tocata={item} onClick={setSelectedTocata} />
-                ) : (
-                  <EventoCard key={`e-${item.id}`} evento={item} />
-                )
-              )}
-            </div>
-
-            {/* Tarjeta del Roadmap del Backlog (Ocupa 1 columna a la derecha) */}
-            <div className="bg-gradient-to-br from-zinc-900 to-purple-950/30 border border-purple-500/20 rounded-2xl p-5 relative overflow-hidden shadow-xl md:sticky md:top-24">
-              <span className="absolute top-3 right-3 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles size={10} />
-                Versión 2.0
-              </span>
-              <h3 className="text-white text-base font-black mb-1.5 mt-2">
-                ¿Buscas escenarios donde tocar?
-              </h3>
-              <p className="text-zinc-400 text-xs leading-relaxed mb-4">
-                Estamos diseñando el módulo de postulación automatizada. Podrás enviar tu ADN Musical directo a personas que busquen músicos para sus eventos y agendar fechas con un clic.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {gridItems.map((tocata) => (
+              <TocataCard key={tocata.id} tocata={tocata} onClick={setSelectedTocata} />
+            ))}
           </div>
 
           {/* Ver todos */}
@@ -719,7 +688,7 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
                 to="/tocatas"
                 className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-white/8 text-zinc-200 font-semibold px-6 py-3 rounded-full text-sm transition-colors"
               >
-                Ver todos los eventos
+                Ver todas las tocatas
                 <ArrowRight size={15} />
               </Link>
             </div>
