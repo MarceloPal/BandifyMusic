@@ -16,15 +16,16 @@ export function useImageUrl(key) {
   const { data, isLoading } = useQuery({
     queryKey: ['image-url', key],
     queryFn: async () => {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const res = await fetch(
         `${API_URL}/images/view-url?key=${encodeURIComponent(key)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers }
       )
       if (!res.ok) return null
       const json = await res.json()
       return json.url ?? null
     },
-    enabled:   !!key && !!token,
+    enabled:   !!key,
     staleTime: 50 * 60 * 1000,  // 50 min
     gcTime:    60 * 60 * 1000,  // 1 hora
   })

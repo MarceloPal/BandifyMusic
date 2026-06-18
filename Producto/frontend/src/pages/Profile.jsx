@@ -273,15 +273,11 @@ export default function Profile() {
       {/* ════════════════════════════════════════════════
           BANNER
           ════════════════════════════════════════════════ */}
-      <div className="relative w-full h-48 md:h-60 group/banner overflow-hidden bg-gradient-to-b from-purple-950 via-zinc-950 to-black">
+      <div className="relative w-full h-48 md:h-60 group/banner overflow-hidden bg-zinc-950">
         {bannerUrl && (
           <img src={bannerUrl} alt="banner"
-            className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity" />
+            className="absolute inset-0 w-full h-full object-cover" />
         )}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'linear-gradient(to right, rgba(168,85,247,0.05) 1px, transparent 1px)',
-          backgroundSize: '40px 100%',
-        }} />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-800" />
 
         {isOwnProfile && (
