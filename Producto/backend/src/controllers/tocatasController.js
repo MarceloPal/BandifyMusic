@@ -21,16 +21,17 @@ const mpClient = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_AC
  */
 exports.listar = async (req, res, next) => {
   try {
-    const { ciudad, genero, fecha, organizador_id } = req.query;
+    const { ciudad, genero, fecha, organizador_id, organizador_nombre } = req.query;
 
     const condiciones = [];
     const valores     = [];
     let i = 1;
 
-    if (ciudad)        { condiciones.push(`t.ciudad = $${i++}`);        valores.push(ciudad); }
-    if (genero)        { condiciones.push(`t.genero = $${i++}`);        valores.push(genero); }
-    if (fecha)         { condiciones.push(`t.fecha = $${i++}`);         valores.push(fecha); }
-    if (organizador_id){ condiciones.push(`t.organizador_id = $${i++}`); valores.push(organizador_id); }
+    if (ciudad)            { condiciones.push(`t.ciudad ILIKE $${i++}`);          valores.push(`%${ciudad}%`); }
+    if (genero)            { condiciones.push(`t.genero ILIKE $${i++}`);          valores.push(`%${genero}%`); }
+    if (fecha)             { condiciones.push(`t.fecha = $${i++}`);               valores.push(fecha); }
+    if (organizador_id)    { condiciones.push(`t.organizador_id = $${i++}`);      valores.push(organizador_id); }
+    if (organizador_nombre){ condiciones.push(`u.nombre ILIKE $${i++}`);          valores.push(`%${organizador_nombre}%`); }
     // Sin filtro de organizador: ocultar cancelados del listado público general
     if (!organizador_id) { condiciones.push(`t.estado = 'activo'`); }
 
