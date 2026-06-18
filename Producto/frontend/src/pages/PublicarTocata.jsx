@@ -7,6 +7,7 @@ import {
   Loader2, X, Plus, Mail, MessageCircle,
   Check, Eye, EyeOff, Save,
 } from 'lucide-react'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
@@ -543,6 +544,7 @@ export default function PublicarTocata() {
           return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
         })
         queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
+        toast.success('¡Tocata publicada con éxito! Ya aparece en el mapa.')
         navigate('/tocatas', { state: { createdId: data.id } })
       }
     },
