@@ -4,6 +4,7 @@ import {
   MessageCircle, CalendarDays, HelpCircle, LogOut, Music,
   Bell, Settings, Newspaper, Shield,
 } from 'lucide-react'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
 import { getInitials } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
@@ -25,7 +26,11 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate         = useNavigate()
   const { url: photoUrl } = useImageUrl(user?.foto_url ?? null)
 
-  const handleLogout = () => { logout(); navigate('/') }
+  const handleLogout = () => {
+    logout()
+    toast.success('Sesión cerrada. ¡Hasta la próxima!')
+    navigate('/')
+  }
 
   return (
     <aside

@@ -6,6 +6,7 @@ import {
   Bell, Settings, LogOut, Newspaper, Shield,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
 import { getInitials, API_URL } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
@@ -50,7 +51,11 @@ export default function TopNavbar() {
   })
   const unread = notifs.filter((n) => !n.leida).length
 
-  const handleLogout = () => { logout(); navigate('/') }
+  const handleLogout = () => {
+    logout()
+    toast.success('Sesión cerrada. ¡Hasta la próxima!')
+    navigate('/')
+  }
 
   /* Cierra el dropdown al hacer clic fuera */
   useEffect(() => {

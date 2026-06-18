@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { useAuth } from './context/AuthContext'
 
 import Landing        from './pages/Landing'
@@ -40,6 +41,18 @@ function AdminRoute({ children }) {
 
 export default function App() {
   return (
+    <>
+    <Toaster
+      theme="dark"
+      position="bottom-right"
+      toastOptions={{
+        style: {
+          background: '#18181b',
+          border: '1px solid rgba(255,255,255,0.08)',
+          color: '#f4f4f5',
+        },
+      }}
+    />
     <Routes>
       {/* Rutas públicas */}
       <Route path="/"        element={<Landing />} />
@@ -109,5 +122,6 @@ export default function App() {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
@@ -52,10 +53,14 @@ export default function Auth() {
       if (data.usuario?.role === 'admin') {
         navigate('/admin', { replace: true })
       } else {
+        if (!wasLogin) toast.success('¡Cuenta creada exitosamente!')
         navigate(wasLogin ? '/mi-adn' : '/onboarding')
       }
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => {
+      setError(err.message)
+      if (view === 'login') toast.error('Credenciales incorrectas o error de conexión.')
+    },
   })
 
   // ── Mutación forgot password ──────────────────────────────────────────────

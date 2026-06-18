@@ -4,6 +4,7 @@ import {
   Camera, ImagePlus, Check, Loader2, CreditCard,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
@@ -117,6 +118,7 @@ function PanelPerfil({ user, token, updateUser }) {
       })
       if (res.ok) {
         updateUser({ nombre, ciudad, fecha_nacimiento: fechaNac || null, oficio, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord })
+        toast.success('Perfil actualizado correctamente.')
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
       }
@@ -537,6 +539,7 @@ function PanelSeguridad() {
 
       // Logout y redirigir
       logout()
+      toast.success('Cuenta eliminada correctamente. ¡Esperamos verte pronto!')
       navigate('/')
     } catch (err) {
       setError(err.message || 'Error al eliminar cuenta')
