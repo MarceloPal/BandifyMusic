@@ -644,7 +644,17 @@ export default function Profile() {
             {/* TAB: Tocatas */}
             {activeTab === 'tocatas' && (
               <div className="bg-white/5 backdrop-blur-md border border-white/8 rounded-2xl p-6">
-                <SectionHeader>Tocatas organizadas</SectionHeader>
+                <div className="flex items-center justify-between mb-4">
+                  <SectionHeader>Tocatas organizadas</SectionHeader>
+                  {isOwnProfile && (
+                    <Link
+                      to="/gestion"
+                      className="flex items-center gap-1.5 text-zinc-500 hover:text-purple-400 text-[10px] font-bold uppercase tracking-widest transition-colors -mt-4"
+                    >
+                      Gestionar →
+                    </Link>
+                  )}
+                </div>
 
                 {/* Estado: cargando */}
                 {tocatasLoading && (
@@ -760,11 +770,6 @@ export default function Profile() {
                     {copied ? 'Enlace copiado' : 'Compartir mi perfil'}
                   </button>
 
-                  <button onClick={() => navigate('/settings')}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 border border-white/10 hover:border-purple-500/40 text-zinc-400 hover:text-purple-400 text-xs font-semibold rounded-xl transition-colors">
-                    <Edit3 size={13} />
-                    Editar configuración
-                  </button>
                 </>
               ) : (
                 <>

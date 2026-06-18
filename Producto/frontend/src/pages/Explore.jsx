@@ -91,7 +91,9 @@ function MusicianCard({ musico, rank, onClick }) {
             </div>
           )}
           <div>
-            <p className="text-zinc-100 font-semibold text-sm leading-tight">{musico.nombre}</p>
+            <UserLink username={musico.nombre} className="text-zinc-100 font-semibold text-sm leading-tight">
+              {musico.nombre}
+            </UserLink>
             {musico.instrumento && (
               <p className="text-zinc-400 text-xs mt-0.5">{musico.instrumento}</p>
             )}

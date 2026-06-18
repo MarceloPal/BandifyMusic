@@ -1,14 +1,15 @@
-import { useState, useRef } from 'react'
-import { useNavigate }      from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate, useParams }      from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, Music2, CalendarDays, Clock, MapPin, Tag,
   ImagePlus, AlignLeft, AtSign, Ticket, Users2,
   Loader2, X, Plus, Mail, MessageCircle,
-  Check, Eye, EyeOff,
+  Check, Eye, EyeOff, Save,
 } from 'lucide-react'
-import { useAuth }  from '../context/AuthContext'
-import { API_URL }  from '../utils/helpers'
+import { useAuth }     from '../context/AuthContext'
+import { API_URL }     from '../utils/helpers'
+import { useImageUrl } from '../hooks/useImageUrl'
 
 /* ─── Constants ─── */
 
@@ -300,7 +301,25 @@ export default function PublicarTocata() {
   const navigate    = useNavigate()
   const queryClient = useQueryClient()
   const { token, user } = useAuth()
+  const { id: tocataId } = useParams()
+  const isEditing   = Boolean(tocataId)
   const afficheRef  = useRef(null)
+
+  /* ── Edit mode: fetch existing tocata ── */
+  const { data: editTocata } = useQuery({
+    queryKey: ['tocata-edit', tocataId],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/tocatas/${tocataId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('No encontrada')
+      return res.json()
+    },
+    enabled: isEditing && !!token,
+    staleTime: Infinity,
+  })
+
+  const { url: existingAfficheUrl } = useImageUrl(editTocata?.afiche_url ?? null)
 
   /* ── form state ── */
   const [form, setForm] = useState({
@@ -329,6 +348,67 @@ export default function PublicarTocata() {
 
   const [errors, setErrors]           = useState({})
   const [previewOpen, setPreviewOpen] = useState(false)
+
+  /* ── Pre-populate state when editing ── */
+  useEffect(() => {
+    if (!editTocata) return
+
+    setForm({
+      nombre:      editTocata.nombre      ?? '',
+      fecha:       editTocata.fecha       ?? '',
+      hora:        (editTocata.hora       ?? '').slice(0, 5),
+      ciudad:      editTocata.ciudad      ?? '',
+      direccion:   editTocata.direccion   ?? '',
+      descripcion: editTocata.descripcion ?? '',
+    })
+
+    if (editTocata.genero) {
+      setGeneros(editTocata.genero.split(', ').filter(Boolean))
+    }
+
+    if (editTocata.afiche_url) {
+      setAfficheKey(editTocata.afiche_url)
+    }
+
+    if (editTocata.contacto_email) {
+      const raw = editTocata.contacto_email
+      if (raw.startsWith('+56 ')) {
+        setContactType('whatsapp')
+        setContactValue(raw.slice(4))
+      } else if (raw.startsWith('@')) {
+        setContactType('instagram')
+        setContactValue(raw.slice(1))
+      } else {
+        setContactType('email')
+        setContactValue(raw)
+      }
+    }
+
+    if (editTocata.edad_minima) setEdadMinima(editTocata.edad_minima)
+
+    const tipos = Array.isArray(editTocata.tipos_entrada) ? editTocata.tipos_entrada : []
+    if (tipos.length > 0) {
+      setTipoAcceso('paid')
+      const map = {}
+      tipos.forEach(({ tipo, precio, cantidad }) => {
+        const p = String(precio ?? '')
+        map[tipo] = {
+          precio:        p,
+          precioDisplay: p ? Number(p).toLocaleString('es-CL') : '',
+          cantidad:      String(cantidad ?? ''),
+        }
+      })
+      setTiposEntrada(map)
+    } else {
+      setTipoAcceso('free')
+    }
+  }, [editTocata])
+
+  useEffect(() => {
+    if (existingAfficheUrl && !affichePreview) {
+      setAffichePreview(existingAfficheUrl)
+    }
+  }, [existingAfficheUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── ticket type helpers ── */
   const toggleTipo = (tipo) => {
@@ -431,30 +511,40 @@ export default function PublicarTocata() {
         cantidad_disponible: tipoAcceso === 'paid' ? totalStock   : undefined,
       }
 
-      const res = await fetch(`${API_URL}/tocatas`, {
-        method:  'POST',
+      const url    = isEditing ? `${API_URL}/tocatas/${tocataId}` : `${API_URL}/tocatas`
+      const method = isEditing ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify(body),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Error al publicar la tocata')
+        throw new Error(err.error || (isEditing ? 'Error al guardar los cambios' : 'Error al publicar la tocata'))
       }
       return res.json()
     },
     onSuccess: (data) => {
-      const enriched = {
-        ...data,
-        organizador_id:     user?.id,
-        organizador_nombre: user?.nombre,
-        organizador_email:  user?.email,
+      if (isEditing) {
+        queryClient.invalidateQueries({ queryKey: ['tocatas'] })
+        queryClient.invalidateQueries({ queryKey: ['mis-tocatas'] })
+        queryClient.removeQueries({ queryKey: ['tocata-edit', tocataId] })
+        navigate('/gestion')
+      } else {
+        const enriched = {
+          ...data,
+          organizador_id:     user?.id,
+          organizador_nombre: user?.nombre,
+          organizador_email:  user?.email,
+        }
+        queryClient.setQueryData(['tocatas'], (old = []) => {
+          const list = Array.isArray(old) ? old : []
+          return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+        })
+        queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
+        navigate('/tocatas', { state: { createdId: data.id } })
       }
-      queryClient.setQueryData(['tocatas'], (old = []) => {
-        const list = Array.isArray(old) ? old : []
-        return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-      })
-      queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
-      navigate('/tocatas', { state: { createdId: data.id } })
     },
   })
 
@@ -488,7 +578,7 @@ export default function PublicarTocata() {
 
   /* ════ render ════ */
   return (
-    <div className="pb-28">
+    <div className="max-w-5xl mx-auto px-6 py-8 pb-28">
 
       <form onSubmit={handleSubmit} noValidate>
 
@@ -497,11 +587,11 @@ export default function PublicarTocata() {
 
           <button
             type="button"
-            onClick={() => navigate('/tocatas')}
+            onClick={() => navigate(isEditing ? '/gestion' : '/tocatas')}
             className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 text-sm font-medium transition-colors mb-5"
           >
             <ChevronLeft size={16} />
-            Volver a Tocatas
+            {isEditing ? 'Volver a Gestión' : 'Volver a Tocatas'}
           </button>
 
           <div className="flex items-start gap-4 mb-6">
@@ -509,9 +599,11 @@ export default function PublicarTocata() {
               <Music2 size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white leading-tight">Publicar tocata</h1>
+              <h1 className="text-2xl font-black text-white leading-tight">
+                {isEditing ? 'Editar tocata' : 'Publicar tocata'}
+              </h1>
               <p className="text-zinc-500 text-sm mt-0.5">
-                Comparte tu evento con la comunidad Bandify
+                {isEditing ? 'Actualiza la información del evento' : 'Comparte tu evento con la comunidad Bandify'}
               </p>
             </div>
           </div>
@@ -1035,7 +1127,9 @@ export default function PublicarTocata() {
                 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-zinc-900"
             >
               {mutation.isPending ? (
-                <><Loader2 size={18} className="animate-spin" /> Publicando tocata...</>
+                <><Loader2 size={18} className="animate-spin" /> {isEditing ? 'Guardando cambios...' : 'Publicando tocata...'}</>
+              ) : isEditing ? (
+                <><Save size={18} /> Guardar cambios</>
               ) : (
                 <><Plus size={18} /> Publicar tocata</>
               )}
