@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
+import PasswordField from '../components/PasswordField'
 
 /**
  * Vistas posibles:
@@ -322,37 +323,3 @@ function Field({ name, label, placeholder, type = 'text', required = false }) {
   )
 }
 
-function PasswordField({ name, label, placeholder, required = false, value, onChange, hasError = false, errorMsg = '' }) {
-  const [show, setShow] = useState(false)
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-white/50 mb-1.5 uppercase tracking-wide">{label}</label>
-      <div className="relative">
-        <input
-          name={name}
-          type={show ? 'text' : 'password'}
-          placeholder={placeholder}
-          required={required}
-          value={value}
-          onChange={onChange}
-          className={`w-full bg-white/8 text-white placeholder-white/25 rounded-xl px-4 py-3 pr-11 text-sm outline-none focus:ring-2 border transition-colors [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
-            hasError
-              ? 'border-red-500 focus:ring-red-500/30'
-              : 'border-white/10 focus:ring-white/30'
-          }`}
-        />
-        <button
-          type="button"
-          onClick={() => setShow(s => !s)}
-          tabIndex={-1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-        >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-      </div>
-      {hasError && errorMsg && (
-        <p className="text-red-400 text-xs mt-1.5">{errorMsg}</p>
-      )}
-    </div>
-  )
-}

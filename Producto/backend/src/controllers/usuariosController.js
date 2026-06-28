@@ -11,6 +11,52 @@
 
 const bcrypt = require('bcryptjs');
 const pool   = require('../db/index');
+const { deleteUsuarioById } = require('../db/deleteUsuario');
+
+function parseAudioRow(row) {
+  if (row.audio_vector) {
+    const str = String(row.audio_vector);
+    row.audio_vector = str.replace(/[[\]]/g, '').split(',').map(Number);
+  }
+  if (row.audio_metadata && typeof row.audio_metadata === 'string') {
+    try { row.audio_metadata = JSON.parse(row.audio_metadata); } catch { row.audio_metadata = null; }
+  }
+  return row;
+}
+
+async function fetchPerfilCompletoById(usuarioId) {
+  try {
+    return await pool.query(
+      `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
+              u.fecha_nacimiento, u.created_at,
+              p.s3_key, p.audio_vector, p.audio_metadata,
+              p.user_tags, p.oficio, p.experiencia, p.bio, p.foto_url, p.banner_url,
+              p.instagram_url, p.spotify_url, p.discord_url,
+              p.card_settings,
+              p.updated_at AS perfil_updated_at
+       FROM usuarios u
+       LEFT JOIN perfiles p ON p.usuario_id = u.id
+       WHERE u.id = $1`,
+      [usuarioId]
+    );
+  } catch (colErr) {
+    if (colErr.code !== '42703') throw colErr;
+    return pool.query(
+      `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
+              u.fecha_nacimiento, u.created_at,
+              p.s3_key, p.audio_vector, NULL::jsonb AS audio_metadata,
+              NULL::jsonb AS user_tags, NULL::jsonb AS oficio,
+              NULL::integer AS experiencia, NULL::text AS bio, NULL::text AS foto_url, NULL::text AS banner_url,
+              NULL::text AS instagram_url, NULL::text AS spotify_url, NULL::text AS discord_url,
+              NULL::jsonb AS card_settings,
+              p.updated_at AS perfil_updated_at
+       FROM usuarios u
+       LEFT JOIN perfiles p ON p.usuario_id = u.id
+       WHERE u.id = $1`,
+      [usuarioId]
+    );
+  }
+}
 
 /**
  * GET /usuarios/perfil
@@ -19,62 +65,9 @@ const pool   = require('../db/index');
  */
 exports.obtenerPerfil = async (req, res, next) => {
   try {
-    let resultado;
-
-    try {
-      resultado = await pool.query(
-        `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
-                u.fecha_nacimiento, u.created_at,
-                p.s3_key, p.audio_vector, p.audio_metadata,
-                p.user_tags, p.oficio, p.experiencia, p.bio, p.foto_url, p.banner_url,
-                p.instagram_url, p.spotify_url, p.discord_url,
-                p.card_settings,
-                p.updated_at AS perfil_updated_at
-         FROM usuarios u
-         LEFT JOIN perfiles p ON p.usuario_id = u.id
-         WHERE u.id = $1`,
-        [req.usuario.id]
-      );
-    } catch (colErr) {
-      if (colErr.code === '42703') {
-        // Alguna columna no existe aún — fallback sin columnas nuevas
-        resultado = await pool.query(
-          `SELECT u.id, u.nombre, u.email, u.role, u.instrumento, u.ciudad,
-                  u.fecha_nacimiento, u.created_at,
-                  p.s3_key, p.audio_vector, NULL::jsonb AS audio_metadata,
-                  NULL::jsonb AS user_tags, NULL::jsonb AS oficio,
-                  NULL::integer AS experiencia, NULL::text AS bio, NULL::text AS foto_url, NULL::text AS banner_url,
-                  NULL::text AS instagram_url, NULL::text AS spotify_url, NULL::text AS discord_url,
-                  NULL::jsonb AS card_settings,
-                  p.updated_at AS perfil_updated_at
-           FROM usuarios u
-           LEFT JOIN perfiles p ON p.usuario_id = u.id
-           WHERE u.id = $1`,
-          [req.usuario.id]
-        );
-      } else {
-        throw colErr;
-      }
-    }
-
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    const row = resultado.rows[0];
-
-    // pgvector → array JS
-    if (row.audio_vector) {
-      const str = String(row.audio_vector);
-      row.audio_vector = str.replace(/[[\]]/g, '').split(',').map(Number);
-    }
-
-    // audio_metadata puede llegar como string JSON
-    if (row.audio_metadata && typeof row.audio_metadata === 'string') {
-      try { row.audio_metadata = JSON.parse(row.audio_metadata); } catch { row.audio_metadata = null; }
-    }
-
-    res.json(row);
+    const resultado = await fetchPerfilCompletoById(req.usuario.id);
+    if (resultado.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(parseAudioRow(resultado.rows[0]));
   } catch (error) {
     next(error);
   }
@@ -124,17 +117,7 @@ exports.perfilPublico = async (req, res, next) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    const row = resultado.rows[0];
-
-    if (row.audio_vector) {
-      const str = String(row.audio_vector);
-      row.audio_vector = str.replace(/[[\]]/g, '').split(',').map(Number);
-    }
-    if (row.audio_metadata && typeof row.audio_metadata === 'string') {
-      try { row.audio_metadata = JSON.parse(row.audio_metadata); } catch { row.audio_metadata = null; }
-    }
-
-    res.json(row);
+    res.json(parseAudioRow(resultado.rows[0]));
   } catch (error) {
     next(error);
   }
@@ -229,19 +212,7 @@ exports.actualizarPerfil = async (req, res, next) => {
     // Devolver el perfil completo
     if (usuarioRow) return res.json(usuarioRow);
 
-    const { rows } = await pool.query(
-      `SELECT u.id, u.nombre, u.email, u.instrumento, u.ciudad,
-              u.fecha_nacimiento, u.created_at,
-              p.s3_key, p.audio_vector, p.audio_metadata,
-              p.user_tags, p.oficio, p.experiencia, p.bio, p.foto_url, p.banner_url,
-              p.instagram_url, p.spotify_url, p.discord_url,
-              p.card_settings,
-              p.updated_at AS perfil_updated_at
-       FROM usuarios u
-       LEFT JOIN perfiles p ON p.usuario_id = u.id
-       WHERE u.id = $1`,
-      [req.usuario.id]
-    );
+    const { rows } = await fetchPerfilCompletoById(req.usuario.id);
     res.json(rows[0] || {});
   } catch (error) {
     next(error);
@@ -289,38 +260,10 @@ exports.cambiarPassword = async (req, res, next) => {
  * Ejecuta la misma lógica que adminController.eliminarUsuario pero usa req.usuario.id.
  */
 exports.eliminarMiCuenta = async (req, res, next) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
-    const id = req.usuario.id;
-
-    // ── Tablas con FK que NO tienen ON DELETE CASCADE en bases viejas ──────
-    // Las borramos manualmente. En migraciones nuevas ya tienen CASCADE,
-    // pero este cleanup explícito funciona en cualquier estado del schema.
-
-    // mensajes: tiene 2 FKs (de_id y para_id), ambos pueden bloquear
-    await client.query('DELETE FROM mensajes   WHERE de_id   = $1 OR para_id = $1', [id]);
-
-    // jobs / audio_jobs: ya tienen CASCADE vía migración, pero defensivo
-    await client.query('DELETE FROM jobs       WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM audio_jobs WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM perfiles   WHERE usuario_id = $1', [id]);
-
-    // tocatas que el usuario organizó (defensivo — depende del schema base)
-    // Esto cascadeará tickets vía sus propias FKs si están bien definidas.
-    await client.query('DELETE FROM tocatas    WHERE organizador_id = $1', [id]);
-
-    // El resto debería tener ON DELETE CASCADE o SET NULL en sus FKs
-    // (demos, tickets.buyer_id, notificaciones, password_resets, reportes, noticias)
-    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
-
-    await client.query('COMMIT');
+    await deleteUsuarioById(req.usuario.id);
     res.json({ message: 'Cuenta eliminada con éxito' });
   } catch (error) {
-    await client.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 };

@@ -103,6 +103,17 @@ async function sendMail({ to, subject, html }) {
   }
 }
 
+async function dispatchMail({ to, subject, html, tag }) {
+  const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+  try {
+    await sendMail({ to, subject, html });
+    console.log(`[MAILER] ✓ ${tag} email → ${safeTo}`);
+  } catch (err) {
+    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
+    console.error(`[MAILER] Error enviando ${tag} a ${safeTo}: ${safeErr}`);
+  }
+}
+
 async function sendAdnReadyEmail({ to, nombre }) {
   const body = `
     <h2 style="margin:0 0 8px;font-size:22px;color:#09090b;">Tu ADN musical está listo ✦</h2>
@@ -118,19 +129,7 @@ async function sendAdnReadyEmail({ to, nombre }) {
     </ul>
     ${btnHtml(`${APP_URL}/mi-adn`, 'Ver mi ADN musical →')}`;
 
-  try {
-    await sendMail({
-      to,
-      subject: 'Tu ADN musical Hi-Fi está listo ✦',
-      html: wrapHtml('ADN listo', body),
-    });
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    console.log(`[MAILER] ✓ ADN-ready email → ${safeTo}`);
-  } catch (err) {
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
-    console.error(`[MAILER] Error enviando ADN-ready a ${safeTo}: ${safeErr}`);
-  }
+  await dispatchMail({ to, subject: 'Tu ADN musical Hi-Fi está listo ✦', html: wrapHtml('ADN listo', body), tag: 'ADN-ready' });
 }
 
 async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
@@ -150,19 +149,7 @@ async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
     </p>
     ${btnHtml(`${APP_URL}/messages`, 'Responder →')}`;
 
-  try {
-    await sendMail({
-      to,
-      subject: `💬 ${de_nombre} te escribió en Bandify`,
-      html: wrapHtml('Mensaje nuevo', body),
-    });
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    console.log(`[MAILER] ✓ New-message email → ${safeTo}`);
-  } catch (err) {
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
-    console.error(`[MAILER] Error enviando mensaje a ${safeTo}: ${safeErr}`);
-  }
+  await dispatchMail({ to, subject: `💬 ${de_nombre} te escribió en Bandify`, html: wrapHtml('Mensaje nuevo', body), tag: 'New-message' });
 }
 
 async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
@@ -181,19 +168,7 @@ async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
       Si no solicitaste esto, puedes ignorar este correo. Tu contraseña no cambiará.
     </p>`;
 
-  try {
-    await sendMail({
-      to,
-      subject: 'Restablece tu contraseña de Bandify',
-      html: wrapHtml('Recuperar contraseña', body),
-    });
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    console.log(`[MAILER] ✓ Password-reset email → ${safeTo}`);
-  } catch (err) {
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
-    console.error(`[MAILER] Error enviando reset a ${safeTo}: ${safeErr}`);
-  }
+  await dispatchMail({ to, subject: 'Restablece tu contraseña de Bandify', html: wrapHtml('Recuperar contraseña', body), tag: 'Password-reset' });
 }
 
 async function sendSupportTicketEmail({ to, nombre, asunto, mensaje, ticketId }) {
@@ -214,19 +189,7 @@ async function sendSupportTicketEmail({ to, nombre, asunto, mensaje, ticketId })
       Nuestro equipo revisará tu consulta y te responderemos a la brevedad posible.
     </p>`;
 
-  try {
-    await sendMail({
-      to,
-      subject: `Ticket de soporte #${ticketId}: ${asunto}`,
-      html: wrapHtml('Ticket de soporte', body),
-    });
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    console.log(`[MAILER] ✓ Support ticket email → ${safeTo}`);
-  } catch (err) {
-    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
-    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
-    console.error(`[MAILER] Error enviando ticket de soporte a ${safeTo}: ${safeErr}`);
-  }
+  await dispatchMail({ to, subject: `Ticket de soporte #${ticketId}: ${asunto}`, html: wrapHtml('Ticket de soporte', body), tag: 'Support-ticket' });
 }
 
 module.exports = { sendAdnReadyEmail, sendNewMessageEmail, sendPasswordResetEmail, sendSupportTicketEmail };

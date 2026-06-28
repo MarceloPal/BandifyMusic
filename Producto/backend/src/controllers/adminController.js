@@ -4,6 +4,16 @@
  */
 
 const pool = require('../db/index');
+const { deleteUsuarioById } = require('../db/deleteUsuario');
+
+async function queryWithColumnFallback(primaryFn, fallbackFn) {
+  try {
+    return await primaryFn();
+  } catch (colErr) {
+    if (colErr.code !== '42703') throw colErr;
+    return fallbackFn();
+  }
+}
 
 /**
  * GET /api/admin/stats — totales + registros semanales + reportes recientes.
@@ -152,35 +162,11 @@ exports.listarTocatas = async (req, res, next) => {
  * Transacción: limpia tablas dependientes que no tienen ON DELETE CASCADE.
  */
 exports.eliminarUsuario = async (req, res, next) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
-    const id = req.params.id;
-
-    // ── Tablas con FK que NO tienen ON DELETE CASCADE en bases viejas ──────
-    // Las borramos manualmente. En migraciones nuevas ya tienen CASCADE,
-    // pero este cleanup explícito funciona en cualquier estado del schema.
-
-    // Limpieza explícita de todas las tablas con FK hacia usuarios
-    await client.query('DELETE FROM mensajes          WHERE de_id   = $1 OR para_id = $1', [id]);
-    await client.query('DELETE FROM notificaciones    WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM password_resets   WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM tickets           WHERE buyer_id   = $1', [id]);
-    await client.query('DELETE FROM demos             WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM audio_jobs        WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM jobs              WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM tocatas           WHERE organizador_id = $1', [id]);
-    await client.query('DELETE FROM perfiles          WHERE usuario_id = $1', [id]);
-    await client.query('DELETE FROM usuarios          WHERE id = $1',         [id]);
-
-    await client.query('COMMIT');
+    await deleteUsuarioById(req.params.id);
     res.json({ message: 'Usuario eliminado con éxito' });
   } catch (error) {
-    await client.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 };
 
@@ -263,9 +249,8 @@ exports.notificacionesMasivas = async (req, res, next) => {
  */
 exports.listarAnuncios = async (req, res, next) => {
   try {
-    let result;
-    try {
-      result = await pool.query(`
+    const result = await queryWithColumnFallback(
+      () => pool.query(`
         SELECT
           MIN(id)                          AS id,
           titulo,
@@ -279,11 +264,8 @@ exports.listarAnuncios = async (req, res, next) => {
         GROUP BY titulo, descripcion, link, imagen_url
         ORDER BY MIN(created_at) DESC
         LIMIT 100
-      `);
-    } catch (colErr) {
-      // Fallback si imagen_url no existe aún
-      if (colErr.code !== '42703') throw colErr;
-      result = await pool.query(`
+      `),
+      () => pool.query(`
         SELECT
           MIN(id)                          AS id,
           titulo,
@@ -297,8 +279,8 @@ exports.listarAnuncios = async (req, res, next) => {
         GROUP BY titulo, descripcion, link
         ORDER BY MIN(created_at) DESC
         LIMIT 100
-      `);
-    }
+      `)
+    );
     res.json(result.rows);
   } catch (error) {
     next(error);
@@ -314,23 +296,16 @@ exports.listarAnuncios = async (req, res, next) => {
 exports.eliminarAnuncio = async (req, res, next) => {
   try {
     // Encontrar las claves del anuncio representativo
-    let target;
-    try {
-      target = await pool.query(
-        `SELECT titulo, descripcion, link, imagen_url
-         FROM notificaciones
-         WHERE id = $1 AND tipo = 'sistema'`,
+    const target = await queryWithColumnFallback(
+      () => pool.query(
+        `SELECT titulo, descripcion, link, imagen_url FROM notificaciones WHERE id = $1 AND tipo = 'sistema'`,
         [req.params.id]
-      );
-    } catch (colErr) {
-      if (colErr.code !== '42703') throw colErr;
-      target = await pool.query(
-        `SELECT titulo, descripcion, link, NULL::text AS imagen_url
-         FROM notificaciones
-         WHERE id = $1 AND tipo = 'sistema'`,
+      ),
+      () => pool.query(
+        `SELECT titulo, descripcion, link, NULL::text AS imagen_url FROM notificaciones WHERE id = $1 AND tipo = 'sistema'`,
         [req.params.id]
-      );
-    }
+      )
+    );
 
     if (target.rows.length === 0) {
       return res.status(404).json({ error: 'Anuncio no encontrado' });
@@ -339,9 +314,8 @@ exports.eliminarAnuncio = async (req, res, next) => {
     const { titulo, descripcion, link, imagen_url } = target.rows[0];
 
     // Borrar todas las filas con esas mismas claves (COALESCE para nulls)
-    let delResult;
-    try {
-      delResult = await pool.query(
+    const delResult = await queryWithColumnFallback(
+      () => pool.query(
         `DELETE FROM notificaciones
          WHERE tipo = 'sistema'
            AND titulo = $1
@@ -349,18 +323,16 @@ exports.eliminarAnuncio = async (req, res, next) => {
            AND COALESCE(link, '') = COALESCE($3, '')
            AND COALESCE(imagen_url, '') = COALESCE($4, '')`,
         [titulo, descripcion, link, imagen_url]
-      );
-    } catch (colErr) {
-      if (colErr.code !== '42703') throw colErr;
-      delResult = await pool.query(
+      ),
+      () => pool.query(
         `DELETE FROM notificaciones
          WHERE tipo = 'sistema'
            AND titulo = $1
            AND descripcion = $2
            AND COALESCE(link, '') = COALESCE($3, '')`,
         [titulo, descripcion, link]
-      );
-    }
+      )
+    );
 
     res.json({
       message: 'Anuncio eliminado',
