@@ -307,29 +307,30 @@ const Admin = () => {
   }, [activeTab, token, fetchTocatas, fetchNoticias, fetchVentas, fetchAnuncios, tocatas.length, noticias.length, ventasData.tickets.length, anuncios.length]);
 
   /* ── Handlers ── */
+  const doDeleteUsuario = async (userId) => {
+    hideConfirm();
+    try {
+      const res = await fetch(`${API_URL}/api/admin/usuarios/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUsuarios(prev => prev.filter(u => u.id !== userId));
+        fetchStats();
+        showToast('Usuario eliminado correctamente');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || `Error al eliminar usuario (${res.status})`, 'error');
+      }
+    } catch (err) {
+      showToast(`Error de conexión: ${err.message}`, 'error');
+    }
+  };
+
   const handleDeleteUsuario = (id) => {
-    const userId = id; // captura explícita antes de pasar al modal
     showConfirm(
       'Esta acción eliminará al usuario permanentemente de la plataforma.',
-      async () => {
-        hideConfirm();
-        try {
-          const res = await fetch(`${API_URL}/api/admin/usuarios/${userId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-          });
-          if (res.ok) {
-            setUsuarios(prev => prev.filter(u => u.id !== userId));
-            fetchStats();
-            showToast('Usuario eliminado correctamente');
-          } else {
-            const data = await res.json().catch(() => ({}));
-            showToast(data.error || `Error al eliminar usuario (${res.status})`, 'error');
-          }
-        } catch (err) {
-          showToast(`Error de conexión: ${err.message}`, 'error');
-        }
-      },
+      () => doDeleteUsuario(id),
       'Eliminar usuario'
     );
   };
@@ -369,29 +370,27 @@ const Admin = () => {
     }
   };
 
+  const doDeleteTocata = async (id) => {
+    hideConfirm();
+    try {
+      const res = await fetch(`${API_URL}/api/admin/tocatas/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setTocatas(prev => prev.filter(t => t.id !== id));
+        fetchStats();
+        showToast('Tocata eliminada correctamente');
+      } else {
+        showToast('Error al eliminar tocata', 'error');
+      }
+    } catch {
+      showToast('Error de conexión', 'error');
+    }
+  };
+
   const handleDeleteTocata = (id) => {
-    showConfirm(
-      'Esta acción eliminará la tocata permanentemente.',
-      async () => {
-        hideConfirm();
-        try {
-          const res = await fetch(`${API_URL}/api/admin/tocatas/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.ok) {
-            setTocatas(prev => prev.filter(t => t.id !== id));
-            fetchStats();
-            showToast('Tocata eliminada correctamente');
-          } else {
-            showToast('Error al eliminar tocata', 'error');
-          }
-        } catch {
-          showToast('Error de conexión', 'error');
-        }
-      },
-      'Eliminar tocata'
-    );
+    showConfirm('Esta acción eliminará la tocata permanentemente.', () => doDeleteTocata(id), 'Eliminar tocata');
   };
 
   const handleUpdateReportState = async (reportId, nuevoEstado) => {
@@ -449,28 +448,58 @@ const Admin = () => {
     }
   };
 
+  const doDeleteNews = async (id) => {
+    hideConfirm();
+    try {
+      const res = await fetch(`${API_URL}/api/noticias/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setNoticias(prev => prev.filter(n => n.id !== id));
+        showToast('Noticia eliminada');
+      } else {
+        showToast('Error al eliminar noticia', 'error');
+      }
+    } catch {
+      showToast('Error de conexión', 'error');
+    }
+  };
+
   const handleDeleteNews = (id) => {
-    showConfirm(
-      '¿Eliminar esta noticia de la plataforma?',
-      async () => {
-        hideConfirm();
-        try {
-          const res = await fetch(`${API_URL}/api/noticias/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.ok) {
-            setNoticias(prev => prev.filter(n => n.id !== id));
-            showToast('Noticia eliminada');
-          } else {
-            showToast('Error al eliminar noticia', 'error');
-          }
-        } catch {
-          showToast('Error de conexión', 'error');
-        }
-      },
-      'Eliminar noticia'
-    );
+    showConfirm('¿Eliminar esta noticia de la plataforma?', () => doDeleteNews(id), 'Eliminar noticia');
+  };
+
+  const doSendMassNotif = async (isFiltered) => {
+    hideConfirm();
+    setSendingNotif(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/notificaciones-masivas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...massNotif,
+          usuario_ids: isFiltered ? selectedUserIds : null,
+        }),
+      });
+      if (res.ok) {
+        showToast('¡Mensaje enviado con éxito!');
+        setMassNotif({ titulo: '', descripcion: '', link: '', imagen_url: '' });
+        setSelectedUserIds([]);
+        if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+        setImagenPreview(null);
+        fetchAnuncios();
+      } else {
+        showToast('Error al enviar notificación', 'error');
+      }
+    } catch {
+      showToast('Error de conexión', 'error');
+    } finally {
+      setSendingNotif(false);
+    }
   };
 
   const handleSendMassNotif = (e) => {
@@ -479,38 +508,7 @@ const Admin = () => {
     const message = isFiltered
       ? `Esto enviará una notificación a los ${selectedUserIds.length} usuarios seleccionados. ¿Continuar?`
       : 'Esto enviará una notificación a TODOS los usuarios de la plataforma. ¿Continuar?';
-
-    showConfirm(message, async () => {
-      hideConfirm();
-      setSendingNotif(true);
-      try {
-        const res = await fetch(`${API_URL}/api/admin/notificaciones-masivas`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            ...massNotif,
-            usuario_ids: isFiltered ? selectedUserIds : null,
-          }),
-        });
-        if (res.ok) {
-          showToast('¡Mensaje enviado con éxito!');
-          setMassNotif({ titulo: '', descripcion: '', link: '', imagen_url: '' });
-          setSelectedUserIds([]);
-          if (imagenPreview) URL.revokeObjectURL(imagenPreview);
-          setImagenPreview(null);
-          fetchAnuncios();   // refresca el historial con el anuncio recién enviado
-        } else {
-          showToast('Error al enviar notificación', 'error');
-        }
-      } catch {
-        showToast('Error de conexión', 'error');
-      } finally {
-        setSendingNotif(false);
-      }
-    }, isFiltered ? 'Enviar anuncio segmentado' : 'Enviar anuncio masivo');
+    showConfirm(message, () => doSendMassNotif(isFiltered), isFiltered ? 'Enviar anuncio segmentado' : 'Enviar anuncio masivo');
   };
 
   /**
@@ -566,26 +564,28 @@ const Admin = () => {
   };
 
   /** Borra un anuncio del historial — confirma primero, refresca al terminar. */
+  const doDeleteAnuncio = async (anuncio) => {
+    hideConfirm();
+    try {
+      const res = await fetch(`${API_URL}/api/admin/notificaciones/${anuncio.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        showToast('Anuncio eliminado');
+        setAnuncios((prev) => prev.filter((a) => a.id !== anuncio.id));
+      } else {
+        showToast('Error al eliminar', 'error');
+      }
+    } catch {
+      showToast('Error de conexión', 'error');
+    }
+  };
+
   const handleDeleteAnuncio = (anuncio) => {
     showConfirm(
       `Esto eliminará el anuncio "${anuncio.titulo}" de los ${anuncio.destinatarios} usuarios que lo recibieron. ¿Continuar?`,
-      async () => {
-        hideConfirm();
-        try {
-          const res = await fetch(`${API_URL}/api/admin/notificaciones/${anuncio.id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            showToast('Anuncio eliminado');
-            setAnuncios((prev) => prev.filter((a) => a.id !== anuncio.id));
-          } else {
-            showToast('Error al eliminar', 'error');
-          }
-        } catch {
-          showToast('Error de conexión', 'error');
-        }
-      },
+      () => doDeleteAnuncio(anuncio),
       'Eliminar anuncio'
     );
   };

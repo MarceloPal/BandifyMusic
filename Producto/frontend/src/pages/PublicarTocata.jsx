@@ -59,6 +59,83 @@ const EDAD_STYLES = {
 
 const TIPOS_ENTRADA_OPTS = ['Preventa', 'General', 'VIP', 'Early Bird', 'Puerta']
 
+/* ─── Module-level helpers (extracted to avoid nesting complexity) ─── */
+
+function validateTocataForm(form, edadMinima, contactValue, tipoAcceso, tiposEntrada) {
+  const errs = {}
+  if (!form.nombre.trim())  errs.nombre   = 'El nombre del evento es obligatorio'
+  if (!form.fecha)          errs.fecha    = 'La fecha es obligatoria'
+  if (!form.hora)           errs.hora     = 'La hora es obligatoria'
+  if (!form.ciudad.trim())  errs.ciudad   = 'La ciudad es obligatoria'
+  if (!edadMinima)          errs.edad     = 'La edad mínima es obligatoria'
+  if (!contactValue.trim()) errs.contacto = 'El contacto es obligatorio'
+  if (!tipoAcceso)          errs.acceso   = 'Elige el tipo de acceso'
+  if (tipoAcceso === 'paid') {
+    if (Object.keys(tiposEntrada).length === 0) {
+      errs.tipos = 'Selecciona al menos un tipo de entrada'
+    } else {
+      Object.keys(tiposEntrada).forEach((tipo) => {
+        if (!tiposEntrada[tipo].precio)   errs[`precio_${tipo}`]   = 'Ingresa el precio'
+        if (!tiposEntrada[tipo].cantidad) errs[`cantidad_${tipo}`] = 'Ingresa la cantidad'
+      })
+    }
+  }
+  return errs
+}
+
+async function buildAndSubmitTocata({ token, isEditing, tocataId, contactType, contactValue, form, generos, afficheKey, edadMinima, tipoAcceso, tiposEntrada }) {
+  const ct = CONTACT_TYPES.find((c) => c.id === contactType)
+  const contactStr = ct?.prefix ? `${ct.prefix}${contactValue}`.trim() : contactValue.trim()
+
+  const tiposArr = TIPOS_ENTRADA_OPTS
+    .filter((t) => tiposEntrada[t] !== undefined)
+    .map((t) => ({ tipo: t, precio: Number(tiposEntrada[t].precio), cantidad: parseInt(tiposEntrada[t].cantidad) }))
+
+  const minPrecio  = tiposArr.length > 0 ? Math.min(...tiposArr.map((t) => t.precio)) : undefined
+  const totalStock = tiposArr.length > 0 ? tiposArr.reduce((s, t) => s + t.cantidad, 0) : undefined
+
+  const body = {
+    nombre:              form.nombre.trim(),
+    fecha:               form.fecha,
+    hora:                form.hora         || undefined,
+    ciudad:              form.ciudad.trim(),
+    direccion:           form.direccion     || undefined,
+    descripcion:         form.descripcion   || undefined,
+    genero:              generos.join(', ') || undefined,
+    afiche_url:          afficheKey         || undefined,
+    contacto_email:      contactStr         || undefined,
+    edad_minima:         edadMinima         || undefined,
+    tipos_entrada:       tipoAcceso === 'paid' && tiposArr.length > 0 ? tiposArr : undefined,
+    precio:              tipoAcceso === 'paid' ? minPrecio    : undefined,
+    cantidad_disponible: tipoAcceso === 'paid' ? totalStock   : undefined,
+  }
+
+  const url    = isEditing ? `${API_URL}/tocatas/${tocataId}` : `${API_URL}/tocatas`
+  const method = isEditing ? 'PATCH' : 'POST'
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body:    JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || (isEditing ? 'Error al guardar los cambios' : 'Error al publicar la tocata'))
+  }
+  return res.json()
+}
+
+async function fetchUploadedAfiche(file, token) {
+  if (!file || !file.type.startsWith('image/')) return null
+  const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
+  const res = await fetch(`${API_URL}/images/upload-url?type=afiche&ext=${ext}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const { uploadUrl, key } = await res.json()
+  await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
+  return { key, previewUrl: URL.createObjectURL(file) }
+}
+
 /* ─── Helpers ─── */
 
 function formatFechaShort(isoDate) {
@@ -455,17 +532,10 @@ export default function PublicarTocata() {
 
   /* ── afiche upload ── */
   const uploadAfiche = async (file) => {
-    if (!file || !file.type.startsWith('image/')) return
     setAfficheLoading(true)
     try {
-      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
-      const res = await fetch(`${API_URL}/images/upload-url?type=afiche&ext=${ext}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const { uploadUrl, key } = await res.json()
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
-      setAfficheKey(key)
-      setAffichePreview(URL.createObjectURL(file))
+      const result = await fetchUploadedAfiche(file, token)
+      if (result) { setAfficheKey(result.key); setAffichePreview(result.previewUrl) }
     } catch { /* silently ignore */ }
     finally { setAfficheLoading(false) }
   }
@@ -478,54 +548,7 @@ export default function PublicarTocata() {
 
   /* ── mutation ── */
   const mutation = useMutation({
-    mutationFn: async () => {
-      const ct = CONTACT_TYPES.find((c) => c.id === contactType)
-      const contactStr = ct?.prefix
-        ? `${ct.prefix}${contactValue}`.trim()
-        : contactValue.trim()
-
-      // Build tipos_entrada array and derive precio/cantidad for backward-compat checkout
-      const tiposArr = TIPOS_ENTRADA_OPTS
-        .filter((t) => tiposEntrada[t] !== undefined)
-        .map((t) => ({
-          tipo:     t,
-          precio:   Number(tiposEntrada[t].precio),
-          cantidad: parseInt(tiposEntrada[t].cantidad),
-        }))
-
-      const minPrecio    = tiposArr.length > 0 ? Math.min(...tiposArr.map((t) => t.precio))                     : undefined
-      const totalStock   = tiposArr.length > 0 ? tiposArr.reduce((s, t) => s + t.cantidad, 0)                   : undefined
-
-      const body = {
-        nombre:              form.nombre.trim(),
-        fecha:               form.fecha,
-        hora:                form.hora         || undefined,
-        ciudad:              form.ciudad.trim(),
-        direccion:           form.direccion     || undefined,
-        descripcion:         form.descripcion   || undefined,
-        genero:              generos.join(', ') || undefined,
-        afiche_url:          afficheKey         || undefined,
-        contacto_email:      contactStr         || undefined,
-        edad_minima:         edadMinima         || undefined,
-        tipos_entrada:       tipoAcceso === 'paid' && tiposArr.length > 0 ? tiposArr : undefined,
-        precio:              tipoAcceso === 'paid' ? minPrecio    : undefined,
-        cantidad_disponible: tipoAcceso === 'paid' ? totalStock   : undefined,
-      }
-
-      const url    = isEditing ? `${API_URL}/tocatas/${tocataId}` : `${API_URL}/tocatas`
-      const method = isEditing ? 'PATCH' : 'POST'
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || (isEditing ? 'Error al guardar los cambios' : 'Error al publicar la tocata'))
-      }
-      return res.json()
-    },
+    mutationFn: () => buildAndSubmitTocata({ token, isEditing, tocataId, contactType, contactValue, form, generos, afficheKey, edadMinima, tipoAcceso, tiposEntrada }),
     onSuccess: (data) => {
       if (isEditing) {
         queryClient.invalidateQueries({ queryKey: ['tocatas'] })
@@ -553,24 +576,7 @@ export default function PublicarTocata() {
   /* ── validation ── */
   const handleSubmit = (e) => {
     e.preventDefault()
-    const errs = {}
-    if (!form.nombre.trim())  errs.nombre   = 'El nombre del evento es obligatorio'
-    if (!form.fecha)          errs.fecha    = 'La fecha es obligatoria'
-    if (!form.hora)           errs.hora     = 'La hora es obligatoria'
-    if (!form.ciudad.trim())  errs.ciudad   = 'La ciudad es obligatoria'
-    if (!edadMinima)          errs.edad     = 'La edad mínima es obligatoria'
-    if (!contactValue.trim()) errs.contacto = 'El contacto es obligatorio'
-    if (!tipoAcceso)          errs.acceso   = 'Elige el tipo de acceso'
-    if (tipoAcceso === 'paid') {
-      if (Object.keys(tiposEntrada).length === 0) {
-        errs.tipos = 'Selecciona al menos un tipo de entrada'
-      } else {
-        Object.keys(tiposEntrada).forEach((tipo) => {
-          if (!tiposEntrada[tipo].precio)   errs[`precio_${tipo}`]   = 'Ingresa el precio'
-          if (!tiposEntrada[tipo].cantidad) errs[`cantidad_${tipo}`] = 'Ingresa la cantidad'
-        })
-      }
-    }
+    const errs = validateTocataForm(form, edadMinima, contactValue, tipoAcceso, tiposEntrada)
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
     mutation.mutate()

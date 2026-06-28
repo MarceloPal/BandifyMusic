@@ -92,11 +92,13 @@ async function sendMail({ to, subject, html }) {
     }
 
     const info = await response.json();
-    console.log('✅ 3. ¡Correo enviado con éxito por Brevo! Message ID:', info.messageId);
+    const safeMessageId = String(info.messageId ?? '').replace(/[\r\n]/g, '_');
+    console.log(`✅ 3. ¡Correo enviado con éxito por Brevo! Message ID: ${safeMessageId}`);
     return info;
 
   } catch (error) {
-    console.error('❌ ERROR FATAL EN BREVO API:', error.message);
+    const safeErrorMsg = String(error.message ?? '').replace(/[\r\n]/g, '_');
+    console.error(`❌ ERROR FATAL EN BREVO API: ${safeErrorMsg}`);
     throw error; 
   }
 }
@@ -122,9 +124,12 @@ async function sendAdnReadyEmail({ to, nombre }) {
       subject: 'Tu ADN musical Hi-Fi está listo ✦',
       html: wrapHtml('ADN listo', body),
     });
-    console.log(`[MAILER] ✓ ADN-ready email → ${to}`);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    console.log(`[MAILER] ✓ ADN-ready email → ${safeTo}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando ADN-ready a ${to}:`, err.message || err);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
+    console.error(`[MAILER] Error enviando ADN-ready a ${safeTo}: ${safeErr}`);
   }
 }
 
@@ -151,9 +156,12 @@ async function sendNewMessageEmail({ to, nombre, de_nombre, preview }) {
       subject: `💬 ${de_nombre} te escribió en Bandify`,
       html: wrapHtml('Mensaje nuevo', body),
     });
-    console.log(`[MAILER] ✓ New-message email → ${to}`);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    console.log(`[MAILER] ✓ New-message email → ${safeTo}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando mensaje a ${to}:`, err.message || err);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
+    console.error(`[MAILER] Error enviando mensaje a ${safeTo}: ${safeErr}`);
   }
 }
 
@@ -179,9 +187,12 @@ async function sendPasswordResetEmail({ to, nombre, resetUrl }) {
       subject: 'Restablece tu contraseña de Bandify',
       html: wrapHtml('Recuperar contraseña', body),
     });
-    console.log(`[MAILER] ✓ Password-reset email → ${to}`);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    console.log(`[MAILER] ✓ Password-reset email → ${safeTo}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando reset a ${to}:`, err.message || err);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
+    console.error(`[MAILER] Error enviando reset a ${safeTo}: ${safeErr}`);
   }
 }
 
@@ -209,9 +220,12 @@ async function sendSupportTicketEmail({ to, nombre, asunto, mensaje, ticketId })
       subject: `Ticket de soporte #${ticketId}: ${asunto}`,
       html: wrapHtml('Ticket de soporte', body),
     });
-    console.log(`[MAILER] ✓ Support ticket email → ${to}`);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    console.log(`[MAILER] ✓ Support ticket email → ${safeTo}`);
   } catch (err) {
-    console.error(`[MAILER] Error enviando ticket de soporte a ${to}:`, err.message || err);
+    const safeTo = String(to ?? '').replace(/[\r\n]/g, '_');
+    const safeErr = String(err.message || err).replace(/[\r\n]/g, '_');
+    console.error(`[MAILER] Error enviando ticket de soporte a ${safeTo}: ${safeErr}`);
   }
 }
 

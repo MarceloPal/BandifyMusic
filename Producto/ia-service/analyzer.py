@@ -348,6 +348,23 @@ def extract_segment_features(
 # Pipeline principal
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _maybe_transcode(s3_ext: str, s3_key: str, tmp_path: str, mp3_path: str) -> Optional[str]:
+    """Transcodifica a MP3 si el original es lossless. Retorna la nueva key S3 o None."""
+    if s3_ext not in TRANSCODE_EXTS:
+        return None
+    print(f"\n[FFMPEG] Transcodificando .{s3_ext} → MP3 128 kbps...")
+    if not transcode_to_mp3(tmp_path, mp3_path):
+        print("[FFMPEG WARN] Transcoding falló — original conservado en S3")
+        return None
+    derived_mp3_key = s3_key.rsplit(".", 1)[0] + ".mp3"
+    if not upload_to_s3(mp3_path, derived_mp3_key):
+        print("[CLEANUP WARN] Upload del MP3 falló — original conservado en S3")
+        return None
+    delete_from_s3(s3_key)
+    print(f"[CLEANUP] ✓ S3 limpio — almacenando solo MP3: {derived_mp3_key}")
+    return derived_mp3_key
+
+
 def analyze_audio(s3_key: str) -> Optional[Dict[str, Any]]:
     """
     Pipeline Hi-Fi completo.
@@ -426,24 +443,7 @@ def analyze_audio(s3_key: str) -> Optional[Dict[str, Any]]:
         print(f"[ANALYZER] Metadata: {final_metadata}")
 
         # ── 5. Transcoding a MP3 (solo si el original no es ya MP3) ──────────
-        final_mp3_key: Optional[str] = None   # None → no hubo transcoding
-
-        if s3_ext in TRANSCODE_EXTS:
-            print(f"\n[FFMPEG] Transcodificando .{s3_ext} → MP3 128 kbps...")
-            if transcode_to_mp3(tmp_path, mp3_path):
-                # Derivar la nueva key: misma ruta, extensión .mp3
-                derived_mp3_key = s3_key.rsplit(".", 1)[0] + ".mp3"
-
-                # Subir el MP3 ANTES de borrar el original (seguro ante fallos)
-                if upload_to_s3(mp3_path, derived_mp3_key):
-                    # Eliminar el original solo tras confirmar la subida
-                    delete_from_s3(s3_key)
-                    final_mp3_key = derived_mp3_key
-                    print(f"[CLEANUP] ✓ S3 limpio — almacenando solo MP3: {derived_mp3_key}")
-                else:
-                    print("[CLEANUP WARN] Upload del MP3 falló — original conservado en S3")
-            else:
-                print("[FFMPEG WARN] Transcoding falló — original conservado en S3")
+        final_mp3_key = _maybe_transcode(s3_ext, s3_key, tmp_path, mp3_path)
 
         return {
             "vector":     final_vector,

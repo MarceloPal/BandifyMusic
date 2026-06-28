@@ -43,6 +43,32 @@ function TagPill({ label, selected, disabled, onClick }) {
   )
 }
 
+async function performOnboardingUpload(token, file) {
+  const ext         = (file.name.split('.').pop() || 'mp3').toLowerCase()
+  const audioExt    = AUDIO_MIME[ext] ? ext : 'mp3'
+  const contentType = AUDIO_MIME[audioExt]
+
+  const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
+  const { uploadUrl, s3Key } = await uploadRes.json()
+
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  })
+
+  const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ s3Key }),
+  })
+  if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
+  return analyzeRes.json()
+}
+
 export default function Onboarding() {
   const { user, token, updateUser } = useAuth()
   const navigate              = useNavigate()
@@ -80,31 +106,7 @@ export default function Onboarding() {
   }
 
   const uploadMutation = useMutation({
-    mutationFn: async (file) => {
-      const ext         = (file.name.split('.').pop() || 'mp3').toLowerCase()
-      const audioExt    = AUDIO_MIME[ext] ? ext : 'mp3'
-      const contentType = AUDIO_MIME[audioExt]
-
-      const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
-      const { uploadUrl, s3Key } = await uploadRes.json()
-
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      })
-
-      const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ s3Key }),
-      })
-      if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
-      return analyzeRes.json()
-    },
+    mutationFn: (file) => performOnboardingUpload(token, file),
     onSuccess: (data) => setJobId(data.jobId),
   })
 
