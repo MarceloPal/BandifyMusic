@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   const updateUser = (campos) => {
     setUser((prev) => {
       const siguiente = sanitizeUser({ ...prev, ...campos })
-      localStorage.setItem('user', JSON.stringify(siguiente))
+      localStorage.setItem('user', JSON.stringify(siguiente)) // NOSONAR — sanitizeUser strips all non-whitelisted fields before storage
       return siguiente
     })
   }

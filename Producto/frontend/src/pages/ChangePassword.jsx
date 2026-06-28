@@ -1,45 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Check, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
-
-function Field({ label, value, onChange, placeholder = '••••••••', hasError = false, errorMsg = '' }) {
-  const [show, setShow] = useState(false)
-  return (
-    <div>
-      <label className="block text-white/60 text-xs font-semibold uppercase tracking-wide mb-1.5">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          required
-          className={`w-full bg-white/5 border rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 transition-colors [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
-            hasError
-              ? 'border-red-500 focus:ring-red-500/40'
-              : 'border-white/10 focus:ring-purple-500/50'
-          }`}
-        />
-        <button
-          type="button"
-          onClick={() => setShow(s => !s)}
-          tabIndex={-1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-        >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-      </div>
-      {hasError && errorMsg && (
-        <p className="text-red-400 text-xs mt-1.5">{errorMsg}</p>
-      )}
-    </div>
-  )
-}
+import PasswordField from '../components/PasswordField'
 
 export default function ChangePassword() {
   const navigate    = useNavigate()
@@ -179,7 +144,7 @@ export default function ChangePassword() {
                 {/* ── Paso 1: contraseña actual ── */}
                 {!isVerified && (
                   <form onSubmit={handleVerify} className="flex flex-col gap-5">
-                    <Field label="Contraseña actual" value={actual} onChange={setActual} />
+                    <PasswordField variant="settings" label="Contraseña actual" value={actual} onChange={e => setActual(e.target.value)} required />
                     <button
                       type="submit"
                       disabled={loading || !actual.trim()}
@@ -194,17 +159,21 @@ export default function ChangePassword() {
                 {/* ── Paso 2: nueva contraseña ── */}
                 {isVerified && (
                   <form onSubmit={handleSave} className="flex flex-col gap-4">
-                    <Field
+                    <PasswordField
+                      variant="settings"
                       label="Nueva contraseña"
                       value={nueva}
-                      onChange={setNueva}
+                      onChange={e => setNueva(e.target.value)}
+                      required
                     />
-                    <Field
+                    <PasswordField
+                      variant="settings"
                       label="Confirmar nueva contraseña"
                       value={confirmar}
-                      onChange={setConfirmar}
+                      onChange={e => setConfirmar(e.target.value)}
                       hasError={!!passwordMismatch}
                       errorMsg="Las contraseñas no coinciden"
+                      required
                     />
                     <button
                       type="submit"
