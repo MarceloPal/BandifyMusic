@@ -136,8 +136,11 @@ function PanelPerfil({ user, token, updateUser }) {
       <div className="mb-5">
         {/* Banner */}
         <div
+          role="button"
+          tabIndex={0}
           className="relative h-28 rounded-2xl bg-zinc-800 border border-white/8 overflow-hidden mb-3 cursor-pointer group"
           onClick={() => bannerRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') bannerRef.current?.click() }}
         >
           {bannerUrl
             ? <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
@@ -152,8 +155,11 @@ function PanelPerfil({ user, token, updateUser }) {
         {/* Avatar */}
         <div className="flex items-center gap-4">
           <div
+            role="button"
+            tabIndex={0}
             className="relative w-16 h-16 rounded-full bg-purple-600 flex-shrink-0 overflow-hidden cursor-pointer group border-2 border-zinc-800"
             onClick={() => avatarRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') avatarRef.current?.click() }}
           >
             {avatarUrl
               ? <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover aspect-square" />

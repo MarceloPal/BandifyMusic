@@ -97,6 +97,8 @@ export default function ProfileDrawer({ musico, onClose }) {
       <div
         className="fixed inset-0 bg-black/30 z-40"
         onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        role="presentation"
       />
 
       {/* Drawer */}
@@ -267,8 +269,14 @@ export default function ProfileDrawer({ musico, onClose }) {
                   {/* Barra de progreso */}
                   <div className="flex-1">
                     <div
+                      role="slider"
+                      tabIndex={0}
+                      aria-label="Progreso de reproducción"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
                       className="h-1.5 bg-zinc-700 rounded-full cursor-pointer"
                       onClick={handleSeek}
+                      onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') handleSeek(e) }}
                     >
                       <div
                         className="h-full bg-purple-600 rounded-full transition-all"

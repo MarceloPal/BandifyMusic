@@ -25,11 +25,14 @@ export default function PremiumModal({ onClose }) {
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        role="presentation"
       >
         {/* Card */}
         <div
           className="bg-zinc-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {/* Close */}
           <button
