@@ -111,7 +111,10 @@ function DemoCard({ demo, isSelected, isPlaying, onSelect, onTogglePlay, onDelet
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(demo.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(demo.id) }}
       className={`relative flex-shrink-0 w-44 rounded-2xl overflow-hidden cursor-pointer border-2 transition-all shadow-sm ${
         isSelected ? 'border-purple-500 shadow-purple-500/20 shadow-md' : 'border-transparent hover:border-zinc-600'
       }`}
@@ -233,7 +236,10 @@ function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpenProfile(musico)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenProfile(musico) }}
       className="flex items-center gap-3 p-3 rounded-2xl border border-white/8 bg-zinc-800 hover:border-purple-400/40 hover:bg-zinc-700/50 transition-colors group cursor-pointer"
     >
       {/* Avatar */}
@@ -639,6 +645,8 @@ export default function MiAdn() {
 
           {/* Drop zone */}
           <div
+            role="button"
+            tabIndex={0}
             className={`border-2 border-dashed rounded-2xl py-14 px-8 flex flex-col items-center justify-center cursor-pointer transition-all select-none mb-5 ${
               isDragging  ? 'border-purple-400 bg-purple-500/10'
               : isError && !isLimitError ? 'border-red-500/40 bg-red-500/10'
@@ -648,6 +656,7 @@ export default function MiAdn() {
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onClick={() => !isProcessing && fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (!isProcessing) fileInputRef.current?.click() } }}
           >
             {isError && !isLimitError ? (
               <>

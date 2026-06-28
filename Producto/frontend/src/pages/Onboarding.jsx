@@ -308,6 +308,8 @@ export default function Onboarding() {
                 <p>Nuestra IA analiza 27 características de tu sonido para encontrar tu match perfecto.</p>
 
                 <div
+                  role="button"
+                  tabIndex={0}
                   className={`mt-5 border-2 border-dashed rounded-2xl py-10 px-6 flex flex-col items-center justify-center cursor-pointer transition-all select-none ${
                     isDragging
                       ? 'border-[#5227FF] bg-[#5227FF]/10'
@@ -317,6 +319,7 @@ export default function Onboarding() {
                   onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
                   onDragLeave={() => setIsDragging(false)}
                   onClick={() => !isProcessing && !isDone && fileInputRef.current?.click()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (!isProcessing && !isDone) fileInputRef.current?.click() } }}
                 >
                   <input
                     ref={fileInputRef}

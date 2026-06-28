@@ -81,8 +81,11 @@ export default function Noticias() {
           : articles.map((article, i) => (
               <div
                 key={i}
+                role="button"
+                tabIndex={0}
                 className="noticia-card cursor-pointer"
                 onClick={() => setSelectedArticle(article)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedArticle(article) }}
               >
                 <div className="noticia-img-wrap">
                   {article.isLocal && (
@@ -115,8 +118,8 @@ export default function Noticias() {
 
       {/* Modal Lector de Noticias */}
       {selectedArticle && (
-        <div className="news-modal-overlay" onClick={closeModal}>
-          <div className="news-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="news-modal-overlay" onClick={closeModal} onKeyDown={(e) => e.key === 'Escape' && closeModal()} role="presentation">
+          <div className="news-modal-content" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={closeModal}>
               <X size={24} />
             </button>
