@@ -30,7 +30,10 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # ─── Código de la app ───────────────────────────────────────────────────────
-COPY . .
+COPY main.py .
+COPY analyzer.py .
+COPY database.py .
+COPY models.py .
 
 # ─── Configuración runtime ──────────────────────────────────────────────────
 # Railway/Render inyectan $PORT en runtime; default 8000 para dev local
@@ -41,5 +44,9 @@ EXPOSE 8000
 
 # Verificar que FFmpeg quedó disponible (falla el build si algo salió mal)
 RUN ffmpeg -version | head -1
+
+# ─── Usuario no privilegiado ────────────────────────────────────────────────
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+USER appuser
 
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

@@ -12,7 +12,8 @@ const mailer = require('../utils/mailer');
  * Opcionalmente: usuario_id desde req.usuario (si está autenticado)
  */
 exports.crearTicket = async (req, res, next) => {
-  console.log('📡 1. Petición de soporte recibida en el backend:', req.body);
+  const sanitize = (v) => String(v ?? '').replace(/[\r\n]/g, '_');
+  console.log(`📡 1. Petición de soporte recibida en el backend: email=${sanitize(req.body.email)} asunto=${sanitize(req.body.asunto)}`);
 
   try {
     const { email, asunto, mensaje } = req.body;

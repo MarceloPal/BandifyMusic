@@ -271,6 +271,42 @@ function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
   )
 }
 
+const AUDIO_MIME = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', flac: 'audio/flac', alac: 'audio/mp4' }
+
+function getAudioExt(file) {
+  const ext = (file.name.split('.').pop() || 'mp3').toLowerCase()
+  return AUDIO_MIME[ext] ? ext : 'mp3'
+}
+
+function getCoverExt(mimeType) {
+  if (mimeType.includes('png'))  return 'png'
+  if (mimeType.includes('webp')) return 'webp'
+  return 'jpg'
+}
+
+async function performUpload(token, demoNombre, file) {
+  const audioExt = getAudioExt(file)
+  const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
+  const { uploadUrl, s3Key } = await uploadRes.json()
+  await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': AUDIO_MIME[audioExt] }, body: file })
+  const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ s3Key, nombre: demoNombre.trim() || 'Demo sin nombre' }),
+  })
+  if (analyzeRes.status === 403) {
+    const errData = await analyzeRes.json().catch(() => ({}))
+    const err = new Error(errData.error || 'Límite alcanzado')
+    err.code = errData.code ?? 'FORBIDDEN'
+    throw err
+  }
+  if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
+  return analyzeRes.json()
+}
+
 export default function MiAdn() {
   const { token, user, updateUser } = useAuth()
   const queryClient                 = useQueryClient()
@@ -330,51 +366,16 @@ export default function MiAdn() {
   // Hide uploader when demos exist (and not actively processing)
   useEffect(() => {
     if (demos.length > 0 && !jobId) setShowUploader(false)
-  }, [demos.length]) // eslint-disable-line
+  }, [demos.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select first demo when list first loads
   useEffect(() => {
     if (!selectedDemoId && demos.length > 0) setSelectedDemoId(demos[0].id)
-  }, [demos]) // eslint-disable-line
+  }, [demos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Upload + analyze mutation ── */
   const uploadMutation = useMutation({
-    mutationFn: async (file) => {
-      // Determinar extensión real del archivo para Content-Type correcto en S3
-      const fileExt = (file.name.split('.').pop() || 'mp3').toLowerCase()
-      const AUDIO_MIME = {
-        mp3:  'audio/mpeg',
-        wav:  'audio/wav',
-        ogg:  'audio/ogg',
-        m4a:  'audio/mp4',
-        flac: 'audio/flac',
-        alac: 'audio/mp4',
-      }
-      const audioExt = AUDIO_MIME[fileExt] ? fileExt : 'mp3'
-
-      const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
-      const { uploadUrl, s3Key } = await uploadRes.json()
-
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': AUDIO_MIME[audioExt] }, body: file })
-
-      const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ s3Key, nombre: demoNombre.trim() || 'Demo sin nombre' }),
-      })
-
-      if (analyzeRes.status === 403) {
-        const errData = await analyzeRes.json().catch(() => ({}))
-        const err = new Error(errData.error || 'Límite alcanzado')
-        err.code = errData.code ?? 'FORBIDDEN'
-        throw err
-      }
-      if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
-      return analyzeRes.json()
-    },
+    mutationFn: (file) => performUpload(token, demoNombre, file),
     onSuccess: (data) => {
       setJobId(data.jobId)
       if (data.demoId) setPendingDemoId(data.demoId)
@@ -425,7 +426,7 @@ export default function MiAdn() {
         })
         .catch(() => {})
     }, 1500)
-  }, [jobData?.status]) // eslint-disable-line
+  }, [jobData?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Delete demo ── */
   const handleDeleteDemo = async (demoId) => {
@@ -455,7 +456,7 @@ export default function MiAdn() {
   const handleCoverFile = async (file) => {
     if (!file || !activeCoverId) return
     try {
-      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
+      const ext = getCoverExt(file.type)
       const urlRes = await fetch(
         `${API_URL}/images/upload-url?type=cover&ext=${ext}`,
         { headers: { Authorization: `Bearer ${token}` } }

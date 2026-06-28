@@ -15,6 +15,21 @@ const pool                          = require('../db/index');
 const s3                            = require('../utils/s3Client');
 const mailer                        = require('../utils/mailer');
 
+async function checkFreemiumLimit(usuarioId) {
+  try {
+    const [demoCount, userRow] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM demos WHERE usuario_id = $1 AND activo = true', [usuarioId]),
+      pool.query('SELECT COALESCE(es_premium, false) AS es_premium FROM usuarios WHERE id = $1', [usuarioId]),
+    ]);
+    const count     = parseInt(demoCount.rows[0].count, 10);
+    const esPremium = userRow.rows[0]?.es_premium ?? false;
+    if (count >= 3 && !esPremium) return 'DEMO_LIMIT_REACHED';
+  } catch (limitErr) {
+    if (limitErr.code !== '42P01' && limitErr.code !== '42703') throw limitErr;
+  }
+  return null;
+}
+
 /** Extensiones de audio permitidas y su Content-Type. */
 const AUDIO_EXT_MIME = {
   mp3:  'audio/mpeg',
@@ -102,22 +117,11 @@ exports.analyze = async (req, res, next) => {
     }
 
     // ── Verificar límite freemium (máx 3 demos activos) ──────────────────────
-    try {
-      const [demoCount, userRow] = await Promise.all([
-        pool.query('SELECT COUNT(*) FROM demos WHERE usuario_id = $1 AND activo = true', [req.usuario.id]),
-        pool.query('SELECT COALESCE(es_premium, false) AS es_premium FROM usuarios WHERE id = $1', [req.usuario.id]),
-      ]);
-      const count     = parseInt(demoCount.rows[0].count, 10);
-      const esPremium = userRow.rows[0]?.es_premium ?? false;
-
-      if (count >= 3 && !esPremium) {
-        return res.status(403).json({
-          error: 'Has alcanzado el límite de 3 demos para cuentas gratuitas. Actualiza a Premium para almacenamiento ilimitado.',
-          code:  'DEMO_LIMIT_REACHED',
-        });
-      }
-    } catch (limitErr) {
-      if (limitErr.code !== '42P01' && limitErr.code !== '42703') throw limitErr;
+    if (await checkFreemiumLimit(req.usuario.id) === 'DEMO_LIMIT_REACHED') {
+      return res.status(403).json({
+        error: 'Has alcanzado el límite de 3 demos para cuentas gratuitas. Actualiza a Premium para almacenamiento ilimitado.',
+        code:  'DEMO_LIMIT_REACHED',
+      });
     }
 
     // ── Crear registro en demos ──────────────────────────────────────────────
@@ -171,9 +175,12 @@ exports.analyze = async (req, res, next) => {
         [iaData.jobId, jobId]
       );
 
-      console.log(`[AUDIO] Job ${jobId} → IA Job ${iaData.jobId}`);
+      const safeIaJobId = String(iaData.jobId ?? '').replace(/[\r\n]/g, '_');
+      const safeJobId = String(jobId ?? '').replace(/[\r\n]/g, '_');
+      console.log(`[AUDIO] Job ${safeJobId} → IA Job ${safeIaJobId}`);
     } catch (iaError) {
-      console.error('[AUDIO] Error contactando al IA Service:', iaError.message);
+      const safeIaError = String(iaError.message ?? '').replace(/[\r\n]/g, '_');
+      console.error(`[AUDIO] Error contactando al IA Service: ${safeIaError}`);
       await pool.query(
         `UPDATE jobs SET status = 'error' WHERE id = $1`,
         [jobId]
@@ -186,6 +193,125 @@ exports.analyze = async (req, res, next) => {
   }
 };
 
+async function fetchJobFromDb(jobId) {
+  try {
+    return await pool.query(
+      'SELECT id, usuario_id, s3_key, status, ia_job_id, demo_id, created_at FROM jobs WHERE id = $1',
+      [jobId]
+    );
+  } catch (colErr) {
+    if (colErr.code !== '42703') throw colErr;
+    return pool.query(
+      'SELECT id, usuario_id, s3_key, status, ia_job_id, NULL::uuid AS demo_id, created_at FROM jobs WHERE id = $1',
+      [jobId]
+    );
+  }
+}
+
+async function upsertPerfil(usuarioId, vector, s3Key, audioMetadata) {
+  try {
+    await pool.query(
+      `INSERT INTO perfiles (usuario_id, audio_vector, s3_key, audio_metadata, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (usuario_id)
+       DO UPDATE SET
+         audio_vector   = EXCLUDED.audio_vector,
+         s3_key         = EXCLUDED.s3_key,
+         audio_metadata = EXCLUDED.audio_metadata,
+         updated_at     = NOW()`,
+      [usuarioId, JSON.stringify(vector), s3Key, audioMetadata ? JSON.stringify(audioMetadata) : null]
+    );
+  } catch (insertErr) {
+    if (insertErr.code !== '42703') throw insertErr;
+    console.warn('[AUDIO] audio_metadata column missing — saving without it.');
+    await pool.query(
+      `INSERT INTO perfiles (usuario_id, audio_vector, s3_key, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (usuario_id)
+       DO UPDATE SET
+         audio_vector = EXCLUDED.audio_vector,
+         s3_key       = EXCLUDED.s3_key,
+         updated_at   = NOW()`,
+      [usuarioId, JSON.stringify(vector), s3Key]
+    );
+  }
+}
+
+async function updateDemo(demoId, vector, audioMetadata, mp3S3Key) {
+  const fields = ['audio_vector = $1', 'audio_metadata = $2'];
+  const vals   = [JSON.stringify(vector), audioMetadata ? JSON.stringify(audioMetadata) : null];
+  if (mp3S3Key) {
+    fields.push(`s3_key = $${vals.length + 1}`);
+    vals.push(mp3S3Key);
+  }
+  vals.push(demoId);
+  await pool.query(`UPDATE demos SET ${fields.join(', ')} WHERE id = $${vals.length}`, vals);
+}
+
+async function handleIaDone(job, jobId, iaData) {
+  const audioMetadata = iaData.metadata || null;
+  const finalS3Key    = iaData.mp3_s3_key || job.s3_key;
+
+  await upsertPerfil(job.usuario_id, iaData.vector, finalS3Key, audioMetadata);
+
+  if (job.demo_id) {
+    try {
+      await updateDemo(job.demo_id, iaData.vector, audioMetadata, iaData.mp3_s3_key);
+    } catch (demoErr) {
+      console.warn('[AUDIO] No se pudo actualizar demos:', demoErr.message);
+    }
+  }
+
+  if (iaData.mp3_s3_key) {
+    await pool.query(`UPDATE jobs SET status = 'done', s3_key = $1 WHERE id = $2`, [iaData.mp3_s3_key, jobId]);
+  } else {
+    await pool.query(`UPDATE jobs SET status = 'done' WHERE id = $1`, [jobId]);
+  }
+
+  const safeFinalS3Key = String(finalS3Key ?? '').replace(/[\r\n]/g, '_');
+  const safeJobId = String(jobId ?? '').replace(/[\r\n]/g, '_');
+  console.log(`[AUDIO] ✓ Job ${safeJobId} completado | s3_key final=${safeFinalS3Key}`);
+
+  pool.query('SELECT nombre, email FROM usuarios WHERE id = $1', [job.usuario_id])
+    .then(({ rows }) => {
+      if (!rows[0]) return;
+      return mailer.sendAdnReadyEmail({ to: rows[0].email, nombre: rows[0].nombre });
+    })
+    .catch(() => {});
+
+  return { jobId: job.id, status: 'done', demoId: job.demo_id, s3Key: finalS3Key, createdAt: job.created_at };
+}
+
+async function pollIaService(job, jobId) {
+  const iaController = new AbortController();
+  const iaTimeout    = setTimeout(() => iaController.abort(), 25_000);
+  try {
+    let iaResponse;
+    try {
+      iaResponse = await fetch(
+        `${process.env.IA_SERVICE_URL}/jobs/${job.ia_job_id}`,
+        { signal: iaController.signal }
+      );
+    } finally {
+      clearTimeout(iaTimeout);
+    }
+
+    const iaData = await iaResponse.json();
+    if (iaData.status === 'done') return handleIaDone(job, jobId, iaData);
+    if (iaData.status === 'error') {
+      await pool.query(`UPDATE jobs SET status = 'error' WHERE id = $1`, [jobId]);
+      return { jobId: job.id, status: 'error', mensaje: iaData.message, createdAt: job.created_at };
+    }
+  } catch (iaError) {
+    if (iaError.name === 'AbortError') {
+      console.error(`[AUDIO] Timeout (25 s) consultando IA Service para job ${jobId}`);
+    } else {
+      console.error('[AUDIO] Error consultando IA Service:', iaError.message);
+    }
+  }
+  return null;
+}
+
 /**
  * GET /audio/jobs/:jobId
  * Polling: si el IA Service terminó, actualiza perfiles + demos + jobs y devuelve done.
@@ -194,159 +320,22 @@ exports.obtenerJob = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    let resultado;
-    try {
-      resultado = await pool.query(
-        'SELECT id, usuario_id, s3_key, status, ia_job_id, demo_id, created_at FROM jobs WHERE id = $1',
-        [jobId]
-      );
-    } catch (colErr) {
-      if (colErr.code !== '42703') throw colErr;
-      resultado = await pool.query(
-        'SELECT id, usuario_id, s3_key, status, ia_job_id, NULL::uuid AS demo_id, created_at FROM jobs WHERE id = $1',
-        [jobId]
-      );
-    }
-
+    const resultado = await fetchJobFromDb(jobId);
     if (resultado.rows.length === 0) {
       return res.status(404).json({ error: 'Job no encontrado' });
     }
 
     const job = resultado.rows[0];
-
     if (job.usuario_id !== req.usuario.id) {
       return res.status(403).json({ error: 'No tienes permiso para ver este job' });
     }
 
-    // Si el job sigue en 'processing', consultar al IA Service
     if (job.status === 'processing' && job.ia_job_id) {
-      try {
-        // Timeout 25s para no bloquear si el IA Service no responde
-        const iaController = new AbortController();
-        const iaTimeout    = setTimeout(() => iaController.abort(), 25_000);
-
-        let iaResponse;
-        try {
-          iaResponse = await fetch(
-            `${process.env.IA_SERVICE_URL}/jobs/${job.ia_job_id}`,
-            { signal: iaController.signal }
-          );
-        } finally {
-          clearTimeout(iaTimeout);
-        }
-
-        const iaData = await iaResponse.json();
-
-        if (iaData.status === 'done') {
-          const audioMetadata = iaData.metadata || null;
-          const finalS3Key    = iaData.mp3_s3_key || job.s3_key;
-
-          // ── Actualizar perfiles con vector + s3_key definitivo ────────────
-          try {
-            await pool.query(
-              `INSERT INTO perfiles (usuario_id, audio_vector, s3_key, audio_metadata, updated_at)
-               VALUES ($1, $2, $3, $4, NOW())
-               ON CONFLICT (usuario_id)
-               DO UPDATE SET
-                 audio_vector   = EXCLUDED.audio_vector,
-                 s3_key         = EXCLUDED.s3_key,
-                 audio_metadata = EXCLUDED.audio_metadata,
-                 updated_at     = NOW()`,
-              [job.usuario_id, JSON.stringify(iaData.vector), finalS3Key, audioMetadata ? JSON.stringify(audioMetadata) : null]
-            );
-          } catch (insertErr) {
-            if (insertErr.code === '42703') {
-              console.warn('[AUDIO] audio_metadata column missing — saving without it.');
-              await pool.query(
-                `INSERT INTO perfiles (usuario_id, audio_vector, s3_key, updated_at)
-                 VALUES ($1, $2, $3, NOW())
-                 ON CONFLICT (usuario_id)
-                 DO UPDATE SET
-                   audio_vector = EXCLUDED.audio_vector,
-                   s3_key       = EXCLUDED.s3_key,
-                   updated_at   = NOW()`,
-                [job.usuario_id, JSON.stringify(iaData.vector), finalS3Key]
-              );
-            } else {
-              throw insertErr;
-            }
-          }
-
-          // ── Actualizar demos: vector + s3_key MP3 ─────────────────────────
-          if (job.demo_id) {
-            try {
-              const demoFields = ['audio_vector = $1', 'audio_metadata = $2'];
-              const demoVals   = [
-                JSON.stringify(iaData.vector),
-                audioMetadata ? JSON.stringify(audioMetadata) : null,
-              ];
-              if (iaData.mp3_s3_key) {
-                demoFields.push(`s3_key = $${demoVals.length + 1}`);
-                demoVals.push(iaData.mp3_s3_key);
-              }
-              demoVals.push(job.demo_id);
-              await pool.query(
-                `UPDATE demos SET ${demoFields.join(', ')} WHERE id = $${demoVals.length}`,
-                demoVals
-              );
-            } catch (demoErr) {
-              console.warn('[AUDIO] No se pudo actualizar demos:', demoErr.message);
-            }
-          }
-
-          // ── Marcar job como done ──────────────────────────────────────────
-          if (iaData.mp3_s3_key) {
-            await pool.query(
-              `UPDATE jobs SET status = 'done', s3_key = $1 WHERE id = $2`,
-              [iaData.mp3_s3_key, jobId]
-            );
-          } else {
-            await pool.query(`UPDATE jobs SET status = 'done' WHERE id = $1`, [jobId]);
-          }
-
-          console.log(`[AUDIO] ✓ Job ${jobId} completado | s3_key final=${finalS3Key}`);
-
-          // Email "ADN listo" — fire-and-forget
-          pool.query('SELECT nombre, email FROM usuarios WHERE id = $1', [job.usuario_id])
-            .then(({ rows }) => {
-              if (!rows[0]) return;
-              return mailer.sendAdnReadyEmail({ to: rows[0].email, nombre: rows[0].nombre });
-            })
-            .catch(() => {});
-
-          return res.json({
-            jobId:     job.id,
-            status:    'done',
-            demoId:    job.demo_id,
-            s3Key:     finalS3Key,
-            createdAt: job.created_at,
-          });
-        }
-
-        if (iaData.status === 'error') {
-          await pool.query(
-            `UPDATE jobs SET status = 'error' WHERE id = $1`,
-            [jobId]
-          );
-          return res.json({ jobId: job.id, status: 'error', mensaje: iaData.message, createdAt: job.created_at });
-        }
-
-      } catch (iaError) {
-        if (iaError.name === 'AbortError') {
-          console.error(`[AUDIO] Timeout (25 s) consultando IA Service para job ${jobId}`);
-        } else {
-          console.error('[AUDIO] Error consultando IA Service:', iaError.message);
-        }
-        // No marcamos como 'error': el frontend reintentará.
-      }
+      const iaResult = await pollIaService(job, jobId);
+      if (iaResult) return res.json(iaResult);
     }
 
-    res.json({
-      jobId:     job.id,
-      status:    job.status,
-      s3Key:     job.s3_key,
-      createdAt: job.created_at,
-    });
+    res.json({ jobId: job.id, status: job.status, s3Key: job.s3_key, createdAt: job.created_at });
   } catch (error) {
     next(error);
   }

@@ -140,6 +140,62 @@ exports.perfilPublico = async (req, res, next) => {
   }
 };
 
+const PERFIL_KEYS = [
+  'bio', 'oficio', 'experiencia', 'user_tags', 'foto_url',
+  'banner_url', 'instagram_url', 'spotify_url', 'discord_url', 'card_settings',
+];
+
+function buildUsuarioCampos(body) {
+  const campos  = [];
+  const valores = [];
+  let i = 1;
+  if (body.nombre)           { campos.push(`nombre = $${i++}`);           valores.push(body.nombre); }
+  if (body.instrumento)      { campos.push(`instrumento = $${i++}`);      valores.push(body.instrumento); }
+  if (body.ciudad)           { campos.push(`ciudad = $${i++}`);           valores.push(body.ciudad); }
+  if (body.fecha_nacimiento) { campos.push(`fecha_nacimiento = $${i++}`); valores.push(body.fecha_nacimiento); }
+  return { campos, valores, i };
+}
+
+async function upsertPerfilData(usuarioId, body) {
+  const { bio, oficio, experiencia, user_tags, foto_url, banner_url,
+    instagram_url, spotify_url, discord_url, card_settings } = body;
+  try {
+    await pool.query(
+      `INSERT INTO perfiles
+         (usuario_id, bio, oficio, experiencia, user_tags, foto_url, banner_url,
+          instagram_url, spotify_url, discord_url, card_settings)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (usuario_id) DO UPDATE SET
+         bio           = COALESCE(EXCLUDED.bio,           perfiles.bio),
+         oficio        = COALESCE(EXCLUDED.oficio,        perfiles.oficio),
+         experiencia   = COALESCE(EXCLUDED.experiencia,   perfiles.experiencia),
+         user_tags     = COALESCE(EXCLUDED.user_tags,     perfiles.user_tags),
+         foto_url      = COALESCE(EXCLUDED.foto_url,      perfiles.foto_url),
+         banner_url    = COALESCE(EXCLUDED.banner_url,    perfiles.banner_url),
+         instagram_url = COALESCE(EXCLUDED.instagram_url, perfiles.instagram_url),
+         spotify_url   = COALESCE(EXCLUDED.spotify_url,   perfiles.spotify_url),
+         discord_url   = COALESCE(EXCLUDED.discord_url,   perfiles.discord_url),
+         card_settings = COALESCE(EXCLUDED.card_settings, perfiles.card_settings),
+         updated_at    = NOW()`,
+      [
+        usuarioId,
+        bio           ?? null,
+        oficio        ? JSON.stringify(oficio)        : null,
+        experiencia   ? parseInt(experiencia)         : null,
+        user_tags     ? JSON.stringify(user_tags)     : null,
+        foto_url      ?? null,
+        banner_url    ?? null,
+        instagram_url ?? null,
+        spotify_url   ?? null,
+        discord_url   ?? null,
+        card_settings ? JSON.stringify(card_settings) : null,
+      ]
+    );
+  } catch (perfErr) {
+    if (perfErr.code !== '42703') throw perfErr;
+  }
+}
+
 /**
  * PUT /usuarios/perfil
  * Acepta campos de usuarios (nombre, instrumento, ciudad, fecha_nacimiento)
@@ -147,83 +203,28 @@ exports.perfilPublico = async (req, res, next) => {
  */
 exports.actualizarPerfil = async (req, res, next) => {
   try {
-    const {
-      nombre, instrumento, ciudad, fecha_nacimiento,
-      bio, oficio, experiencia, user_tags, foto_url, banner_url,
-      instagram_url, spotify_url, discord_url,
-      card_settings,
-    } = req.body;
-
     // ── 1. Actualizar tabla usuarios ──────────────────────────────────────────
-    const uCampos  = [];
-    const uValores = [];
-    let i = 1;
+    const { campos, valores, i } = buildUsuarioCampos(req.body);
+    const tienePerfil = PERFIL_KEYS.some(k => req.body[k] !== undefined);
 
-    if (nombre)           { uCampos.push(`nombre = $${i++}`);           uValores.push(nombre); }
-    if (instrumento)      { uCampos.push(`instrumento = $${i++}`);      uValores.push(instrumento); }
-    if (ciudad)           { uCampos.push(`ciudad = $${i++}`);           uValores.push(ciudad); }
-    if (fecha_nacimiento) { uCampos.push(`fecha_nacimiento = $${i++}`); uValores.push(fecha_nacimiento); }
+    if (!campos.length && !tienePerfil) {
+      return res.status(400).json({ error: 'Debes enviar al menos un campo para actualizar' });
+    }
 
     let usuarioRow = null;
-    if (uCampos.length > 0) {
-      uValores.push(req.usuario.id);
+    if (campos.length > 0) {
+      valores.push(req.usuario.id);
       const r = await pool.query(
-        `UPDATE usuarios SET ${uCampos.join(', ')}
+        `UPDATE usuarios SET ${campos.join(', ')}
          WHERE id = $${i}
          RETURNING id, nombre, email, instrumento, ciudad, fecha_nacimiento, created_at`,
-        uValores
+        valores
       );
       usuarioRow = r.rows[0];
     }
 
     // ── 2. Actualizar tabla perfiles (identidad + redes + card_settings) ──────
-    const tienePerfil = bio !== undefined || oficio !== undefined
-      || experiencia !== undefined || user_tags !== undefined || foto_url !== undefined
-      || banner_url !== undefined
-      || instagram_url !== undefined || spotify_url !== undefined || discord_url !== undefined
-      || card_settings !== undefined;
-
-    if (tienePerfil) {
-      try {
-        await pool.query(
-          `INSERT INTO perfiles
-             (usuario_id, bio, oficio, experiencia, user_tags, foto_url, banner_url,
-              instagram_url, spotify_url, discord_url, card_settings)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (usuario_id) DO UPDATE SET
-             bio           = COALESCE(EXCLUDED.bio,           perfiles.bio),
-             oficio        = COALESCE(EXCLUDED.oficio,        perfiles.oficio),
-             experiencia   = COALESCE(EXCLUDED.experiencia,   perfiles.experiencia),
-             user_tags     = COALESCE(EXCLUDED.user_tags,     perfiles.user_tags),
-             foto_url      = COALESCE(EXCLUDED.foto_url,      perfiles.foto_url),
-             banner_url    = COALESCE(EXCLUDED.banner_url,    perfiles.banner_url),
-             instagram_url = COALESCE(EXCLUDED.instagram_url, perfiles.instagram_url),
-             spotify_url   = COALESCE(EXCLUDED.spotify_url,   perfiles.spotify_url),
-             discord_url   = COALESCE(EXCLUDED.discord_url,   perfiles.discord_url),
-             card_settings = COALESCE(EXCLUDED.card_settings, perfiles.card_settings),
-             updated_at    = NOW()`,
-          [
-            req.usuario.id,
-            bio           ?? null,
-            oficio        ? JSON.stringify(oficio)    : null,
-            experiencia   ? parseInt(experiencia)     : null,
-            user_tags     ? JSON.stringify(user_tags) : null,
-            foto_url      ?? null,
-            banner_url    ?? null,
-            instagram_url ?? null,
-            spotify_url   ?? null,
-            discord_url   ?? null,
-            card_settings ? JSON.stringify(card_settings) : null,
-          ]
-        );
-      } catch (perfErr) {
-        if (perfErr.code !== '42703') throw perfErr;
-      }
-    }
-
-    if (!uCampos.length && !tienePerfil) {
-      return res.status(400).json({ error: 'Debes enviar al menos un campo para actualizar' });
-    }
+    if (tienePerfil) await upsertPerfilData(req.usuario.id, req.body);
 
     // Devolver el perfil completo
     if (usuarioRow) return res.json(usuarioRow);

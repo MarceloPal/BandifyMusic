@@ -380,7 +380,7 @@
 .modal-footer {
   margin-top: 50px;
   padding-top: 30px;
-  border-t: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .read-more-btn {

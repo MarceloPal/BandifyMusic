@@ -28,7 +28,7 @@ print(f"[STARTUP] AWS_BUCKET: {os.getenv('AWS_BUCKET')}")
 print(f"[STARTUP] AWS_REGION: {os.getenv('AWS_REGION')}")
 
 
-async def process_audio_task(job_id: str, s3_key: str) -> None:
+def process_audio_task(job_id: str, s3_key: str) -> None:
     """
     Background task: download → hi-fi segment extraction → analyze →
     FFmpeg transcode (if lossless) → upload MP3 → delete original → save to DB.
@@ -78,7 +78,11 @@ async def health():
     return HealthResponse(status="ok", service="bandify-ia-service")
 
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post(
+    "/analyze",
+    response_model=AnalyzeResponse,
+    responses={400: {"description": "s3_key o usuario_id faltante"}, 500: {"description": "Error de base de datos"}},
+)
 async def analyze(request: AnalyzeRequest):
     if not request.s3_key or not request.s3_key.strip():
         raise HTTPException(status_code=400, detail="s3_key es obligatorio")
@@ -89,11 +93,15 @@ async def analyze(request: AnalyzeRequest):
     if not create_job(job_id, request.usuario_id, request.s3_key):
         raise HTTPException(status_code=500, detail="Error creando job en la base de datos")
 
-    asyncio.create_task(process_audio_task(job_id, request.s3_key))
+    _task = asyncio.get_event_loop().run_in_executor(None, process_audio_task, job_id, request.s3_key)
     return AnalyzeResponse(jobId=job_id, status="processing")
 
 
-@app.get("/jobs/{jobId}", response_model=JobStatusResponse)
+@app.get(
+    "/jobs/{jobId}",
+    response_model=JobStatusResponse,
+    responses={404: {"description": "Job no encontrado"}},
+)
 async def get_job_status_endpoint(jobId: str):
     status, vector, error_message, metadata, s3_key = get_job_status(jobId)
 
@@ -115,5 +123,6 @@ async def get_job_status_endpoint(jobId: str):
 
 if __name__ == "__main__":
     import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")  # NOSONAR — required by Railway/Render PaaS
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host=host, port=port)

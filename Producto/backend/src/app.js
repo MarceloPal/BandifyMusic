@@ -33,6 +33,7 @@ const subscriptionsRoutes  = require('./routes/subscriptions');
 const app = express();
 
 // ─── Middlewares globales ───────────────────────────────────────────────────
+app.disable('x-powered-by');
 app.use(cors(corsOptions));
 app.use(express.json());
 

@@ -1,28 +1,50 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
 
 const AuthContext = createContext(null)
 
+const sanitizeToken = (raw) => {
+  if (typeof raw !== 'string' || raw.trim() === '') return null
+  return raw.trim()
+}
+
+const sanitizeUser = (raw) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  return {
+    id:          typeof raw.id === 'string'     ? raw.id          : null,
+    nombre:      typeof raw.nombre === 'string' ? raw.nombre      : '',
+    email:       typeof raw.email === 'string'  ? raw.email       : '',
+    es_premium:  Boolean(raw.es_premium),
+    ciudad:      typeof raw.ciudad === 'string' ? raw.ciudad      : null,
+    user_tags:   Array.isArray(raw.user_tags)   ? raw.user_tags   : [],
+    foto_url:    typeof raw.foto_url === 'string' ? raw.foto_url  : null,
+    audio_vector: raw.audio_vector ?? null,
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'))
+  const [token, setToken] = useState(() => sanitizeToken(localStorage.getItem('token')))
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('user'))
+      return sanitizeUser(JSON.parse(localStorage.getItem('user')))
     } catch {
       return null
     }
   })
 
   const login = (newToken, usuario) => {
-    localStorage.setItem('token', newToken)
-    localStorage.setItem('user', JSON.stringify(usuario))
-    setToken(newToken)
-    setUser(usuario)
+    const safeToken = sanitizeToken(newToken)
+    const safeUser  = sanitizeUser(usuario)
+    localStorage.setItem('token', safeToken ?? '')
+    localStorage.setItem('user', JSON.stringify(safeUser))
+    setToken(safeToken)
+    setUser(safeUser)
   }
 
   // Fusiona campos nuevos en el usuario sin re-login (ej. tras análisis de audio)
   const updateUser = (campos) => {
     setUser((prev) => {
-      const siguiente = { ...prev, ...campos }
+      const siguiente = sanitizeUser({ ...prev, ...campos })
       localStorage.setItem('user', JSON.stringify(siguiente))
       return siguiente
     })
@@ -35,12 +57,19 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const contextValue = useMemo(
+    () => ({ token, user, login, logout, updateUser }),
+    [token, user] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, updateUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
 }
+
+AuthProvider.propTypes = { children: PropTypes.node.isRequired }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext)

@@ -34,56 +34,62 @@ function SectionHeader({ children }) {
   )
 }
 
-export default function Profile() {
-  const { user, token, updateUser } = useAuth()
-  const navigate                    = useNavigate()
-  const { username }                = useParams()
-  const isOwnProfile                = !username
+/* ─── Module-level helpers ─── */
 
-  // ── Estado: perfil público ──────────────────────────────────────────────
-  const [publicProfile,   setPublicProfile]   = useState(null)
-  const [profileLoading,  setProfileLoading]  = useState(false)
-  const [profileNotFound, setProfileNotFound] = useState(false)
+function getDisplayName(perfilData, isOwnProfile, userEmail) {
+  return perfilData?.nombre || (isOwnProfile ? userEmail?.split('@')[0] || '' : '')
+}
+function getAsList(value) { return Array.isArray(value) ? value : [] }
+function deriveStatsFrom(v, meta) { return v ? deriveStats(v, meta) : null }
+function deriveMoodFrom(stats) { return stats ? deriveMood(stats) : null }
+function detectKeyFrom(stats) { return stats ? detectKey(stats.chroma) : null }
+function suggestGenresFrom(stats) { return stats ? suggestGenres(stats) : [] }
 
-  // ── Estado: UI ──────────────────────────────────────────────────────────
-  const [activeTab,       setActiveTab]       = useState('demos')
-  const [editingBio,      setEditingBio]      = useState(false)
-  const [bioValue,        setBioValue]        = useState(user?.bio ?? '')
-  const [bioSaving,       setBioSaving]       = useState(false)
-  const [activeCoverKey,  setActiveCoverKey]  = useState(null)
-  const [photoUploading,  setPhotoUploading]  = useState(false)
-  const [bannerUploading, setBannerUploading] = useState(false)
-  const [demos,           setDemos]           = useState([])
-  const [copied,          setCopied]          = useState(false)
-  const [userTocatas,     setUserTocatas]     = useState([])
-  const [tocatasLoading,  setTocatasLoading]  = useState(false)
+async function saveProfileBio(token, bioValue) {
+  const res = await fetch(`${API_URL}/usuarios/perfil`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ bio: bioValue.trim() }),
+  })
+  return res.ok
+}
 
-  const photoInputRef  = useRef(null)
-  const bannerInputRef = useRef(null)
+async function uploadProfileImage(file, type, token) {
+  if (!file) return null
+  const ext = file.name.split('.').pop().toLowerCase()
+  if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return null
+  const safeExt = ext === 'jpeg' ? 'jpg' : ext
+  const urlRes = await fetch(`${API_URL}/images/upload-url?type=${type}&ext=${safeExt}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const { uploadUrl, key } = await urlRes.json()
+  await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file })
+  const r = await fetch(`${API_URL}/usuarios/perfil`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(type === 'avatar' ? { foto_url: key } : { banner_url: key }),
+  })
+  return r.ok ? key : null
+}
 
-  // ── Fuente de datos unificada ───────────────────────────────────────────
-  // En vista pública usa publicProfile; en vista propia usa user del contexto.
-  const perfilData = isOwnProfile ? user : publicProfile
+/* ─── Focused custom hooks (one concern each) ─── */
 
-  // Hooks de imagen: dependen de perfilData (se actualizan cuando cambia)
-  const { url: photoUrl }     = useImageUrl(perfilData?.foto_url   ?? null)
-  const { url: bannerUrl }    = useImageUrl(perfilData?.banner_url ?? null)
-  const { url: activeCoverUrl } = useImageUrl(activeCoverKey)
-
-  // ── Effect: refrescar perfil propio al montar ───────────────────────────
+function useOwnProfileSync(token, isOwnProfile, updateUser) {
   useEffect(() => {
     if (!isOwnProfile || !token) return
     let cancelled = false
-    fetch(`${API_URL}/usuarios/perfil`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${API_URL}/usuarios/perfil`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && data?.id) updateUser(data) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [token, isOwnProfile]) // eslint-disable-line react-hooks/exhaustive-deps
+}
 
-  // ── Effect: cargar perfil público por username ──────────────────────────
+function usePublicProfile(username, isOwnProfile) {
+  const [publicProfile,   setPublicProfile]   = useState(null)
+  const [profileLoading,  setProfileLoading]  = useState(false)
+  const [profileNotFound, setProfileNotFound] = useState(false)
   useEffect(() => {
     if (isOwnProfile) return
     setProfileLoading(true)
@@ -98,28 +104,30 @@ export default function Profile() {
       .catch(() => {})
       .finally(() => setProfileLoading(false))
   }, [username, isOwnProfile])
+  return { publicProfile, profileLoading, profileNotFound }
+}
 
-  // ── Effect: URL de audio (presigned) ───────────────────────────────────
+function useAudioUrl(s3Key, token) {
   const [audioUrl, setAudioUrl] = useState(null)
   useEffect(() => {
-    if (!perfilData?.s3_key || !token) { setAudioUrl(null); return }
+    if (!s3Key || !token) { setAudioUrl(null); return }
     let cancelled = false
-    fetch(`${API_URL}/audio/listen-url?key=${encodeURIComponent(perfilData.s3_key)}`, {
+    fetch(`${API_URL}/audio/listen-url?key=${encodeURIComponent(s3Key)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && data?.url) setAudioUrl(data.url) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [perfilData?.s3_key, token])
+  }, [s3Key, token])
+  return audioUrl
+}
 
-  // ── Effect: lista de demos (solo perfil propio) ─────────────────────────
+function useDemosList(isOwnProfile, activeS3Key, token) {
+  const [demos,          setDemos]          = useState([])
+  const [activeCoverKey, setActiveCoverKey] = useState(null)
   useEffect(() => {
-    if (!isOwnProfile || !user?.s3_key || !token) {
-      setActiveCoverKey(null)
-      setDemos([])
-      return
-    }
+    if (!isOwnProfile || !activeS3Key || !token) { setActiveCoverKey(null); setDemos([]); return }
     let cancelled = false
     fetch(`${API_URL}/demos`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : [])
@@ -127,98 +135,103 @@ export default function Profile() {
         if (cancelled) return
         const list = Array.isArray(demoList) ? demoList : []
         setDemos(list)
-        const active = list.find((d) => d.s3_key === user.s3_key)
+        const active = list.find((d) => d.s3_key === activeS3Key)
         setActiveCoverKey(active?.cover_url ?? null)
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [user?.s3_key, token, isOwnProfile])
+  }, [activeS3Key, token, isOwnProfile])
+  return { demos, activeCoverKey }
+}
 
-  // ── Handlers: solo activos en perfil propio ─────────────────────────────
-  const saveBio = async () => {
-    setBioSaving(true)
-    try {
-      const res = await fetch(`${API_URL}/usuarios/perfil`, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ bio: bioValue.trim() }),
-      })
-      if (res.ok) { updateUser({ bio: bioValue.trim() }); setEditingBio(false) }
-    } finally { setBioSaving(false) }
-  }
-
-  const handlePhotoUpload = async (file) => {
-    if (!file) return
-    const ext = file.name.split('.').pop().toLowerCase()
-    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return
-    setPhotoUploading(true)
-    try {
-      const urlRes = await fetch(`${API_URL}/images/upload-url?type=avatar&ext=${ext === 'jpeg' ? 'jpg' : ext}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const { uploadUrl, key } = await urlRes.json()
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file })
-      const r = await fetch(`${API_URL}/usuarios/perfil`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ foto_url: key }),
-      })
-      if (r.ok) updateUser({ foto_url: key })
-    } finally { setPhotoUploading(false) }
-  }
-
-  const handleBannerUpload = async (file) => {
-    if (!file) return
-    const ext = file.name.split('.').pop().toLowerCase()
-    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return
-    setBannerUploading(true)
-    try {
-      const urlRes = await fetch(`${API_URL}/images/upload-url?type=banner&ext=${ext === 'jpeg' ? 'jpg' : ext}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const { uploadUrl, key } = await urlRes.json()
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file })
-      const r = await fetch(`${API_URL}/usuarios/perfil`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ banner_url: key }),
-      })
-      if (r.ok) updateUser({ banner_url: key })
-    } finally { setBannerUploading(false) }
-  }
-
-  const handleShare = () => {
-    const shareUrl = isOwnProfile
-      ? `${window.location.origin}/u/${perfilData?.nombre}`
-      : window.location.href
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      })
-    }
-  }
-
-  // ── Effect: tocatas del usuario ────────────────────────────────────────
+function useTocatasList(activeTab, perfilId, token) {
+  const [userTocatas,    setUserTocatas]    = useState([])
+  const [tocatasLoading, setTocatasLoading] = useState(false)
   useEffect(() => {
-    if (activeTab !== 'tocatas' || !perfilData?.id) return
+    if (activeTab !== 'tocatas' || !perfilId) return
     let cancelled = false
     setTocatasLoading(true)
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
-    fetch(`${API_URL}/tocatas?organizador_id=${perfilData.id}`, { headers })
+    fetch(`${API_URL}/tocatas?organizador_id=${perfilId}`, { headers })
       .then((r) => r.ok ? r.json() : [])
       .then((data) => { if (!cancelled) setUserTocatas(Array.isArray(data) ? data : []) })
       .catch(() => { if (!cancelled) setUserTocatas([]) })
       .finally(() => { if (!cancelled) setTocatasLoading(false) })
     return () => { cancelled = true }
-  }, [activeTab, perfilData?.id, token]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, perfilId, token]) // eslint-disable-line react-hooks/exhaustive-deps
+  return { userTocatas, tocatasLoading }
+}
 
-  // ── Audio + estadísticas ────────────────────────────────────────────────
+export default function Profile() {
+  const { user, token, updateUser } = useAuth()
+  const navigate                    = useNavigate()
+  const { username }                = useParams()
+  const isOwnProfile                = !username
+
+  // ── UI state ────────────────────────────────────────────────────────────
+  const [activeTab,       setActiveTab]       = useState('demos')
+  const [editingBio,      setEditingBio]      = useState(false)
+  const [bioValue,        setBioValue]        = useState(user?.bio ?? '')
+  const [bioSaving,       setBioSaving]       = useState(false)
+  const [photoUploading,  setPhotoUploading]  = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [copied,          setCopied]          = useState(false)
+  const photoInputRef  = useRef(null)
+  const bannerInputRef = useRef(null)
+
+  // ── Data hooks ──────────────────────────────────────────────────────────
+  useOwnProfileSync(token, isOwnProfile, updateUser)
+  const { publicProfile, profileLoading, profileNotFound } = usePublicProfile(username, isOwnProfile)
+  const perfilData    = isOwnProfile ? user : publicProfile
+  const audioUrl      = useAudioUrl(perfilData?.s3_key, token)
+  const { demos, activeCoverKey }   = useDemosList(isOwnProfile, user?.s3_key, token)
+  const { userTocatas, tocatasLoading } = useTocatasList(activeTab, perfilData?.id, token)
+
+  // ── Image URLs ──────────────────────────────────────────────────────────
+  const { url: photoUrl }       = useImageUrl(perfilData?.foto_url   ?? null)
+  const { url: bannerUrl }      = useImageUrl(perfilData?.banner_url ?? null)
+  const { url: activeCoverUrl } = useImageUrl(activeCoverKey)
+
+  // ── Audio + stats (memos with module-level derivers) ────────────────────
   const v           = useMemo(() => parseVector(perfilData?.audio_vector),     [perfilData?.audio_vector])
   const meta        = useMemo(() => parseMetadata(perfilData?.audio_metadata), [perfilData?.audio_metadata])
-  const stats       = useMemo(() => v ? deriveStats(v, meta) : null,           [v, meta])
-  const mood        = useMemo(() => stats ? deriveMood(stats) : null,          [stats])
-  const detectedKey = useMemo(() => stats ? detectKey(stats.chroma) : null,    [stats])
-  const gens        = useMemo(() => stats ? suggestGenres(stats) : [],         [stats])
+  const stats       = useMemo(() => deriveStatsFrom(v, meta),   [v, meta])
+  const mood        = useMemo(() => deriveMoodFrom(stats),       [stats])
+  const detectedKey = useMemo(() => detectKeyFrom(stats),        [stats])
+  const gens        = useMemo(() => suggestGenresFrom(stats),    [stats])
   const TextureIcon = stats ? (TEXTURE_ICONS[stats.texture.icon] ?? Activity) : null
+
+  // ── Handlers ────────────────────────────────────────────────────────────
+  const saveBio = async () => {
+    setBioSaving(true)
+    try {
+      const ok = await saveProfileBio(token, bioValue)
+      if (ok) { updateUser({ bio: bioValue.trim() }); setEditingBio(false) }
+    } finally { setBioSaving(false) }
+  }
+
+  const handlePhotoUpload = async (file) => {
+    setPhotoUploading(true)
+    try {
+      const key = await uploadProfileImage(file, 'avatar', token)
+      if (key) updateUser({ foto_url: key })
+    } finally { setPhotoUploading(false) }
+  }
+
+  const handleBannerUpload = async (file) => {
+    setBannerUploading(true)
+    try {
+      const key = await uploadProfileImage(file, 'banner', token)
+      if (key) updateUser({ banner_url: key })
+    } finally { setBannerUploading(false) }
+  }
+
+  const handleShare = () => {
+    const shareUrl = isOwnProfile ? `${window.location.origin}/u/${perfilData?.nombre}` : window.location.href
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    }
+  }
 
   // ── Early returns ───────────────────────────────────────────────────────
   if (isOwnProfile && !user) return null
@@ -252,10 +265,10 @@ export default function Profile() {
   if (!isOwnProfile && !publicProfile) return null
 
   // ── Valores derivados de display ────────────────────────────────────────
-  const displayName   = perfilData?.nombre || (isOwnProfile ? user?.email?.split('@')[0] || '' : '')
+  const displayName   = getDisplayName(perfilData, isOwnProfile, user?.email)
   const tieneAnalisis = Boolean(perfilData?.s3_key)
-  const oficioUser    = Array.isArray(perfilData?.oficio)    ? perfilData.oficio    : []
-  const tagsUser      = Array.isArray(perfilData?.user_tags) ? perfilData.user_tags : []
+  const oficioUser    = getAsList(perfilData?.oficio)
+  const tagsUser      = getAsList(perfilData?.user_tags)
 
   return (
     <div className="min-h-screen w-full bg-black pb-20">

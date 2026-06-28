@@ -233,6 +233,28 @@ exports.obtenerDetalle = async (req, res, next) => {
   }
 };
 
+function buildTocataFields(body) {
+  const FIELDS = [
+    'nombre', 'descripcion', 'fecha', 'hora', 'ciudad', 'direccion',
+    'genero', 'contacto_email', 'edad_minima', 'afiche_url', 'precio',
+    'cantidad_disponible',
+  ];
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  for (const field of FIELDS) {
+    if (body[field] !== undefined) {
+      sets.push(`${field} = $${i++}`);
+      vals.push(body[field]);
+    }
+  }
+  if (body.tipos_entrada !== undefined) {
+    sets.push(`tipos_entrada = $${i++}`);
+    vals.push(JSON.stringify(body.tipos_entrada));
+  }
+  return { sets, vals, i };
+}
+
 /**
  * PATCH /tocatas/:id — editar campos de una tocata (solo el organizador).
  * Actualiza únicamente los campos enviados en el body.
@@ -244,30 +266,7 @@ exports.actualizar = async (req, res, next) => {
     if (check.rows[0].organizador_id !== req.usuario.id)
       return res.status(403).json({ error: 'Solo el organizador puede editar esta tocata' });
 
-    const {
-      nombre, descripcion, fecha, hora, ciudad, direccion,
-      genero, contacto_email, edad_minima,
-      afiche_url, precio, cantidad_disponible, tipos_entrada,
-    } = req.body;
-
-    const sets   = [];
-    const vals   = [];
-    let i = 1;
-
-    if (nombre             !== undefined) { sets.push(`nombre = $${i++}`);             vals.push(nombre); }
-    if (descripcion        !== undefined) { sets.push(`descripcion = $${i++}`);        vals.push(descripcion); }
-    if (fecha              !== undefined) { sets.push(`fecha = $${i++}`);              vals.push(fecha); }
-    if (hora               !== undefined) { sets.push(`hora = $${i++}`);               vals.push(hora); }
-    if (ciudad             !== undefined) { sets.push(`ciudad = $${i++}`);             vals.push(ciudad); }
-    if (direccion          !== undefined) { sets.push(`direccion = $${i++}`);          vals.push(direccion); }
-    if (genero             !== undefined) { sets.push(`genero = $${i++}`);             vals.push(genero); }
-    if (contacto_email     !== undefined) { sets.push(`contacto_email = $${i++}`);     vals.push(contacto_email); }
-    if (edad_minima        !== undefined) { sets.push(`edad_minima = $${i++}`);        vals.push(edad_minima); }
-    if (afiche_url         !== undefined) { sets.push(`afiche_url = $${i++}`);         vals.push(afiche_url); }
-    if (precio             !== undefined) { sets.push(`precio = $${i++}`);             vals.push(precio); }
-    if (cantidad_disponible!== undefined) { sets.push(`cantidad_disponible = $${i++}`);vals.push(cantidad_disponible); }
-    if (tipos_entrada      !== undefined) { sets.push(`tipos_entrada = $${i++}`);      vals.push(JSON.stringify(tipos_entrada)); }
-
+    const { sets, vals, i } = buildTocataFields(req.body);
     if (sets.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
 
     vals.push(req.params.id);
