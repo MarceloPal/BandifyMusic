@@ -43,6 +43,16 @@ function TagPill({ label, selected, disabled, onClick }) {
   )
 }
 
+function toggleListItem(prev, tag) {
+  return prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+}
+
+function applyUserTagToggle(prev, tag, maxTags) {
+  if (prev.includes(tag)) return prev.filter((t) => t !== tag)
+  if (prev.length >= maxTags) return prev
+  return [...prev, tag]
+}
+
 async function performOnboardingUpload(token, file) {
   const ext         = (file.name.split('.').pop() || 'mp3').toLowerCase()
   const audioExt    = AUDIO_MIME[ext] ? ext : 'mp3'
@@ -85,25 +95,6 @@ export default function Onboarding() {
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError]   = useState('')
   const fileInputRef                = useRef(null)
-
-  const toggleTag = (list, setList, tag) => {
-    setList((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    )
-  }
-
-  /**
-   * Toggle específico para tags musicales con límite estricto (MAX_TAGS).
-   * - Remover una tag siempre se permite (aunque el usuario esté en el límite).
-   * - Añadir una tag está bloqueado si ya hay MAX_TAGS seleccionadas.
-   */
-  const toggleUserTag = (tag) => {
-    setUserTags((prev) => {
-      if (prev.includes(tag)) return prev.filter((t) => t !== tag)
-      if (prev.length >= MAX_TAGS) return prev   // límite alcanzado, no añadir
-      return [...prev, tag]
-    })
-  }
 
   const uploadMutation = useMutation({
     mutationFn: (file) => performOnboardingUpload(token, file),
@@ -256,7 +247,7 @@ export default function Onboarding() {
                       key={tag}
                       label={tag}
                       selected={oficio.includes(tag)}
-                      onClick={() => toggleTag(oficio, setOficio, tag)}
+                      onClick={() => setOficio((prev) => toggleListItem(prev, tag))}
                     />
                   ))}
                 </div>
@@ -291,7 +282,7 @@ export default function Onboarding() {
                       label={tag}
                       selected={userTags.includes(tag)}
                       disabled={userTags.length >= MAX_TAGS}
-                      onClick={() => toggleUserTag(tag)}
+                      onClick={() => setUserTags((prev) => applyUserTagToggle(prev, tag, MAX_TAGS))}
                     />
                   ))}
                 </div>

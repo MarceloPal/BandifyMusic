@@ -313,6 +313,41 @@ async function performUpload(token, demoNombre, file) {
   return analyzeRes.json()
 }
 
+function getAudioFileError(file, isPremium) {
+  const limitMB    = isPremium ? 100 : 60
+  const limitBytes = limitMB * 1024 * 1024
+  if (file.size > limitBytes) {
+    return `El archivo supera el límite de ${limitMB} MB de tu cuenta ${isPremium ? 'Premium' : 'Básica'}. Exporta en MP3 o pásate a Premium.`
+  }
+  return null
+}
+
+function fetchQuickMatches(token, setQuickMatches) {
+  fetch(`${API_URL}/matching/buscar?limite=3`, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.ok ? r.json() : [])
+    .then((rows) => {
+      const matches = Array.isArray(rows) ? rows : []
+      setQuickMatches(matches)
+      sessionStorage.setItem('quickMatches', JSON.stringify(matches))
+    })
+    .catch(() => {})
+}
+
+function togglePlayDemo(demoId, audioRef, selectedDemoId, setSelectedDemoId, pendingAutoPlayRef) {
+  if (!audioRef.current) {
+    setSelectedDemoId(demoId)
+    pendingAutoPlayRef.current = true
+    return
+  }
+  if (selectedDemoId === demoId) {
+    if (audioRef.current.paused) audioRef.current.play().catch(() => {})
+    else audioRef.current.pause()
+    return
+  }
+  setSelectedDemoId(demoId)
+  pendingAutoPlayRef.current = true
+}
+
 export default function MiAdn() {
   const { token, user, updateUser } = useAuth()
   const queryClient                 = useQueryClient()
@@ -420,18 +455,8 @@ export default function MiAdn() {
       .then((p) => { if (p?.id) updateUser(p) })
       .catch(() => {})
 
-    // Quick Match — top 3 músicos compatibles con el nuevo demo
-    // Pequeño delay para dar tiempo a que el vector se propague a perfiles
-    setTimeout(() => {
-      fetch(`${API_URL}/matching/buscar?limite=3`, { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.ok ? r.json() : [])
-        .then((rows) => {
-          const matches = Array.isArray(rows) ? rows : []
-          setQuickMatches(matches)
-          sessionStorage.setItem('quickMatches', JSON.stringify(matches))
-        })
-        .catch(() => {})
-    }, 1500)
+    // Quick Match — top 3 músicos compatibles, con delay para propagación del vector
+    setTimeout(() => fetchQuickMatches(token, setQuickMatches), 1500)
   }, [jobData?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Delete demo ── */
@@ -483,15 +508,10 @@ export default function MiAdn() {
 
   /* ── File handlers ── */
   const handleFile = (file) => {
-    if (!file) return;
-    const limitMB = user?.es_premium ? 100 : 60;
-    const limitBytes = limitMB * 1024 * 1024;
-
-    if (file.size > limitBytes) {
-      setFileError(`El archivo supera el límite de ${limitMB} MB de tu cuenta ${user?.es_premium ? 'Premium' : 'Básica'}. Exporta en MP3 o pásate a Premium.`);
-      return;
-    }
-    setFileError('');
+    if (!file) return
+    const err = getAudioFileError(file, user?.es_premium)
+    if (err) { setFileError(err); return }
+    setFileError('')
     setIsHifi(file.size > HIFI_THRESHOLD)
     uploadMutation.mutate(file)
   }
@@ -534,23 +554,8 @@ export default function MiAdn() {
     }
   }, [audioUrl])
 
-  const handleTogglePlay = (demoId) => {
-    if (!audioRef.current) {
-      // Audio aún no montado — selecciona y marca para auto-play
-      setSelectedDemoId(demoId)
-      pendingAutoPlayRef.current = true
-      return
-    }
-    // Si ya es el demo actual, toggle play/pause
-    if (selectedDemoId === demoId) {
-      if (audioRef.current.paused) audioRef.current.play().catch(() => {})
-      else audioRef.current.pause()
-      return
-    }
-    // Cambiar a otro demo y auto-play cuando el URL cargue
-    setSelectedDemoId(demoId)
-    pendingAutoPlayRef.current = true
-  }
+  const handleTogglePlay = (demoId) =>
+    togglePlayDemo(demoId, audioRef, selectedDemoId, setSelectedDemoId, pendingAutoPlayRef)
 
   /* ── Top 3 compatibles filtrados por ciudad + tags del usuario ── */
   const { data: compatibles = [] } = useQuery({
