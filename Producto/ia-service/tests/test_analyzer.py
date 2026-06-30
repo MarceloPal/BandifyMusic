@@ -361,7 +361,7 @@ def test_analyze_audio_partial_segments(
     assert len(result["vector"]) == 27
 
     # promedio de 2 y 4
-    assert result["vector"][0] == 3.0
+    assert np.isclose(result["vector"][0], 3.0)
 
 
 # ==========================================================
