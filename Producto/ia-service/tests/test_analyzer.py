@@ -157,8 +157,13 @@ def test_too_short_segment_returns_none():
 def test_maybe_transcode_success(
     mock_delete,
     mock_transcode,
-    mock_upload
+    mock_upload,
+    tmp_path
 ):
+    input_file = tmp_path / "in.wav"
+    output_file = tmp_path / "out.mp3"
+
+    input_file.write_bytes(b"dummy data")
 
     mock_transcode.return_value = True
     mock_upload.return_value = True
@@ -167,8 +172,8 @@ def test_maybe_transcode_success(
     key = _maybe_transcode(
         "wav",
         "music/test.wav",
-        "/tmp/in.wav",
-        "/tmp/out.mp3"
+        str(input_file),
+        str(output_file)
     )
 
     assert key == "music/test.mp3"
