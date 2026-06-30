@@ -138,6 +138,59 @@ async function fetchUploadedAfiche(file, token) {
 
 /* ─── Helpers ─── */
 
+function parseContactField(raw) {
+  if (raw.startsWith('+56 ')) return { type: 'whatsapp', value: raw.slice(4) }
+  if (raw.startsWith('@'))    return { type: 'instagram', value: raw.slice(1) }
+  return { type: 'email', value: raw }
+}
+
+function buildTiposEntradaMap(tipos) {
+  const map = {}
+  tipos.forEach(({ tipo, precio, cantidad }) => {
+    const p = String(precio ?? '')
+    map[tipo] = { precio: p, precioDisplay: p ? Number(p).toLocaleString('es-CL') : '', cantidad: String(cantidad ?? '') }
+  })
+  return map
+}
+
+function hasCompleteAccess(tipoAcceso, tiposEntrada) {
+  if (tipoAcceso === 'free') return true
+  return Object.keys(tiposEntrada).length > 0 &&
+    Object.values(tiposEntrada).every((c) => c.precio && c.cantidad)
+}
+
+function toggleTipoReducer(prev, tipo) {
+  if (prev[tipo] !== undefined) {
+    const next = { ...prev }
+    delete next[tipo]
+    return next
+  }
+  return { ...prev, [tipo]: { precio: '', precioDisplay: '', cantidad: '' } }
+}
+
+function handleMutationSuccess(data, { isEditing, queryClient, user, navigate, tocataId }) {
+  if (isEditing) {
+    queryClient.invalidateQueries({ queryKey: ['tocatas'] })
+    queryClient.invalidateQueries({ queryKey: ['mis-tocatas'] })
+    queryClient.removeQueries({ queryKey: ['tocata-edit', tocataId] })
+    navigate('/gestion')
+    return
+  }
+  const enriched = {
+    ...data,
+    organizador_id:     user?.id,
+    organizador_nombre: user?.nombre,
+    organizador_email:  user?.email,
+  }
+  queryClient.setQueryData(['tocatas'], (old = []) => {
+    const list = Array.isArray(old) ? old : []
+    return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+  })
+  queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
+  toast.success('¡Tocata publicada con éxito! Ya aparece en el mapa.')
+  navigate('/tocatas', { state: { createdId: data.id } })
+}
+
 function formatFechaShort(isoDate) {
   if (!isoDate) return null
   const d = new Date(isoDate + 'T00:00:00')
@@ -430,7 +483,6 @@ export default function PublicarTocata() {
   /* ── Pre-populate state when editing ── */
   useEffect(() => {
     if (!editTocata) return
-
     setForm({
       nombre:      editTocata.nombre      ?? '',
       fecha:       editTocata.fecha       ?? '',
@@ -439,44 +491,18 @@ export default function PublicarTocata() {
       direccion:   editTocata.direccion   ?? '',
       descripcion: editTocata.descripcion ?? '',
     })
-
-    if (editTocata.genero) {
-      setGeneros(editTocata.genero.split(', ').filter(Boolean))
-    }
-
-    if (editTocata.afiche_url) {
-      setAfficheKey(editTocata.afiche_url)
-    }
-
+    if (editTocata.genero) setGeneros(editTocata.genero.split(', ').filter(Boolean))
+    if (editTocata.afiche_url) setAfficheKey(editTocata.afiche_url)
     if (editTocata.contacto_email) {
-      const raw = editTocata.contacto_email
-      if (raw.startsWith('+56 ')) {
-        setContactType('whatsapp')
-        setContactValue(raw.slice(4))
-      } else if (raw.startsWith('@')) {
-        setContactType('instagram')
-        setContactValue(raw.slice(1))
-      } else {
-        setContactType('email')
-        setContactValue(raw)
-      }
+      const { type, value } = parseContactField(editTocata.contacto_email)
+      setContactType(type)
+      setContactValue(value)
     }
-
     if (editTocata.edad_minima) setEdadMinima(editTocata.edad_minima)
-
     const tipos = Array.isArray(editTocata.tipos_entrada) ? editTocata.tipos_entrada : []
     if (tipos.length > 0) {
       setTipoAcceso('paid')
-      const map = {}
-      tipos.forEach(({ tipo, precio, cantidad }) => {
-        const p = String(precio ?? '')
-        map[tipo] = {
-          precio:        p,
-          precioDisplay: p ? Number(p).toLocaleString('es-CL') : '',
-          cantidad:      String(cantidad ?? ''),
-        }
-      })
-      setTiposEntrada(map)
+      setTiposEntrada(buildTiposEntradaMap(tipos))
     } else {
       setTipoAcceso('free')
     }
@@ -489,16 +515,7 @@ export default function PublicarTocata() {
   }, [existingAfficheUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── ticket type helpers ── */
-  const toggleTipo = (tipo) => {
-    setTiposEntrada((prev) => {
-      if (prev[tipo] !== undefined) {
-        const next = { ...prev }
-        delete next[tipo]
-        return next
-      }
-      return { ...prev, [tipo]: { precio: '', precioDisplay: '', cantidad: '' } }
-    })
-  }
+  const toggleTipo = (tipo) => setTiposEntrada((prev) => toggleTipoReducer(prev, tipo))
 
   const setTipoPrecio = (tipo, raw) => {
     const digits = raw.replace(/\D/g, '')
@@ -522,13 +539,7 @@ export default function PublicarTocata() {
   /* ── progress ── */
   const sec1Complete = Boolean(form.nombre.trim() && form.fecha && form.hora && form.ciudad.trim())
   const sec2Complete = Boolean(generos.length > 0 || affichePreview || form.descripcion.trim())
-  const sec3Complete = Boolean(
-    contactValue.trim() && tipoAcceso && edadMinima &&
-    (tipoAcceso === 'free' || (
-      Object.keys(tiposEntrada).length > 0 &&
-      Object.values(tiposEntrada).every((c) => c.precio && c.cantidad)
-    ))
-  )
+  const sec3Complete = Boolean(contactValue.trim() && tipoAcceso && edadMinima && hasCompleteAccess(tipoAcceso, tiposEntrada))
 
   /* ── afiche upload ── */
   const uploadAfiche = async (file) => {
@@ -549,28 +560,7 @@ export default function PublicarTocata() {
   /* ── mutation ── */
   const mutation = useMutation({
     mutationFn: () => buildAndSubmitTocata({ token, isEditing, tocataId, contactType, contactValue, form, generos, afficheKey, edadMinima, tipoAcceso, tiposEntrada }),
-    onSuccess: (data) => {
-      if (isEditing) {
-        queryClient.invalidateQueries({ queryKey: ['tocatas'] })
-        queryClient.invalidateQueries({ queryKey: ['mis-tocatas'] })
-        queryClient.removeQueries({ queryKey: ['tocata-edit', tocataId] })
-        navigate('/gestion')
-      } else {
-        const enriched = {
-          ...data,
-          organizador_id:     user?.id,
-          organizador_nombre: user?.nombre,
-          organizador_email:  user?.email,
-        }
-        queryClient.setQueryData(['tocatas'], (old = []) => {
-          const list = Array.isArray(old) ? old : []
-          return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-        })
-        queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
-        toast.success('¡Tocata publicada con éxito! Ya aparece en el mapa.')
-        navigate('/tocatas', { state: { createdId: data.id } })
-      }
-    },
+    onSuccess: (data) => handleMutationSuccess(data, { isEditing, queryClient, user, navigate, tocataId }),
   })
 
   /* ── validation ── */
