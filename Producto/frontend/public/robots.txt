@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bandify-music-2167.vercel.app/sitemap.xml

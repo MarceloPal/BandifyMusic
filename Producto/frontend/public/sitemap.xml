@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+    xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://bandify-music-2167.vercel.app/</loc>
+  </url>
+
+  <url>
+    <loc>https://bandify-music-2167.vercel.app/login</loc>
+  </url>
+
+  <url>
+    <loc>https://bandify-music-2167.vercel.app/register</loc>
+  </url>
+
+  <url>
+    <loc>https://bandify-music-2167.vercel.app/explore</loc>
+  </url>
+
+</urlset>
