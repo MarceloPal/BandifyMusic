@@ -9,6 +9,7 @@ const HIDE_FOOTER_ON = ['/messages']
 
 // Palabras clave base. Si la URL contiene cualquiera de estas, será Full Bleed (ancho completo)
 const FULL_BLEED_KEYWORDS = ['/messages', '/profile', '/u/', 'planes', '/tocatas', '/gestion']
+const ZINC_BG_KEYWORDS    = ['/profile', '/u/', '/tocatas', '/gestion']
 
 export default function MainLayout() {
   const { pathname }          = useLocation()
@@ -27,10 +28,10 @@ export default function MainLayout() {
   
   // SOLUCIÓN INMUNE: Comprueba si la URL actual contiene alguna de las palabras clave de ancho completo
   const isFullBleed  = FULL_BLEED_KEYWORDS.some(keyword => pathname.toLowerCase().includes(keyword))
+  const isZincBg     = ZINC_BG_KEYWORDS.some(keyword => pathname.toLowerCase().includes(keyword))
 
   return (
-    // MEJORA: Si es ancho completo, la raíz se vuelve bg-black, eliminando cualquier marco gris de fondo
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isFullBleed ? 'bg-black' : 'bg-zinc-900'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isFullBleed && !isZincBg ? 'bg-black' : 'bg-zinc-900'}`}>
 
       <TopNavbar />
 

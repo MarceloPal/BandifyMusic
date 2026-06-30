@@ -120,14 +120,12 @@ function DemoCard({ demo, isSelected, isPlaying, onSelect, onTogglePlay, onDelet
       }`}
     >
       {/* Cover */}
-      <div className="aspect-square bg-zinc-700 relative group">
-        {coverUrl ? (
-          <img src={coverUrl} alt={demo.nombre} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Music2 size={32} className="text-zinc-500" />
-          </div>
-        )}
+      <div className="aspect-square bg-zinc-800 relative group">
+        <img
+          src={coverUrl || '/demo-cover-default.svg'}
+          alt={demo.nombre}
+          className="w-full h-full object-cover"
+        />
 
         {/* Dark overlay + Play/Pause button (siempre visible si playing, fade-in si no) */}
         <div className={`absolute inset-0 transition-all ${isPlaying ? 'bg-black/40' : 'bg-black/0 group-hover:bg-black/40'}`}>
@@ -200,29 +198,43 @@ function labelFromRange(value, low, high, labels) {
 }
 
 function SimpleView({ stats }) {
-  const bpmLabel      = stats.bpm < 80 ? 'Lento' : stats.bpm < 110 ? 'Moderado' : stats.bpm < 140 ? 'Rápido' : 'Muy rápido'
-  const colorLabel    = labelFromRange(stats.brillo, 33, 66, ['Cálido', 'Neutro', 'Brillante'])
-  const energiaLabel  = labelFromRange(stats.energia, 33, 66, ['Suave', 'Moderada', 'Intensa'])
-  const melodiaLabel  = stats.harmonyPct > stats.percussivePct + 20
+  const bpmLabel     = stats.bpm < 80 ? 'Lento' : stats.bpm < 110 ? 'Moderado' : stats.bpm < 140 ? 'Rápido' : 'Muy rápido'
+  const energiaLabel = labelFromRange(stats.energia, 33, 66, ['Suave', 'Moderada', 'Intensa'])
+  const melodiaLabel = stats.harmonyPct > stats.percussivePct + 20
     ? 'Melódico' : stats.percussivePct > stats.harmonyPct + 20 ? 'Percusivo' : 'Balanceado'
-  const armoniaLabel  = labelFromRange(stats.riquezaArmonica, 33, 66, ['Minimalista', 'Armónico', 'Rico en notas'])
+  const armoniaLabel = labelFromRange(stats.riquezaArmonica, 33, 66, ['Minimalista', 'Armónico', 'Rico en notas'])
+
+  // Top 3 notas más presentes en el chroma
+  const topNotes = stats.chroma
+    ? [...stats.chroma.map((v, i) => ({ note: CHROMA_LABELS[i], v }))]
+        .sort((a, b) => b.v - a.v)
+        .slice(0, 3)
+        .map((n) => n.note)
+    : []
 
   const items = [
-    { label: 'Textura',   value: stats.texture.label, desc: 'Carácter general del sonido' },
-    { label: 'Color',     value: colorLabel,           desc: 'Temperatura del timbre' },
-    { label: 'Ritmo',     value: `${bpmLabel} · ${stats.bpm} BPM`, desc: 'Velocidad del pulso' },
-    { label: 'Energía',   value: energiaLabel,         desc: 'Intensidad del audio' },
-    { label: 'Melodía',   value: melodiaLabel,         desc: 'Presencia melódica vs percusiva' },
-    { label: 'Armonía',   value: armoniaLabel,         desc: 'Riqueza de notas y acordes' },
+    { label: 'Ritmo',   value: `${bpmLabel} · ${stats.bpm} BPM`, desc: 'Velocidad del pulso' },
+    { label: 'Energía', value: energiaLabel,                      desc: 'Intensidad del audio' },
+    { label: 'Melodía', value: melodiaLabel,                      desc: 'Presencia melódica vs percusiva' },
+    { label: 'Armonía', value: armoniaLabel,                      desc: 'Riqueza de notas y acordes', notes: topNotes },
   ]
 
   return (
-    <div key="simple" className="adn-fade-in grid grid-cols-2 lg:grid-cols-3 gap-3">
-      {items.map(({ label, value, desc }) => (
+    <div key="simple" className="adn-fade-in grid grid-cols-2 gap-3">
+      {items.map(({ label, value, desc, notes }) => (
         <div key={label} className="bg-zinc-800 rounded-2xl p-4 border border-white/8 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">{label}</p>
           <p className="text-zinc-100 font-bold text-lg leading-tight">{value}</p>
           <p className="text-zinc-500 text-xs mt-1">{desc}</p>
+          {notes && notes.length > 0 && (
+            <div className="flex gap-1.5 mt-2">
+              {notes.map((n) => (
+                <span key={n} className="text-[11px] font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-md">
+                  {n}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -232,6 +244,7 @@ function SimpleView({ stats }) {
 /* ─── QuickMatch card ─── */
 function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
   const { url: photoUrl } = useImageUrl(musico.foto_url ?? null)
+  const navigate = useNavigate()
   const oficio = Array.isArray(musico.oficio) ? musico.oficio : []
 
   return (
@@ -254,7 +267,12 @@ function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-zinc-100 font-semibold text-sm truncate">{musico.nombre}</p>
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/u/${encodeURIComponent(musico.nombre)}`) }}
+          className="text-zinc-100 font-semibold text-sm truncate hover:text-purple-400 transition-colors text-left w-full"
+        >
+          {musico.nombre}
+        </button>
         <p className="text-zinc-500 text-xs truncate">
           {oficio[0] || musico.instrumento || musico.ciudad || '—'}
         </p>
@@ -711,39 +729,6 @@ export default function MiAdn() {
       {/* File size error */}
       {fileError && !isProcessing && showUploader && (
         <p className="text-red-500 text-sm mb-5 px-1">{fileError}</p>
-      )}
-
-      {/* ── Quick Match — top 3 tras análisis ── */}
-      {quickMatches.length > 0 && !isProcessing && (
-        <div className="mb-6 bg-gradient-to-br from-purple-500/15 to-violet-500/10 border border-purple-500/30 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
-              <Users size={12} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-sm">Matches de tu nuevo demo</p>
-              <p className="text-zinc-400 text-xs">Los 3 músicos más compatibles con este sonido</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {quickMatches.map((m) => (
-              <QuickMatchCard
-                key={m.id}
-                musico={m}
-                onConnect={(musico) => navigate(`/messages?with=${musico.id}&nombre=${encodeURIComponent(musico.nombre)}`)}
-                onOpenProfile={(musico) => setSelectedMusico(musico)}
-              />
-            ))}
-          </div>
-
-          <button
-            onClick={() => navigate('/explore')}
-            className="mt-4 w-full text-center text-purple-300 text-xs font-semibold hover:text-purple-200 transition-colors"
-          >
-            Ver todos los matches en Explorar →
-          </button>
-        </div>
       )}
 
       {/* ── Repertorio ── */}
