@@ -238,7 +238,7 @@ export default function Profile() {
 
   if (!isOwnProfile && profileLoading) {
     return (
-      <div className="min-h-screen w-full bg-black flex items-center justify-center">
+      <div className="min-h-screen w-full bg-zinc-900 flex items-center justify-center">
         <Loader2 size={32} className="text-purple-400 animate-spin" />
       </div>
     )
@@ -246,7 +246,7 @@ export default function Profile() {
 
   if (!isOwnProfile && profileNotFound) {
     return (
-      <div className="min-h-screen w-full bg-black flex flex-col items-center justify-center gap-4 px-6">
+      <div className="min-h-screen w-full bg-zinc-900 flex flex-col items-center justify-center gap-4 px-6">
         <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
           <UserX size={28} className="text-zinc-600" />
         </div>
@@ -271,7 +271,7 @@ export default function Profile() {
   const tagsUser      = getAsList(perfilData?.user_tags)
 
   return (
-    <div className="min-h-screen w-full bg-black pb-20">
+    <div className="min-h-screen w-full bg-zinc-900 pb-20">
 
       {/* ── Hidden file inputs (solo perfil propio) ── */}
       {isOwnProfile && (
@@ -436,7 +436,7 @@ export default function Profile() {
       {/* ════════════════════════════════════════════════
           TABS
           ════════════════════════════════════════════════ */}
-      <div className="sticky top-14 z-20 bg-black/90 backdrop-blur-sm border-b border-zinc-800/60">
+      <div className="sticky top-14 z-20 bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-800/60">
         <div className="max-w-6xl mx-auto px-4 md:px-6">
           <div className="flex gap-1 overflow-x-auto scrollbar-none">
             {TABS.map((tab) => (
@@ -522,13 +522,11 @@ export default function Profile() {
                     {audioUrl ? (
                       <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
                         <div className="relative"
-                          style={activeCoverUrl ? {
-                            backgroundImage: `url(${activeCoverUrl})`,
+                          style={{
+                            backgroundImage: `url(${activeCoverUrl || '/demo-cover-default.svg'})`,
                             backgroundSize: 'cover', backgroundPosition: 'center',
-                          } : {}}>
-                          {activeCoverUrl && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/60" />
-                          )}
+                          }}>
+                          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/60" />
                           <div className="relative z-10 p-4">
                             <p className="text-zinc-500 text-[10px] uppercase tracking-[0.25em] mb-2 flex items-center gap-1.5">
                               <Headphones size={10} />
@@ -767,7 +765,7 @@ export default function Profile() {
 
               {isOwnProfile ? (
                 <>
-                  <Link to="/matching/buscar"
+                  <Link to="/explore"
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
                     <MessageCircle size={13} />
                     Ver mis matches

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1c1427"/>
+      <stop offset="100%" style="stop-color:#0f0f14"/>
+    </linearGradient>
+    <linearGradient id="bars" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="400" height="400" fill="url(#bg)"/>
+
+  <!-- Barras de ecualizador centradas -->
+  <g transform="translate(112, 260)">
+    <rect x="0"   y="-110" width="22" height="110" rx="4" fill="url(#bars)" opacity="0.5"/>
+    <rect x="30"  y="-160" width="22" height="160" rx="4" fill="url(#bars)" opacity="0.7"/>
+    <rect x="60"  y="-90"  width="22" height="90"  rx="4" fill="url(#bars)" opacity="0.55"/>
+    <rect x="90"  y="-190" width="22" height="190" rx="4" fill="url(#bars)"/>
+    <rect x="120" y="-130" width="22" height="130" rx="4" fill="url(#bars)" opacity="0.8"/>
+    <rect x="150" y="-70"  width="22" height="70"  rx="4" fill="url(#bars)" opacity="0.5"/>
+  </g>
+
+  <!-- Logo texto -->
+  <text x="200" y="330" font-family="system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#6b21a8" opacity="0.6" text-anchor="middle" letter-spacing="4">BANDIFY</text>
+</svg>

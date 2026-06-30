@@ -133,7 +133,12 @@ export default function ProfileDrawer({ musico, onClose }) {
               </div>
             )}
             <div>
-              <p className="text-zinc-100 font-bold text-base leading-tight">{musico.nombre}</p>
+              <button
+                onClick={() => { navigate(`/u/${encodeURIComponent(musico.nombre)}`); onClose() }}
+                className="text-zinc-100 font-bold text-base leading-tight hover:text-purple-400 transition-colors text-left"
+              >
+                {musico.nombre}
+              </button>
               {musico.instrumento && (
                 <p className="text-zinc-400 text-sm mt-0.5">{musico.instrumento}</p>
               )}
