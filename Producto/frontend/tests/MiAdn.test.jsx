@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -21,7 +22,7 @@ import { MemoryRouter } from 'react-router-dom';
 // ── Mocks de módulos con dependencias externas ────────────────────────────────
 
 // AuthContext
-jest.mock('../src/context/AuthContext', () => ({
+vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
     token: 'mock-jwt-token',
     user: {
@@ -31,45 +32,45 @@ jest.mock('../src/context/AuthContext', () => ({
       ciudad: 'Santiago',
       user_tags: ['Rock'],
     },
-    updateUser: jest.fn(),
+    updateUser: vi.fn(),
   }),
 }));
 
 // helpers — API_URL y getInitials
-jest.mock('../src/utils/helpers', () => ({
+vi.mock('../src/utils/helpers', () => ({
   API_URL: 'http://localhost:3000',
   getInitials: (name) => name?.slice(0, 2).toUpperCase() ?? '??',
 }));
 
 // audioHelpers — funciones de parseo del vector
-jest.mock('../src/utils/audioHelpers', () => ({
-  parseVector:    jest.fn(() => null),
-  parseMetadata:  jest.fn(() => null),
-  deriveStats:    jest.fn(() => null),
+vi.mock('../src/utils/audioHelpers', () => ({
+  parseVector:    vi.fn(() => null),
+  parseMetadata:  vi.fn(() => null),
+  deriveStats:    vi.fn(() => null),
   CHROMA_LABELS:  ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],
-  deriveMood:     jest.fn(() => ({ label: 'Enérgico', color: '#7c3aed' })),
-  detectKey:      jest.fn(() => 'C mayor'),
-  suggestGenres:  jest.fn(() => ['Rock']),
+  deriveMood:     vi.fn(() => ({ label: 'Enérgico', color: '#7c3aed' })),
+  detectKey:      vi.fn(() => 'C mayor'),
+  suggestGenres:  vi.fn(() => ['Rock']),
 }));
 
 // Hooks que hacen peticiones a S3 / API
-jest.mock('../src/hooks/useImageUrl', () => ({
+vi.mock('../src/hooks/useImageUrl', () => ({
   useImageUrl: () => ({ url: null }),
 }));
 
-jest.mock('../src/hooks/useProgressMessage', () => ({
+vi.mock('../src/hooks/useProgressMessage', () => ({
   useProgressMessage: () => ({ text: 'Analizando tu demo...', sub: '', secs: 0 }),
 }));
 
 // Componentes visuales pesados (no relevantes para este test)
-jest.mock('../src/components/PremiumModal', () => () => null);
-jest.mock('../src/components/AudioAnalysisLoader', () => () => (
-  <div data-testid="analysis-loader">Analizando...</div>
-));
-jest.mock('../src/components/ProfileDrawer', () => () => null);
-jest.mock('../src/components/AudioPlayer', () => () => (
-  <div data-testid="audio-player">Player</div>
-));
+vi.mock('../src/components/PremiumModal', () => ({ default: () => null }));
+vi.mock('../src/components/AudioAnalysisLoader', () => ({
+  default: () => <div data-testid="analysis-loader">Analizando...</div>,
+}));
+vi.mock('../src/components/ProfileDrawer', () => ({ default: () => null }));
+vi.mock('../src/components/AudioPlayer', () => ({
+  default: () => <div data-testid="audio-player">Player</div>,
+}));
 
 // ── Importar componente bajo prueba ──────────────────────────────────────────
 import MiAdn from '../src/pages/MiAdn';
@@ -80,7 +81,7 @@ let fetchCallCount = 0;
 function buildFetchMock() {
   fetchCallCount = 0;
 
-  return jest.fn((url) => {
+  return vi.fn((url) => {
     fetchCallCount++;
 
     // GET /demos → lista vacía inicialmente
@@ -160,12 +161,12 @@ beforeEach(() => {
     },
   });
   // Silenciar console.error de React 18 act() warnings
-  jest.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
   queryClient.clear();
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 // ── Wrapper con providers ─────────────────────────────────────────────────────
@@ -239,7 +240,7 @@ describe('IT-02 — Polling de TanStack Query en MiAdn', () => {
   });
 
   test('cuando job cambia a done, queryClient invalida la query de demos', async () => {
-    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     // jobId interno del componente empieza en null → queryKey = ['job', null]
     // TanStack Query v5 retorna datos del caché aunque enabled=false

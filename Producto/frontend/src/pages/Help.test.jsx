@@ -1,54 +1,65 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import Help from './Help'
+
+function renderHelp() {
+  return render(
+    <MemoryRouter>
+      <Help />
+    </MemoryRouter>
+  )
+}
 
 describe('Help', () => {
   it('muestra el título "Ayuda"', () => {
-    render(<Help />)
+    renderHelp()
     expect(screen.getByText('Ayuda')).toBeInTheDocument()
   })
 
-  it('muestra las 6 preguntas del FAQ', () => {
-    render(<Help />)
-    expect(screen.getByText('¿Cómo funciona el análisis?')).toBeInTheDocument()
-    expect(screen.getByText('¿Cómo encuentro músicos similares?')).toBeInTheDocument()
-    expect(screen.getByText('¿Cómo actualizo mi sonido?')).toBeInTheDocument()
-    expect(screen.getByText('¿Qué archivos puedo subir?')).toBeInTheDocument()
-    expect(screen.getByText('¿Mi música está protegida?')).toBeInTheDocument()
-    expect(screen.getByText('¿Cómo hablo con alguien?')).toBeInTheDocument()
+  it('muestra las 9 preguntas del FAQ', () => {
+    renderHelp()
+    expect(screen.getByText('¿Cómo funciona el análisis de Inteligencia Artificial?')).toBeInTheDocument()
+    expect(screen.getByText('¿Qué archivos puedo subir si tengo cuenta gratuita?')).toBeInTheDocument()
+    expect(screen.getByText('¿Cómo encuentro músicos similares a mí?')).toBeInTheDocument()
+    expect(screen.getByText('¿Qué beneficios tiene la suscripción Premium?')).toBeInTheDocument()
+    expect(screen.getByText('¿Es seguro ingresar mis datos de pago?')).toBeInTheDocument()
+    expect(screen.getByText('¿Cómo publico una tocata en el mapa?')).toBeInTheDocument()
+    expect(screen.getByText('¿Cómo funciona la venta de tickets para mi tocata?')).toBeInTheDocument()
+    expect(screen.getByText('¿Mi música está protegida contra descargas?')).toBeInTheDocument()
+    expect(screen.getByText('¿Cómo hablo con alguien para colaborar?')).toBeInTheDocument()
   })
 
   it('las respuestas están ocultas por defecto', () => {
-    render(<Help />)
+    renderHelp()
     expect(screen.queryByText(/ADN Musical.*único basado/)).not.toBeInTheDocument()
   })
 
   it('muestra la respuesta al hacer clic en una pregunta', () => {
-    render(<Help />)
-    fireEvent.click(screen.getByText('¿Cómo funciona el análisis?'))
+    renderHelp()
+    fireEvent.click(screen.getByText('¿Cómo funciona el análisis de Inteligencia Artificial?'))
     expect(screen.getByText(/ADN Musical.*único basado/)).toBeInTheDocument()
   })
 
   it('oculta la respuesta al hacer clic de nuevo', () => {
-    render(<Help />)
-    const btn = screen.getByText('¿Cómo funciona el análisis?')
+    renderHelp()
+    const btn = screen.getByText('¿Cómo funciona el análisis de Inteligencia Artificial?')
     fireEvent.click(btn)
     fireEvent.click(btn)
     expect(screen.queryByText(/ADN Musical.*único basado/)).not.toBeInTheDocument()
   })
 
   it('puede abrir múltiples preguntas a la vez', () => {
-    render(<Help />)
-    fireEvent.click(screen.getByText('¿Cómo funciona el análisis?'))
-    fireEvent.click(screen.getByText('¿Cómo encuentro músicos similares?'))
+    renderHelp()
+    fireEvent.click(screen.getByText('¿Cómo funciona el análisis de Inteligencia Artificial?'))
+    fireEvent.click(screen.getByText('¿Cómo encuentro músicos similares a mí?'))
     expect(screen.getByText(/ADN Musical.*único basado/)).toBeInTheDocument()
-    expect(screen.getByText(/Comparamos tu ADN/)).toBeInTheDocument()
+    expect(screen.getByText(/Comparamos matemáticamente tu ADN/)).toBeInTheDocument()
   })
 
-  it('muestra el link de contacto a soporte@bandify.cl', () => {
-    render(<Help />)
-    const link = screen.getByText('soporte@bandify.cl')
-    expect(link).toBeInTheDocument()
-    expect(link.closest('a')).toHaveAttribute('href', 'mailto:soporte@bandify.cl')
+  it('muestra el link al Centro de Soporte', () => {
+    renderHelp()
+    const link = screen.getByText('Ir al Centro de Soporte')
+    expect(link.closest('a')).toHaveAttribute('href', '/soporte')
   })
 })

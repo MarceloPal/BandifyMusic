@@ -85,7 +85,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
-        {navItems.map(({ icon: label, path, end }) => (
+        {navItems.map(({ icon: NavIcon, label, path, end }) => (
           <NavLink
             key={path}
             to={path}
