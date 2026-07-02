@@ -140,6 +140,7 @@ exports.buscar = async (req, res, next) => {
          )
 
        ORDER BY
+         u.es_premium DESC,
          GREATEST(0.0, LEAST(1.0,
            LEAST(1.0, COALESCE(
              (

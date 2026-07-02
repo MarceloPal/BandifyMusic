@@ -47,13 +47,15 @@ exports.listarConversaciones = async (req, res, next) => {
        SELECT
          c.partner_id,
          u.nombre                                                            AS partner_nombre,
+         p.foto_url                                                         AS partner_foto_url,
          MAX(c.created_at)                                                   AS last_at,
          BOOL_OR(c.es_mio)                                                   AS yo_respondi,
          COUNT(*) FILTER (WHERE c.es_no_leido)::integer                      AS sin_leer,
          (ARRAY_AGG(c.contenido ORDER BY c.created_at DESC))[1]              AS last_mensaje
        FROM conv c
        JOIN usuarios u ON u.id = c.partner_id
-       GROUP BY c.partner_id, u.nombre
+       LEFT JOIN perfiles p ON p.usuario_id = u.id
+       GROUP BY c.partner_id, u.nombre, p.foto_url
        ORDER BY last_at DESC`,
       [miId]
     );
@@ -75,6 +77,39 @@ exports.enviar = async (req, res, next) => {
     if (!para_id)   return res.status(400).json({ error: 'para_id es obligatorio' });
     if (para_id === req.usuario.id)
       return res.status(400).json({ error: 'No puedes enviarte un mensaje a ti mismo' });
+
+    let esPremium = req.usuario.es_premium;
+    if (typeof esPremium !== 'boolean') {
+      const premiumRow = await pool.query(
+        'SELECT COALESCE(es_premium, false) AS es_premium FROM usuarios WHERE id = $1',
+        [req.usuario.id]
+      );
+      esPremium = premiumRow.rows[0]?.es_premium ?? false;
+    }
+
+    // ── INICIO: VALIDACIÓN PREMIUM (CONEXIONES ÚNICAS) ──
+    if (!esPremium) {
+      const destinatarioId = para_id || req.body.receptor_id;
+
+      const conteoResult = await pool.query(
+        `SELECT COUNT(DISTINCT para_id) AS conexiones_nuevas
+         FROM mensajes
+         WHERE de_id = $1
+           AND para_id != $2
+           AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+           AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)`,
+        [req.usuario.id, destinatarioId]
+      );
+
+      const conexionesNuevas = parseInt(conteoResult.rows[0]?.conexiones_nuevas, 10) || 0;
+
+      if (conexionesNuevas >= 10) {
+        return res.status(403).json({
+          error: 'Has alcanzado el límite de tu cuenta gratuita: solo puedes iniciar conversaciones con 10 músicos diferentes al mes. Pásate a Premium para hacer networking sin límites.',
+        });
+      }
+    }
+    // ── FIN: VALIDACIÓN PREMIUM ──
 
     const destinatario = await pool.query('SELECT id FROM usuarios WHERE id = $1', [para_id]);
     if (destinatario.rows.length === 0)

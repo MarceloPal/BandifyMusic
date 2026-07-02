@@ -7,7 +7,7 @@ import './GooeyNav.css';
 // during render" y, además, evitamos recrearlas en cada render.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const noise = (n = 1) => n / 2 - Math.random() * n;
+const noise = (n = 1) => n / 2 - Math.random() * n; // NOSONAR — UI animation only
 
 const getXY = (distance, pointIndex, totalPoints) => {
   const angle = ((360 + noise(8)) / totalPoints) * pointIndex * (Math.PI / 180);
@@ -21,7 +21,7 @@ const createParticle = (i, t, d, r, particleCount, colors) => {
     end:   getXY(d[1] + noise(7), particleCount - i, particleCount),
     time:  t,
     scale: 1 + noise(0.2),
-    color: colors[Math.floor(Math.random() * colors.length)],
+    color: colors[Math.floor(Math.random() * colors.length)], // NOSONAR — UI animation only
     rotate: rotate > 0 ? (rotate + r / 20) * 10 : (rotate - r / 20) * 10,
   };
 };
@@ -75,7 +75,7 @@ const GooeyNav = ({
         });
         setTimeout(() => {
           try {
-            element.removeChild(particle);
+            particle.remove();
           } catch {
             // Do nothing
           }
@@ -109,12 +109,12 @@ const GooeyNav = ({
 
     if (filterRef.current) {
       const particles = filterRef.current.querySelectorAll('.particle');
-      particles.forEach(p => filterRef.current.removeChild(p));
+      particles.forEach(p => p.remove());
     }
 
     if (textRef.current) {
       textRef.current.classList.remove('active');
-      void textRef.current.offsetWidth;
+      textRef.current.offsetWidth; // NOSONAR — forces DOM reflow to restart CSS transition
       textRef.current.classList.add('active');
     }
 

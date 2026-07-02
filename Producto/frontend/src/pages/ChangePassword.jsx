@@ -4,24 +4,7 @@ import { Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
-
-function Field({ label, value, onChange, placeholder = '••••••••' }) {
-  return (
-    <div>
-      <label className="block text-white/60 text-xs font-semibold uppercase tracking-wide mb-1.5">
-        {label}
-      </label>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-      />
-    </div>
-  )
-}
+import PasswordField from '../components/PasswordField'
 
 export default function ChangePassword() {
   const navigate    = useNavigate()
@@ -34,6 +17,8 @@ export default function ChangePassword() {
   const [loading,    setLoading]    = useState(false)
   const [success,    setSuccess]    = useState(false)
   const [error,      setError]      = useState('')
+
+  const passwordMismatch = nueva && confirmar && nueva !== confirmar
 
   /* ── Paso 1: avanzar al paso 2 (la contraseña actual se valida en el backend al guardar) ── */
   const handleVerify = (e) => {
@@ -159,7 +144,7 @@ export default function ChangePassword() {
                 {/* ── Paso 1: contraseña actual ── */}
                 {!isVerified && (
                   <form onSubmit={handleVerify} className="flex flex-col gap-5">
-                    <Field label="Contraseña actual" value={actual} onChange={setActual} />
+                    <PasswordField variant="settings" label="Contraseña actual" value={actual} onChange={e => setActual(e.target.value)} required />
                     <button
                       type="submit"
                       disabled={loading || !actual.trim()}
@@ -174,11 +159,25 @@ export default function ChangePassword() {
                 {/* ── Paso 2: nueva contraseña ── */}
                 {isVerified && (
                   <form onSubmit={handleSave} className="flex flex-col gap-4">
-                    <Field label="Nueva contraseña"           value={nueva}     onChange={setNueva}     />
-                    <Field label="Confirmar nueva contraseña" value={confirmar} onChange={setConfirmar} />
+                    <PasswordField
+                      variant="settings"
+                      label="Nueva contraseña"
+                      value={nueva}
+                      onChange={e => setNueva(e.target.value)}
+                      required
+                    />
+                    <PasswordField
+                      variant="settings"
+                      label="Confirmar nueva contraseña"
+                      value={confirmar}
+                      onChange={e => setConfirmar(e.target.value)}
+                      hasError={!!passwordMismatch}
+                      errorMsg="Las contraseñas no coinciden"
+                      required
+                    />
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={loading || !!passwordMismatch}
                       className="mt-1 w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"
                     >
                       {loading && <Loader2 size={15} className="animate-spin" />}

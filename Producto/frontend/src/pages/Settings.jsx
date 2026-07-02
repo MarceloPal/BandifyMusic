@@ -3,8 +3,9 @@ import {
   Bell, Shield, User, Mail, Lock, AlertTriangle, ChevronRight,
   Camera, ImagePlus, Check, Loader2, CreditCard,
 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
 import { API_URL }     from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import { TAG_OPTIONS, OFICIOS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
@@ -117,6 +118,7 @@ function PanelPerfil({ user, token, updateUser }) {
       })
       if (res.ok) {
         updateUser({ nombre, ciudad, fecha_nacimiento: fechaNac || null, oficio, user_tags: tags, instagram_url: instagram, spotify_url: spotify, discord_url: discord })
+        toast.success('Perfil actualizado correctamente.')
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
       }
@@ -134,8 +136,11 @@ function PanelPerfil({ user, token, updateUser }) {
       <div className="mb-5">
         {/* Banner */}
         <div
+          role="button"
+          tabIndex={0}
           className="relative h-28 rounded-2xl bg-zinc-800 border border-white/8 overflow-hidden mb-3 cursor-pointer group"
           onClick={() => bannerRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') bannerRef.current?.click() }}
         >
           {bannerUrl
             ? <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
@@ -150,8 +155,11 @@ function PanelPerfil({ user, token, updateUser }) {
         {/* Avatar */}
         <div className="flex items-center gap-4">
           <div
+            role="button"
+            tabIndex={0}
             className="relative w-16 h-16 rounded-full bg-purple-600 flex-shrink-0 overflow-hidden cursor-pointer group border-2 border-zinc-800"
             onClick={() => avatarRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') avatarRef.current?.click() }}
           >
             {avatarUrl
               ? <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover aspect-square" />
@@ -173,15 +181,15 @@ function PanelPerfil({ user, token, updateUser }) {
 
       {/* ── Formulario ── */}
       <form onSubmit={handleSave} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-6">
           {/* Nombre */}
           <div>
-            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nombre</label>
+            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-1.5">Nombre de usuario</label>
             <input
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Tu nombre artístico"
+              placeholder="janesmithmusic"
               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
             />
           </div>
@@ -364,7 +372,7 @@ function PanelNotificaciones() {
   )
 
   const allOn  = NOTIF_ITEMS.every((item) => prefs[item.id])
-  const allOff = NOTIF_ITEMS.every((item) => !prefs[item.id])
+  
 
   const toggleMaster = (val) =>
     setPrefs(Object.fromEntries(NOTIF_ITEMS.map((item) => [item.id, val])))
@@ -456,12 +464,12 @@ function PanelEmail({ user }) {
       {/* Ayuda */}
       <p className="text-zinc-600 text-xs">
         ¿Tienes problemas?{' '}
-        <a
-          href="mailto:soporte@bandify.cl"
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+        <Link
+          to="/soporte"
+          className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
         >
           Contáctanos en Soporte al cliente
-        </a>
+        </Link>
         .
       </p>
     </>
@@ -489,12 +497,12 @@ function PanelContrasena() {
 
       <p className="text-zinc-600 text-xs">
         ¿Tienes problemas?{' '}
-        <a
-          href="mailto:soporte@bandify.cl"
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+        <Link
+          to="/soporte"
+          className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
         >
           Contáctanos en Soporte al cliente
-        </a>
+        </Link>
         .
       </p>
     </>
@@ -502,7 +510,49 @@ function PanelContrasena() {
 }
 
 function PanelSeguridad() {
-  const [confirmar, setConfirmar] = useState(false)
+  const { logout , token}      = useAuth()
+  const navigate        = useNavigate()
+  const [showModal, setShowModal] = useState(false)
+  const [step, setStep] = useState(1)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  const closeModal = () => {
+    setShowModal(false)
+    setStep(1)
+    setConfirmText('')
+    setError('')
+  }
+
+  const handleEliminarCuenta = async () => {
+    try {
+      setDeleting(true)
+      setError('')
+      
+      const res = await fetch(`${API_URL}/usuarios/cuenta`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al eliminar cuenta')
+      }
+
+      // Logout y redirigir
+      logout()
+      toast.success('Cuenta eliminada correctamente. ¡Esperamos verte pronto!')
+      navigate('/')
+    } catch (err) {
+      setError(err.message || 'Error al eliminar cuenta')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <>
@@ -516,43 +566,97 @@ function PanelSeguridad() {
         } />
       </div>
 
-      {/* Zona de peligro */}
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <AlertTriangle size={15} className="text-red-400" />
-          <p className="text-red-400 text-sm font-bold uppercase tracking-wide">Zona de peligro</p>
-        </div>
-        <p className="text-zinc-500 text-xs mb-5">Las acciones de esta sección son permanentes e irreversibles.</p>
-
-        {!confirmar ? (
-          <button
-            onClick={() => setConfirmar(true)}
-            className="px-4 py-2 text-sm font-semibold text-red-400 border border-red-500/40 rounded-xl hover:bg-red-500/10 transition-colors"
-          >
-            Eliminar mi cuenta
-          </button>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <p className="text-zinc-300 text-sm">¿Estás seguro? Esta acción eliminará todos tus datos permanentemente.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmar(false)}
-                className="px-4 py-2 text-sm font-medium text-zinc-400 border border-white/10 rounded-xl hover:bg-white/5 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors">
-                Sí, eliminar cuenta
-              </button>
-            </div>
-          </div>
-        )}
+      <div className="border-t border-zinc-800 pt-8">
+        <h3 className="text-white text-lg font-bold mb-2">Eliminar cuenta</h3>
+        <p className="text-zinc-500 text-sm mb-5">
+          ¿Quieres eliminar tu cuenta? Esta acción borrará permanentemente todos tus datos de la plataforma.
+        </p>
+        <button
+          onClick={() => {
+            setStep(1)
+            setShowModal(true)
+          }}
+          className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors"
+        >
+          Eliminar mi cuenta
+        </button>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl relative">
+            {step === 1 ? (
+              <>
+                <h3 className="text-white text-xl font-bold mb-3">Confirmación Inicial</h3>
+                <p className="text-zinc-400 text-sm mb-4">
+                  Escribe <span className="font-mono font-semibold text-red-300">ELIMINAR</span> para continuar.
+                </p>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="ELIMINAR"
+                  className="w-full px-3 py-2 mb-4 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500"
+                />
+                {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
+                <div className="flex gap-3">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-sm font-medium text-zinc-400 border border-zinc-700 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setStep(2)}
+                    disabled={confirmText !== 'ELIMINAR'}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle size={18} className="text-red-400" />
+                  <h3 className="text-white text-xl font-bold">¿Estás absolutamente seguro?</h3>
+                </div>
+                <p className="text-zinc-300 text-sm mb-5">
+                  Esta es tu última oportunidad para cancelar. Tu cuenta, demos y tocatas se eliminarán para siempre y no podremos recuperarlos.
+                </p>
+                {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
+                <div className="flex gap-3">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-sm font-medium text-zinc-400 border border-zinc-700 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleEliminarCuenta}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {deleting ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Eliminando...
+                      </>
+                    ) : (
+                      'Sí, eliminar definitivamente'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
 
-function PanelSuscripcion() {
+function PanelSuscripcion({ navigate }) {
   return (
     <>
       <h2 className="text-xl font-bold text-white mb-1">Información de suscripción</h2>
@@ -582,6 +686,7 @@ function PanelSuscripcion() {
         </p>
         <button
           type="button"
+          onClick={() => navigate('/planes')}
           className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold tracking-wide rounded-xl transition-colors"
         >
           VER OPCIONES DE PLAN
@@ -597,12 +702,12 @@ function PanelSuscripcion() {
             Detalles del Pedido
           </a>
           . Si tienes alguna pregunta, por favor contacta con{' '}
-          <a
-            href="mailto:soporte@bandify.cl"
-            className="text-purple-400 hover:underline transition-colors"
+          <Link
+            to="/soporte"
+            className="text-purple-500 hover:text-purple-400 hover:underline transition-colors"
           >
             Soporte al Cliente
-          </a>
+          </Link>
           .
         </p>
       </div>
@@ -653,7 +758,7 @@ export default function Settings() {
       case 'email':          return <PanelEmail  user={user} />
       case 'contrasena':     return <PanelContrasena />
       case 'seguridad':      return <PanelSeguridad />
-      case 'suscripcion':    return <PanelSuscripcion />
+      case 'suscripcion':    return <PanelSuscripcion navigate={navigate} />
       default:               return null
     }
   }
@@ -675,7 +780,7 @@ export default function Settings() {
             md:self-start → no estira para llenar la altura del flex container,
             requisito de sticky.
             Solo aplica en md+ para que en mobile el menú quede arriba del contenido. */}
-        <aside className="w-full md:w-48 flex-shrink-0 pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0 md:sticky md:top-24 md:self-start">
+        <aside className="w-full md:w-56 flex-shrink-0 md:pr-8 border-b md:border-b-0 md:border-r border-zinc-800 mb-6 md:mb-0 md:sticky md:top-24 md:h-[calc(100vh-8rem)] md:overflow-y-auto">
           {NAV_SECTIONS.map((section, si) => (
             <div key={section.group} className={si > 0 ? 'mt-6' : ''}>
               <p className="pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
@@ -705,7 +810,7 @@ export default function Settings() {
 
         {/* ── Panel de contenido derecha — bg-transparent para que herede
               el gris de MainLayout (bg-zinc-900) sin contraste extra. ── */}
-        <div className="flex-1 min-w-0 md:pl-10 bg-transparent">
+        <div className="flex-1 min-w-0 md:pl-12 bg-transparent">
           {renderPanel()}
         </div>
 

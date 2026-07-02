@@ -9,6 +9,9 @@ const jwt    = require('jsonwebtoken');
 const pool   = require('../db/index');
 const mailer = require('../utils/mailer');
 
+// Formato válido: 2-30 chars. Inicia con letra o dígito, luego letras/dígitos/punto/guion bajo.
+const USERNAME_REGEX = /^[a-z0-9][a-z0-9._]{1,29}$/;
+
 /**
  * POST /auth/registro — crea usuario y devuelve JWT.
  */
@@ -20,9 +23,23 @@ exports.registro = async (req, res, next) => {
       return res.status(400).json({ error: 'nombre, email y password son obligatorios' });
     }
 
+    // Sanitize: trim + lowercase
+    const username = nombre.trim().toLowerCase();
+
+    if (!USERNAME_REGEX.test(username)) {
+      return res.status(400).json({
+        error: 'El nombre de usuario solo puede contener letras minúsculas, números, puntos y guiones bajos, y debe tener entre 2 y 30 caracteres',
+      });
+    }
+
     const existente = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
     if (existente.rows.length > 0) {
       return res.status(409).json({ error: 'El email ya está registrado' });
+    }
+
+    const usernameOcupado = await pool.query('SELECT id FROM usuarios WHERE nombre = $1', [username]);
+    if (usernameOcupado.rows.length > 0) {
+      return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -31,7 +48,7 @@ exports.registro = async (req, res, next) => {
       `INSERT INTO usuarios (nombre, email, password_hash, instrumento, ciudad, fecha_nacimiento)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, nombre, email, instrumento, ciudad, fecha_nacimiento, role`,
-      [nombre, email, password_hash, instrumento || null, ciudad || null, fecha_nacimiento || null]
+      [username, email, password_hash, instrumento || null, ciudad || null, fecha_nacimiento || null]
     );
 
     const usuario = resultado.rows[0];
@@ -52,11 +69,14 @@ exports.registro = async (req, res, next) => {
  */
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email y password son obligatorios' });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'identificador y password son obligatorios' });
     }
+
+    // Normalizar a minúsculas para buscar por email (case-insensitive) o por nombre de usuario
+    const lookup = identifier.trim().toLowerCase();
 
     const resultado = await pool.query(
       `SELECT u.id, u.nombre, u.email, u.password_hash, u.instrumento, u.ciudad,
@@ -64,8 +84,8 @@ exports.login = async (req, res, next) => {
               p.s3_key, p.foto_url
        FROM usuarios u
        LEFT JOIN perfiles p ON p.usuario_id = u.id
-       WHERE u.email = $1`,
-      [email]
+       WHERE LOWER(u.email) = $1 OR u.nombre = $1`,
+      [lookup]
     );
 
     const usuario = resultado.rows[0];

@@ -20,6 +20,24 @@ router.get('/perfil', authMiddleware, usuariosController.obtenerPerfil);
 
 /**
  * @swagger
+ * /usuarios/publico/{username}:
+ *   get:
+ *     summary: Perfil público de un músico por username
+ *     description: No requiere autenticación. Excluye email, password y datos privados.
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Perfil público }
+ *       404: { description: Usuario no encontrado }
+ */
+router.get('/publico/:username', usuariosController.perfilPublico);
+
+/**
+ * @swagger
  * /usuarios/perfil:
  *   put:
  *     summary: Actualiza datos del usuario y/o su perfil
@@ -76,5 +94,19 @@ router.put('/perfil', authMiddleware, usuariosController.actualizarPerfil);
  *       401: { description: Contraseña actual incorrecta }
  */
 router.put('/cambiar-password', authMiddleware, usuariosController.cambiarPassword);
+
+/**
+ * @swagger
+ * /usuarios/cuenta:
+ *   delete:
+ *     summary: Elimina la cuenta del usuario autenticado
+ *     description: Elimina permanentemente la cuenta y todos sus datos asociados
+ *     tags: [Usuarios]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Cuenta eliminada con éxito }
+ *       500: { description: Error al eliminar cuenta }
+ */
+router.delete('/cuenta', authMiddleware, usuariosController.eliminarMiCuenta);
 
 module.exports = router;

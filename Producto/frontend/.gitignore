@@ -28,3 +28,7 @@ node_modules/
 .env.local
 dist/
 .vite/
+
+.copilot/
+
+lighthouse-report.html

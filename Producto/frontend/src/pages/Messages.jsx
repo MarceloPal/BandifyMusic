@@ -13,7 +13,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { Send, MessageCircle, Inbox } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useImageUrl } from '../hooks/useImageUrl'
 import { API_URL, getInitials } from '../utils/helpers'
+import UserLink from '../components/UserLink'
 
 function formatTime(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -39,6 +41,7 @@ export default function Messages() {
   const [tab,        setTab]        = useState('mensajes') // 'mensajes' | 'solicitudes'
   const [newMessage, setNewMessage] = useState('')
   const queryClient = useQueryClient()
+  const { url: selectedUserPhotoUrl } = useImageUrl(selectedUser?.foto_url ?? null)
 
   // ── Lista unificada de conversaciones ─────────────────────────────────────
   const { data: conversaciones = [] } = useQuery({
@@ -114,7 +117,11 @@ export default function Messages() {
   }, [selectedUser?.id, sinLeerEnConv]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectConv = (conv) => {
-    setSelectedUser({ id: conv.partner_id, nombre: conv.partner_nombre })
+    setSelectedUser({
+      id: conv.partner_id,
+      nombre: conv.partner_nombre,
+      foto_url: conv.partner_foto_url,
+    })
     if (!conv.yo_respondi) setTab('mensajes')
   }
 
@@ -155,40 +162,12 @@ export default function Messages() {
           )}
 
           {listaActiva.map((conv) => (
-            <button
+            <ConversationButton
               key={conv.partner_id}
-              onClick={() => handleSelectConv(conv)}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 text-left transition-colors border-b border-white/6 ${
-                selectedUser?.id === conv.partner_id ? 'bg-white/10' : 'hover:bg-white/5'
-              }`}
-            >
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-bold">
-                  {getInitials(conv.partner_nombre)}
-                </div>
-                {conv.sin_leer > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold leading-none">
-                    {conv.sin_leer > 9 ? '9+' : conv.sin_leer}
-                  </span>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className={`text-sm truncate ${conv.sin_leer > 0 ? 'text-white font-semibold' : 'text-zinc-300 font-medium'}`}>
-                    {conv.partner_nombre}
-                  </p>
-                  <span className="text-zinc-500 text-xs flex-shrink-0">
-                    {formatTime(conv.last_at)}
-                  </span>
-                </div>
-                <p className="text-zinc-500 text-xs truncate mt-0.5">
-                  {conv.last_mensaje || '...'}
-                </p>
-              </div>
-            </button>
+              conv={conv}
+              isSelected={selectedUser?.id === conv.partner_id}
+              onSelect={() => handleSelectConv(conv)}
+            />
           ))}
         </div>
       </div>
@@ -204,10 +183,20 @@ export default function Messages() {
           <>
             {/* Header conversación */}
             <div className="px-5 py-3.5 border-b border-white/8 flex items-center gap-3 bg-zinc-800">
-              <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-bold">
-                {getInitials(selectedUser.nombre)}
-              </div>
-              <span className="text-white font-semibold text-sm">{selectedUser.nombre}</span>
+              {selectedUserPhotoUrl ? (
+                <img
+                  src={selectedUserPhotoUrl}
+                  alt={selectedUser.nombre}
+                  className="w-8 h-8 rounded-full object-cover bg-zinc-700"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-bold">
+                  {getInitials(selectedUser.nombre)}
+                </div>
+              )}
+              <UserLink username={selectedUser.nombre} className="text-white font-semibold text-sm">
+                {selectedUser.nombre}
+              </UserLink>
             </div>
 
             {/* Mensajes */}
@@ -253,6 +242,53 @@ export default function Messages() {
         )}
       </div>
     </div>
+  )
+}
+
+function ConversationButton({ conv, isSelected, onSelect }) {
+  const { url: photoUrl } = useImageUrl(conv.partner_foto_url ?? null)
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`w-full flex items-center gap-3 px-5 py-3.5 text-left transition-colors border-b border-white/6 ${
+        isSelected ? 'bg-white/10' : 'hover:bg-white/5'
+      }`}
+    >
+      <div className="relative flex-shrink-0">
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={conv.partner_nombre}
+            className="w-9 h-9 rounded-full object-cover bg-zinc-700"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-bold">
+            {getInitials(conv.partner_nombre)}
+          </div>
+        )}
+        {conv.sin_leer > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold leading-none">
+            {conv.sin_leer > 9 ? '9+' : conv.sin_leer}
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <UserLink username={conv.partner_nombre} className={`text-sm truncate ${conv.sin_leer > 0 ? 'text-white font-semibold' : 'text-zinc-300 font-medium'}`}>
+            {conv.partner_nombre}
+          </UserLink>
+          <span className="text-zinc-500 text-xs flex-shrink-0">
+            {formatTime(conv.last_at)}
+          </span>
+        </div>
+        <p className="text-zinc-500 text-xs truncate mt-0.5">
+          {conv.last_mensaje || '...'}
+        </p>
+      </div>
+    </button>
   )
 }
 

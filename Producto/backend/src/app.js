@@ -27,10 +27,13 @@ const notificacionesRoutes = require('./routes/notificaciones');
 const noticiasRoutes       = require('./routes/noticias');
 const adminRoutes          = require('./routes/admin');
 const eventosRoutes        = require('./routes/eventos');
+const soporteRoutes        = require('./routes/soporte');
+const subscriptionsRoutes  = require('./routes/subscriptions');
 
 const app = express();
 
 // ─── Middlewares globales ───────────────────────────────────────────────────
+app.disable('x-powered-by');
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -57,6 +60,8 @@ app.use('/notificaciones',  notificacionesRoutes);
 app.use('/api/noticias',    noticiasRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/eventos',     eventosRoutes);
+app.use('/api/soporte',     soporteRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 /**
  * @swagger

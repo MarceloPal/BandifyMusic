@@ -7,14 +7,13 @@ import { API_URL }  from '../utils/helpers'
 
 const HIDE_FOOTER_ON = ['/messages']
 
-// Rutas que se renderizan a ancho completo (sin el contenedor max-w-5xl mx-auto).
-// Útil para dashboards/perfiles con secciones full-bleed (banners, grids con
-// divisores que llegan a los bordes de la pantalla).
-const FULL_BLEED_ROUTES = ['/messages', '/profile']
+// Palabras clave base. Si la URL contiene cualquiera de estas, será Full Bleed (ancho completo)
+const FULL_BLEED_KEYWORDS = ['/messages', '/profile', '/u/', 'planes', '/tocatas', '/gestion']
+const ZINC_BG_KEYWORDS    = ['/profile', '/u/', '/tocatas', '/gestion']
 
 export default function MainLayout() {
-  const { pathname }                = useLocation()
-  const { token, updateUser, user } = useAuth()
+  const { pathname }          = useLocation()
+  const { token, updateUser } = useAuth()
 
   useEffect(() => {
     if (!token) return
@@ -24,21 +23,21 @@ export default function MainLayout() {
       .catch(() => {})
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Footer global: visible en TODAS las rutas excepto las que están en HIDE_FOOTER_ON.
-  // Antes se ocultaba para usuarios autenticados; ahora se muestra siempre porque
-  // el footer contiene info útil (legal, soporte, redes) que vale para todos.
   const showFooter   = !HIDE_FOOTER_ON.includes(pathname)
   const isMessages   = pathname === '/messages'
-  const isFullBleed  = FULL_BLEED_ROUTES.includes(pathname)
+  
+  // SOLUCIÓN INMUNE: Comprueba si la URL actual contiene alguna de las palabras clave de ancho completo
+  const isFullBleed  = FULL_BLEED_KEYWORDS.some(keyword => pathname.toLowerCase().includes(keyword))
+  const isZincBg     = ZINC_BG_KEYWORDS.some(keyword => pathname.toLowerCase().includes(keyword))
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col">
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isFullBleed && !isZincBg ? 'bg-black' : 'bg-zinc-900'}`}>
 
       <TopNavbar />
 
       {/* Contenido — padding-top para compensar el navbar fijo */}
       <div className="flex-1 flex flex-col pt-14">
-        <main className={`flex-1 ${isMessages ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 ${isMessages ? 'overflow-hidden flex flex-col' : ''}`}>
           {isFullBleed ? (
             <Outlet />
           ) : (

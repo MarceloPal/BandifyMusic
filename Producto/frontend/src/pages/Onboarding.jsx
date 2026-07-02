@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, CheckCircle, XCircle, Loader2, Music, SkipForward } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import { OFICIOS, TAG_OPTIONS, MAX_TAGS, CIUDADES_CHILE } from '../utils/audioHelpers'
@@ -42,8 +43,34 @@ function TagPill({ label, selected, disabled, onClick }) {
   )
 }
 
+async function performOnboardingUpload(token, file) {
+  const ext         = (file.name.split('.').pop() || 'mp3').toLowerCase()
+  const audioExt    = AUDIO_MIME[ext] ? ext : 'mp3'
+  const contentType = AUDIO_MIME[audioExt]
+
+  const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
+  const { uploadUrl, s3Key } = await uploadRes.json()
+
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  })
+
+  const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ s3Key }),
+  })
+  if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
+  return analyzeRes.json()
+}
+
 export default function Onboarding() {
-  const { token, updateUser } = useAuth()
+  const { user, token, updateUser } = useAuth()
   const navigate              = useNavigate()
 
   // Step 1: Ciudad
@@ -79,31 +106,7 @@ export default function Onboarding() {
   }
 
   const uploadMutation = useMutation({
-    mutationFn: async (file) => {
-      const ext         = (file.name.split('.').pop() || 'mp3').toLowerCase()
-      const audioExt    = AUDIO_MIME[ext] ? ext : 'mp3'
-      const contentType = AUDIO_MIME[audioExt]
-
-      const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
-      const { uploadUrl, s3Key } = await uploadRes.json()
-
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      })
-
-      const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ s3Key }),
-      })
-      if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
-      return analyzeRes.json()
-    },
+    mutationFn: (file) => performOnboardingUpload(token, file),
     onSuccess: (data) => setJobId(data.jobId),
   })
 
@@ -138,14 +141,16 @@ export default function Onboarding() {
   const progressMsg = useProgressMessage(isProcessing)
 
   const handleFile = (file) => {
-    if (!file) return
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError(`El archivo es demasiado pesado (máximo ${MAX_FILE_MB} MB). Prueba con un archivo más corto o en formato MP3.`)
-      // Auto-reset so the user can pick another file immediately
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
+    if (!file) return;
+    const limitMB = user?.es_premium ? 100 : 60;
+    const limitBytes = limitMB * 1024 * 1024;
+
+    if (file.size > limitBytes) {
+      setFileError(`Tu cuenta ${user?.es_premium ? 'Premium' : 'Básica'} permite archivos de hasta ${limitMB} MB. Prueba con un archivo más ligero o actualiza tu plan.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
-    setFileError('')
+    setFileError('');
     uploadMutation.mutate(file)
   }
   const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files[0]) }
@@ -171,6 +176,7 @@ export default function Onboarding() {
         // Si falla la red, el usuario puede reintentar desde su perfil.
       }
     }
+    toast.success('¡Todo listo! Bienvenido a Bandify 🎸')
     navigate('/mi-adn')
   }
 
@@ -302,6 +308,8 @@ export default function Onboarding() {
                 <p>Nuestra IA analiza 27 características de tu sonido para encontrar tu match perfecto.</p>
 
                 <div
+                  role="button"
+                  tabIndex={0}
                   className={`mt-5 border-2 border-dashed rounded-2xl py-10 px-6 flex flex-col items-center justify-center cursor-pointer transition-all select-none ${
                     isDragging
                       ? 'border-[#5227FF] bg-[#5227FF]/10'
@@ -311,6 +319,7 @@ export default function Onboarding() {
                   onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
                   onDragLeave={() => setIsDragging(false)}
                   onClick={() => !isProcessing && !isDone && fileInputRef.current?.click()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (!isProcessing && !isDone) fileInputRef.current?.click() } }}
                 >
                   <input
                     ref={fileInputRef}

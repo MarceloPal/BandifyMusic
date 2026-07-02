@@ -2,8 +2,9 @@ import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   BarChart2, User, Compass,
   MessageCircle, CalendarDays, HelpCircle, LogOut, Music,
-  Bell, Settings, Newspaper, Shield,
+  Bell, Settings, Newspaper, Shield, LayoutList,
 } from 'lucide-react'
+import { toast }       from 'sonner'
 import { useAuth }     from '../context/AuthContext'
 import { getInitials } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
@@ -14,6 +15,7 @@ const navItems = [
   { icon: Compass,       label: 'Explorar',       path: '/explore',      end: false },
   { icon: MessageCircle, label: 'Mensajes',       path: '/messages',     end: false },
   { icon: CalendarDays,  label: 'Tocatas',        path: '/tocatas',      end: false },
+  { icon: LayoutList,   label: 'Gestión',        path: '/gestion',      end: false },
   { icon: Bell,          label: 'Notificaciones', path: '/notifications',end: false },
   { icon: Newspaper,     label: 'Noticias',       path: '/noticias',     end: false },
   { icon: HelpCircle,    label: 'Ayuda',          path: '/help',         end: false },
@@ -25,7 +27,11 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate         = useNavigate()
   const { url: photoUrl } = useImageUrl(user?.foto_url ?? null)
 
-  const handleLogout = () => { logout(); navigate('/') }
+  const handleLogout = () => {
+    logout()
+    toast.success('Sesión cerrada. ¡Hasta la próxima!')
+    navigate('/')
+  }
 
   return (
     <aside
@@ -48,10 +54,14 @@ export default function Sidebar({ isOpen, onClose }) {
         </Link>
       </div>
 
-      {/* Avatar */}
+      {/* Avatar — enlaza al perfil público propio */}
       {user && (
         <div className="px-4 py-4 border-b border-white/8 flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <Link
+            to={user.nombre ? `/u/${user.nombre}` : '/profile'}
+            onClick={onClose}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             {photoUrl ? (
               <img
                 src={photoUrl}
@@ -69,13 +79,13 @@ export default function Sidebar({ isOpen, onClose }) {
                 {user.es_premium ? '✦ Premium' : user.email}
               </p>
             </div>
-          </div>
+          </Link>
         </div>
       )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
-        {navItems.map(({ icon: NavIcon, label, path, end }) => (
+        {navItems.map(({ icon: label, path, end }) => (
           <NavLink
             key={path}
             to={path}

@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+﻿import { useState, useRef, useEffect, useCallback } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, MapPin, Music2, Plus, X,
-  Loader2, User, ChevronLeft, ChevronRight, ImagePlus, Trash2,
-  Ticket, ExternalLink, Clock, Users, ArrowRight,
-  LayoutGrid, Map as MapIcon,
+  Loader2, User, ChevronLeft, ChevronRight, Trash2,
+  Ticket, Clock, Users, ArrowRight,
+  LayoutGrid, Map as MapIcon, Sparkles, Search,
 } from 'lucide-react'
 import { useAuth }     from '../context/AuthContext'
 import { API_URL }     from '../utils/helpers'
@@ -30,11 +30,31 @@ function formatFechaShort(isoDate) {
 
 /* ─── Hero Slider ─── */
 
-function HeroSlider({ eventos }) {
+// Sub-componente para obtener la URL presignada del afiche de cada slide.
+// Necesita ser un componente propio para poder llamar useImageUrl como hook.
+function SlideBackground({ tocata }) {
+  const { url } = useImageUrl(tocata?.afiche_url ?? null)
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={tocata.nombre}
+        className="w-full h-full object-cover transition-opacity duration-500"
+      />
+    )
+  }
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-purple-950 via-zinc-900 to-black flex items-center justify-center">
+      <Music2 size={48} className="text-purple-800/60" />
+    </div>
+  )
+}
+
+function HeroSlider({ tocatas }) {
   const [current, setCurrent] = useState(0)
   const timerRef = useRef(null)
 
-  const slides = eventos.slice(0, 5)
+  const slides = tocatas.slice(0, 5)
   const len = slides.length
 
   const startTimer = useCallback(() => {
@@ -49,6 +69,7 @@ function HeroSlider({ eventos }) {
   }, [startTimer])
 
   useEffect(() => {
+     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current >= len) setCurrent(0)
   }, [len, current])
 
@@ -61,30 +82,31 @@ function HeroSlider({ eventos }) {
   const ev = slides[current] ?? slides[0]
   if (!ev) return null
 
+  const lugar = ev.direccion || ev.ciudad || null
+  const precio = ev.precio != null ? Number(ev.precio) : null
+
   return (
     <div className="relative w-full overflow-hidden select-none" style={{ height: 'clamp(420px, 60vh, 700px)' }}>
       <div className="absolute inset-0">
-        {ev.imagen ? (
-          <img
-            key={ev.id}
-            src={ev.imagen}
-            alt={ev.nombre}
-            className="w-full h-full object-cover transition-opacity duration-500"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
-            <Music2 size={48} className="text-zinc-600" />
-          </div>
-        )}
+        <SlideBackground key={ev.id} tocata={ev} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
       </div>
 
+      <div className="absolute top-4 left-5">
+        <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+          <Users size={9} />
+          Comunidad
+        </span>
+      </div>
+
       <div className="absolute bottom-0 left-0 right-0 p-7 flex flex-col gap-2">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full">
-            {ev.genero && ev.genero !== 'Undefined' ? ev.genero : 'Música en vivo'}
-          </span>
+          {ev.genero && (
+            <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-1 rounded-full">
+              {ev.genero}
+            </span>
+          )}
           {ev.ciudad && (
             <span className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1">
               <MapPin size={9} />
@@ -105,31 +127,18 @@ function HeroSlider({ eventos }) {
               {ev.hora && ` · ${ev.hora.slice(0, 5)}`}
             </span>
           )}
-          {ev.recinto && (
+          {lugar && (
             <span className="flex items-center gap-1.5 truncate max-w-xs">
               <MapPin size={13} className="text-purple-400 flex-shrink-0" />
-              {ev.recinto}
+              {lugar}
             </span>
           )}
         </div>
 
-        {ev.precio_min != null && (
+        {precio != null && (
           <p className="text-purple-300 text-sm font-bold">
-            Desde ${Number(ev.precio_min).toLocaleString('es-CL')}
+            {precio === 0 ? 'Entrada liberada' : `Desde $${precio.toLocaleString('es-CL')}`}
           </p>
-        )}
-
-        {ev.url && (
-          <a
-            href={ev.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="mt-1 inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors self-start"
-          >
-            <Ticket size={13} />
-            Ver entradas
-          </a>
         )}
       </div>
 
@@ -154,6 +163,7 @@ function HeroSlider({ eventos }) {
         <div className="absolute bottom-4 right-6 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <button
+              稳定={i}
               key={i}
               onClick={() => goTo(i)}
               className={`rounded-full transition-all duration-300 ${
@@ -226,77 +236,6 @@ function TocataCard({ tocata, onClick }) {
   )
 }
 
-/* ─── EventoCard ─── */
-
-function EventoCard({ evento }) {
-  const precioLabel = evento.precio_min != null
-    ? `Desde $${Number(evento.precio_min).toLocaleString('es-CL')}`
-    : null
-
-  return (
-    <a
-      href={evento.url ?? '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative overflow-hidden rounded-2xl border border-white/8 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all text-left w-full bg-zinc-800 flex flex-col"
-    >
-      <div className="h-44 relative overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-700 flex-shrink-0">
-        {evento.imagen ? (
-          <img
-            src={evento.imagen}
-            alt={evento.nombre}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-600">
-            <Music2 size={32} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute top-3 left-3">
-          <span className="bg-black/70 backdrop-blur-sm text-zinc-300 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-white/10">
-            <Ticket size={9} />
-            Ticketmaster
-          </span>
-        </div>
-        {evento.genero && evento.genero !== 'Undefined' && (
-          <div className="absolute top-3 right-3">
-            <span className="bg-white/90 backdrop-blur-sm text-zinc-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-              {evento.genero}
-            </span>
-          </div>
-        )}
-        <div className="absolute bottom-3 left-3">
-          <span className="text-white text-xs font-bold drop-shadow">{formatFechaShort(evento.fecha)}</span>
-        </div>
-        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ExternalLink size={14} className="text-white" />
-        </div>
-      </div>
-      <div className="p-4 flex flex-col gap-1 flex-1">
-        <h3 className="text-zinc-100 font-bold text-base leading-tight line-clamp-2">{evento.nombre}</h3>
-        {evento.artistas?.length > 0 && (
-          <p className="text-zinc-400 text-xs truncate">{evento.artistas.join(' · ')}</p>
-        )}
-        <div className="flex items-center gap-1.5 mt-1 text-zinc-400 text-xs">
-          <MapPin size={11} className="flex-shrink-0" />
-          <span className="truncate">{[evento.recinto, evento.ciudad].filter(Boolean).join(' · ')}</span>
-        </div>
-        {evento.hora && (
-          <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
-            <Clock size={11} className="flex-shrink-0" />
-            <span>{evento.hora.slice(0, 5)}</span>
-          </div>
-        )}
-        {precioLabel && (
-          <p className="text-purple-400 text-xs font-semibold mt-auto pt-2">{precioLabel}</p>
-        )}
-      </div>
-    </a>
-  )
-}
-
 /* ── TocataDetailModal ── */
 
 function TocataDetailModal({ tocata, onClose }) {
@@ -355,10 +294,13 @@ function TocataDetailModal({ tocata, onClose }) {
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      role="presentation"
     >
       <div
         className="bg-zinc-900 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="h-56 relative flex-shrink-0 bg-gradient-to-br from-zinc-700 to-zinc-600">
           {afficheUrl ? (
@@ -478,210 +420,34 @@ function TocataDetailModal({ tocata, onClose }) {
   )
 }
 
-/* ── CreateTocataModal ── */
-
-function CreateTocataModal({ onClose, onCreated }) {
-  const { token, user } = useAuth()
-  const queryClient = useQueryClient()
-  const afficheInputRef = useRef(null)
-
-  const [form, setForm] = useState({
-    nombre: '', fecha: '', ciudad: '', direccion: '',
-    descripcion: '', genero: '', contacto_email: '',
-    precio: '', cantidad_disponible: '',
-  })
-  const [afficheKey, setAfficheKey]         = useState(null)
-  const [affichePreview, setAffichePreview] = useState(null)
-  const [afficheLoading, setAfficheLoading] = useState(false)
-  const [errors, setErrors]                 = useState({})
-
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
-
-  const handleAfficheFile = async (file) => {
-    if (!file) return
-    setAfficheLoading(true)
-    try {
-      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
-      const urlRes = await fetch(`${API_URL}/images/upload-url?type=afiche&ext=${ext}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const { uploadUrl, key } = await urlRes.json()
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
-      setAfficheKey(key)
-      setAffichePreview(URL.createObjectURL(file))
-    } catch { /* silently ignore */ } finally {
-      setAfficheLoading(false)
-    }
-  }
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const body = {
-        ...form,
-        afiche_url:          afficheKey || undefined,
-        precio:              form.precio              ? Number(form.precio)              : undefined,
-        cantidad_disponible: form.cantidad_disponible ? parseInt(form.cantidad_disponible) : undefined,
-      }
-      const res = await fetch(`${API_URL}/tocatas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Error al crear la tocata')
-      }
-      return res.json()
-    },
-    onSuccess: (data) => {
-      const enriched = { ...data, organizador_id: user?.id, organizador_nombre: user?.nombre, organizador_email: user?.email }
-      queryClient.setQueryData(['tocatas'], (old = []) => {
-        const list = Array.isArray(old) ? old : []
-        return [...list, enriched].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-      })
-      queryClient.invalidateQueries({ queryKey: ['tocatas-publicas'] })
-      onCreated(enriched)
-    },
-  })
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const errs = {}
-    if (!form.nombre.trim()) errs.nombre = 'El nombre es obligatorio'
-    if (!form.fecha)         errs.fecha  = 'La fecha es obligatoria'
-    if (!form.ciudad.trim()) errs.ciudad = 'La ciudad es obligatoria'
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setErrors({})
-    createMutation.mutate()
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-zinc-900 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-          <h2 className="font-bold text-zinc-100 text-lg">Publicar tocata</h2>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"><X size={18} /></button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-2">Afiche (opcional)</label>
-            <input ref={afficheInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleAfficheFile(e.target.files[0])} />
-            <button type="button" onClick={() => afficheInputRef.current?.click()} disabled={afficheLoading} className="relative w-full h-32 rounded-2xl border-2 border-dashed border-zinc-700 hover:border-purple-400 transition-colors overflow-hidden flex items-center justify-center bg-zinc-800">
-              {affichePreview ? (
-                <><img src={affichePreview} alt="" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"><ImagePlus size={22} className="text-white" /></div></>
-              ) : afficheLoading ? (
-                <Loader2 size={22} className="text-purple-400 animate-spin" />
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-zinc-500"><ImagePlus size={22} /><span className="text-xs font-medium">Subir afiche del evento</span></div>
-              )}
-            </button>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Nombre del evento *</label>
-            <input type="text" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} placeholder="Ej: Noche de Jazz Vol. 4" className={`w-full px-4 py-2.5 rounded-xl border text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${errors.nombre ? 'border-red-500/40 bg-red-500/10' : 'border-zinc-700 bg-zinc-800'}`} />
-            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Fecha *</label>
-              <input type="date" value={form.fecha} onChange={(e) => set('fecha', e.target.value)} className={`w-full px-3 py-2.5 rounded-xl border text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${errors.fecha ? 'border-red-500/40 bg-red-500/10' : 'border-zinc-700 bg-zinc-800'}`} />
-              {errors.fecha && <p className="text-red-500 text-xs mt-1">{errors.fecha}</p>}
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Ciudad *</label>
-              <input type="text" value={form.ciudad} onChange={(e) => set('ciudad', e.target.value)} placeholder="Ej: Santiago" className={`w-full px-3 py-2.5 rounded-xl border text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${errors.ciudad ? 'border-red-500/40 bg-red-500/10' : 'border-zinc-700 bg-zinc-800'}`} />
-              {errors.ciudad && <p className="text-red-500 text-xs mt-1">{errors.ciudad}</p>}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Lugar / Dirección</label>
-            <input type="text" value={form.direccion} onChange={(e) => set('direccion', e.target.value)} placeholder="Ej: Club Chocolate, Av. Italia 1234" className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Género musical</label>
-            <input type="text" value={form.genero} onChange={(e) => set('genero', e.target.value)} placeholder="Ej: Jazz, Rock, Cumbia..." className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Descripción</label>
-            <textarea value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} placeholder="Cuéntanos sobre el evento..." rows={3} className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent resize-none" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-1.5">Email de contacto</label>
-            <input type="email" value={form.contacto_email} onChange={(e) => set('contacto_email', e.target.value)} placeholder="contacto@ejemplo.com" className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
-          </div>
-
-          {/* Venta de entradas */}
-          <div className="border-t border-white/8 pt-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Venta de entradas (opcional)</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-zinc-500 block mb-1.5">Precio por entrada (CLP)</label>
-                <input
-                  type="number" min="0" step="100"
-                  value={form.precio}
-                  onChange={(e) => set('precio', e.target.value)}
-                  placeholder="Ej: 5000"
-                  className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-zinc-500 block mb-1.5">Entradas disponibles</label>
-                <input
-                  type="number" min="1" step="1"
-                  value={form.cantidad_disponible}
-                  onChange={(e) => set('cantidad_disponible', e.target.value)}
-                  placeholder="Ej: 100"
-                  className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-                />
-              </div>
-            </div>
-            {form.precio && (
-              <p className="text-zinc-500 text-xs mt-2">Los pagos se procesarán vía MercadoPago.</p>
-            )}
-          </div>
-
-          {createMutation.isError && <p className="text-red-500 text-sm px-1">{createMutation.error?.message}</p>}
-
-          <button type="submit" disabled={createMutation.isPending || afficheLoading} className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-purple-500 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
-            {createMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Publicando...</> : 'Publicar tocata'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Tabs ─── */
-
-const TABS = [
-  { id: 'todo',            label: 'Todo' },
-  { id: 'comunidad',       label: 'Comunidad' },
-  { id: 'grandes-eventos', label: 'Grandes Eventos' },
-]
-
 /* ══════════════════════════════════════════════
-   TocatasBoard — componente exportado
-   Props:
-     isHome  {boolean}  — modo landing: sin publicar, límite de grilla
-     limit   {number}   — máx. cards en grilla cuando isHome=true (default 6)
-     onBack  {function} — botón "volver" para el landing
+    TocatasBoard — componente exportado
 ══════════════════════════════════════════════ */
 
+/* ─── Géneros para chips de filtro ─── */
+const FILTER_GENRES = [
+  'Rock', 'Pop', 'Electrónica', 'Indie', 'Urbano',
+  'Metal', 'Jazz', 'Folk', 'Cantautor', 'Cumbia',
+]
+
 export default function TocatasBoard({ isHome = false, limit = 6, onBack = null }) {
-  const { token }                           = useAuth()
+  const { token, user }                     = useAuth()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams]     = useSearchParams()
   const [selectedTocata, setSelectedTocata] = useState(null)
-  const [showCreate, setShowCreate]         = useState(false)
-  const [filtroActivo, setFiltroActivo]     = useState('todo')
-  const [vistaPrincipal, setVistaPrincipal] = useState('carrusel') // 'carrusel' | 'mapa'
+  const [vistaPrincipal, setVistaPrincipal] = useState('carrusel')
   const [pagoStatus, setPagoStatus]         = useState(() => searchParams.get('pago') || null)
+
+  /* ── Filtros ── */
+  const [filtroGenero,   setFiltroGenero]   = useState(null)
+  const [filtroArtista,  setFiltroArtista]  = useState('')
+  const [artistaInput,   setArtistaInput]   = useState('')
+
+  /* Debounce del input de artista */
+  useEffect(() => {
+    const t = setTimeout(() => setFiltroArtista(artistaInput.trim()), 400)
+    return () => clearTimeout(t)
+  }, [artistaInput])
 
   useEffect(() => {
     if (!pagoStatus) return
@@ -692,57 +458,36 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
     return () => clearTimeout(t)
   }, [pagoStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Tocatas de la comunidad:
-     - isHome usa el endpoint público (sin auth) limitado a 6
-     - vista completa usa el endpoint autenticado  */
-  const { data: tocatas = [], isLoading: tocatasLoading } = useQuery({
-    queryKey: isHome ? ['tocatas-publicas', limit] : ['tocatas'],
+  const { data: tocatas = [], isLoading } = useQuery({
+    queryKey: isHome
+      ? ['tocatas-publicas', limit]
+      : ['tocatas', filtroGenero, filtroArtista],
     queryFn: async () => {
-      const url = isHome
-        ? `${API_URL}/tocatas/publicas?limite=${limit}`
-        : `${API_URL}/tocatas`
+      if (isHome) {
+        const res = await fetch(`${API_URL}/tocatas/publicas?limite=${limit}`)
+        if (!res.ok) return []
+        return res.json()
+      }
+      const params = new URLSearchParams()
+      if (filtroGenero)   params.set('genero',             filtroGenero)
+      if (filtroArtista)  params.set('organizador_nombre', filtroArtista)
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(url, { headers })
+      const res = await fetch(`${API_URL}/tocatas?${params}`, { headers })
       if (!res.ok) return []
       return res.json()
     },
     staleTime: 3 * 60 * 1000,
   })
 
-  /* Eventos Ticketmaster — endpoint público */
-  const { data: tmData, isLoading: tmLoading } = useQuery({
-    queryKey: ['eventos-ticketmaster'],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/eventos?limite=20`)
-      if (!res.ok) return { eventos: [] }
-      return res.json()
-    },
-    staleTime: 10 * 60 * 1000,
-  })
-  const eventos = tmData?.eventos ?? []
+  const navigateToPublicar = () =>
+    user?.es_premium ? navigate('/tocatas/publicar') : navigate('/planes')
 
-  const handleCreated = (tocata) => {
-    setShowCreate(false)
-    setSelectedTocata(tocata)
-  }
-
-  const isLoading = tocatasLoading || tmLoading
-
-  /* Grilla unificada */
-  const allItems = (() => {
-    if (filtroActivo === 'comunidad')       return tocatas.map((t) => ({ ...t, _source: 'comunidad' }))
-    if (filtroActivo === 'grandes-eventos') return eventos.map((e) => ({ ...e, _source: 'ticketmaster' }))
-    return [
-      ...tocatas.map((t) => ({ ...t, _source: 'comunidad' })),
-      ...eventos.map((e) => ({ ...e, _source: 'ticketmaster' })),
-    ]
-  })()
-
-  const gridItems  = isHome ? allItems.slice(0, limit) : allItems
-  const hasMore    = isHome && allItems.length > limit
+  const gridItems = isHome ? tocatas.slice(0, limit) : tocatas
+  const hasMore   = isHome && tocatas.length > limit
+  const hayFiltros = Boolean(filtroGenero || filtroArtista)
 
   return (
-    <div className="w-full">
+    <div className="w-full pb-16">
 
       {/* Banner de estado de pago */}
       {pagoStatus && (
@@ -763,27 +508,18 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
       {selectedTocata && (
         <TocataDetailModal tocata={selectedTocata} onClose={() => setSelectedTocata(null)} />
       )}
-      {showCreate && (
-        <CreateTocataModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
-      )}
 
-      {/* ── Hero Slider: siempre visible cuando hay eventos, breakout full-width ── */}
-      {eventos.length > 0 && !isLoading && (
-        <div
-          className="mb-8"
-          style={{
-            width: '100vw',
-            position: 'relative',
-            left: '50%',
-            marginLeft: '-50vw',
-            marginTop: '-2rem',   /* cancela el py-8 del MainLayout container */
-          }}
-        >
-          <HeroSlider eventos={eventos} />
+      {/* Hero Slider — ancho completo, sin restricción de contenedor */}
+      {tocatas.length > 0 && !isLoading && (
+        <div className="w-full mb-8">
+          <HeroSlider tocatas={tocatas} />
         </div>
       )}
 
-      {/* ── Header: debajo del carrusel, dentro de los márgenes normales ── */}
+      {/* Contenido principal — max-w-7xl para aprovechar el ancho full-bleed */}
+      <div className="max-w-7xl mx-auto px-6 py-2">
+
+      {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           {onBack && (
@@ -797,13 +533,13 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
             Tocatas
           </h1>
           <p className="text-zinc-400 mt-1 text-sm">
-            Eventos de la comunidad y grandes conciertos en un solo lugar.
+            Eventos de la comunidad, organizados por músicos como tú.
           </p>
         </div>
 
         {!isHome && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={navigateToPublicar}
             className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors flex-shrink-0 mt-1"
           >
             <Plus size={16} />
@@ -812,131 +548,158 @@ export default function TocatasBoard({ isHome = false, limit = 6, onBack = null 
         )}
       </div>
 
-      {/* ── Fila de filtros + toggle Carrusel/Mapa — solo en vista completa ── */}
+      {/* Filtros — solo en vista completa */}
       {!isHome && (
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          {/* Tabs (Todo, Comunidad, Grandes Eventos) */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {TABS.map((tab) => (
+        <div className="flex flex-col gap-3 mb-6">
+
+          {/* Búsqueda por artista/organizador */}
+          <div className="relative max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <input
+              type="text"
+              value={artistaInput}
+              onChange={(e) => setArtistaInput(e.target.value)}
+              placeholder="Buscar por organizador o artista..."
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800/80 text-zinc-100 text-sm placeholder:text-zinc-500
+                focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/40 transition-all"
+            />
+            {artistaInput && (
               <button
-                key={tab.id}
-                onClick={() => setFiltroActivo(tab.id)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                  filtroActivo === tab.id
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/8'
-                }`}
+                onClick={() => setArtistaInput('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
               >
-                {tab.label}
-                {tab.id === 'comunidad' && tocatas.length > 0 && (
-                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                    {tocatas.length}
-                  </span>
-                )}
-                {tab.id === 'grandes-eventos' && eventos.length > 0 && (
-                  <span className={`ml-1.5 text-xs font-bold ${filtroActivo === tab.id ? 'text-purple-200' : 'text-zinc-500'}`}>
-                    {eventos.length}
-                  </span>
-                )}
+                <X size={13} />
               </button>
-            ))}
+            )}
           </div>
 
-          {/* Toggle Carrusel / Mapa — al lado de los filtros */}
-          {(tocatas.length > 0 || eventos.length > 0) && (
-            <div className="flex bg-zinc-800 border border-white/8 rounded-xl p-1">
+          {/* Chips de género + toggle de vista */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
               <button
-                onClick={() => setVistaPrincipal('carrusel')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  vistaPrincipal === 'carrusel'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                onClick={() => setFiltroGenero(null)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  filtroGenero === null
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-sm shadow-purple-500/25'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-purple-500/50 hover:text-zinc-200'
                 }`}
               >
-                <LayoutGrid size={13} />
-                Cuadrícula
+                Todo
               </button>
-              <button
-                onClick={() => setVistaPrincipal('mapa')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  vistaPrincipal === 'mapa'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <MapIcon size={13} />
-                Mapa
-              </button>
+              {FILTER_GENRES.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setFiltroGenero(filtroGenero === g ? null : g)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    filtroGenero === g
+                      ? 'bg-purple-600 border-purple-500 text-white shadow-sm shadow-purple-500/25'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-purple-500/50 hover:text-zinc-200'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
-          )}
+
+            {tocatas.length > 0 && (
+              <div className="flex flex-shrink-0 bg-zinc-800 border border-white/8 rounded-xl p-1">
+                <button
+                  onClick={() => setVistaPrincipal('carrusel')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    vistaPrincipal === 'carrusel' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <LayoutGrid size={13} />
+                  Cuadrícula
+                </button>
+                <button
+                  onClick={() => setVistaPrincipal('mapa')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    vistaPrincipal === 'mapa' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <MapIcon size={13} />
+                  Mapa
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* ── Loading ── */}
+      {/* Loading */}
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-500">
           <Loader2 size={28} className="animate-spin" />
-          <p className="text-sm font-medium">Cargando eventos...</p>
+          <p className="text-sm font-medium">Cargando tocatas...</p>
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Vista de datos: Mapa o Grilla (según vistaPrincipal)
-          - isHome siempre fuerza grilla (landing page simple)
-          - Resto de vistas respeta el toggle del usuario
-      ══════════════════════════════════════════════ */}
-
-      {/* ── Vista MAPA ── */}
+      {/* Vista MAPA */}
       {!isLoading && !isHome && vistaPrincipal === 'mapa' && (
         <MapaTocatas tocatas={gridItems} />
       )}
 
-      {/* ── Vista GRILLA: empty state ── */}
+      {/* Empty State */}
       {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length === 0 && (
         <div className="bg-zinc-800 rounded-2xl p-10 border border-white/8 shadow-sm flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-zinc-700 flex items-center justify-center">
             <CalendarDays size={28} className="text-zinc-600" />
           </div>
           <div className="text-center">
-            <p className="text-zinc-200 font-bold text-base">No hay eventos disponibles</p>
-            <p className="text-zinc-500 text-sm mt-1">Intenta más tarde o sé el primero en publicar.</p>
+            <p className="text-zinc-200 font-bold text-base">
+              {hayFiltros ? 'Sin resultados para estos filtros' : 'No hay tocatas disponibles'}
+            </p>
+            <p className="text-zinc-500 text-sm mt-1">
+              {hayFiltros ? 'Prueba con otro género o busca otro organizador.' : 'Sé el primero en publicar una tocata.'}
+            </p>
           </div>
-          {!isHome && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors">
+          {!isHome && !hayFiltros && (
+            <button
+              onClick={navigateToPublicar}
+              className="flex items-center gap-2 bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-500 transition-colors"
+            >
               <Plus size={16} />
               Publicar tocata
+            </button>
+          )}
+          {hayFiltros && (
+            <button
+              onClick={() => { setFiltroGenero(null); setArtistaInput('') }}
+              className="flex items-center gap-2 border border-zinc-600 text-zinc-300 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-zinc-700 transition-colors"
+            >
+              <X size={14} />
+              Limpiar filtros
             </button>
           )}
         </div>
       )}
 
-      {/* ── Vista GRILLA: cards ── */}
+      {/* Grid de tocatas */}
       {!isLoading && (isHome || vistaPrincipal === 'carrusel') && gridItems.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {gridItems.map((item) =>
-              item._source === 'comunidad' ? (
-                <TocataCard key={`t-${item.id}`} tocata={item} onClick={setSelectedTocata} />
-              ) : (
-                <EventoCard key={`e-${item.id}`} evento={item} />
-              )
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {gridItems.map((tocata) => (
+              <TocataCard key={tocata.id} tocata={tocata} onClick={setSelectedTocata} />
+            ))}
           </div>
 
-          {/* Ver todos — solo en isHome cuando hay más items que el límite */}
+          {/* Ver todos */}
           {hasMore && (
-            <div className="mt-6 text-center">
+            <div className="mt-8 text-center">
               <Link
                 to="/tocatas"
                 className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-white/8 text-zinc-200 font-semibold px-6 py-3 rounded-full text-sm transition-colors"
               >
-                Ver todos los eventos
+                Ver todas las tocatas
                 <ArrowRight size={15} />
               </Link>
             </div>
           )}
         </>
       )}
+
+      </div>{/* /max-w-7xl */}
     </div>
   )
 }

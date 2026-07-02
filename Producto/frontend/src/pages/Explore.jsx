@@ -22,6 +22,7 @@ import { API_URL, getInitials } from '../utils/helpers'
 import { useImageUrl } from '../hooks/useImageUrl'
 import { OFICIOS, TAG_OPTIONS } from '../utils/audioHelpers'
 import ProfileDrawer from '../components/ProfileDrawer'
+import UserLink from '../components/UserLink'
 
 const FETCH_LIMIT = 20
 
@@ -90,7 +91,9 @@ function MusicianCard({ musico, rank, onClick }) {
             </div>
           )}
           <div>
-            <p className="text-zinc-100 font-semibold text-sm leading-tight">{musico.nombre}</p>
+            <UserLink username={musico.nombre} className="text-zinc-100 font-semibold text-sm leading-tight">
+              {musico.nombre}
+            </UserLink>
             {musico.instrumento && (
               <p className="text-zinc-400 text-xs mt-0.5">{musico.instrumento}</p>
             )}
@@ -140,7 +143,9 @@ function MusicianCard({ musico, rank, onClick }) {
           <span className="text-purple-400">✦</span>
           {' '}{matchReason}
         </p>
-        <p className="text-purple-400 text-xs font-semibold shrink-0">Ver perfil →</p>
+        <UserLink username={musico.nombre} className="text-purple-400 text-xs font-semibold shrink-0">
+          Ver perfil →
+        </UserLink>
       </div>
     </button>
   )
@@ -190,12 +195,38 @@ export default function Explore() {
     else refetch()
   }
 
-  const toggleTag = (tag) =>
+  const premiumFilterAlert = () => {
+    alert('Los filtros avanzados por género y ubicación son exclusivos del Plan Premium.');
+  }
+
+  const toggleTag = (tag) => {
+    if (!user?.es_premium) {
+      premiumFilterAlert()
+      return
+    }
     setTagFiltros((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     )
+  }
 
-  const commitCiudad = () => setCiudadFiltro(ciudadInput.trim())
+  const handleOficioChange = (e) => {
+    if (!user?.es_premium) {
+      setOficioFiltro('')
+      premiumFilterAlert()
+      return
+    }
+    setOficioFiltro(e.target.value)
+  }
+
+  const commitCiudad = () => {
+    if (!user?.es_premium) {
+      setCiudadInput('')
+      setCiudadFiltro('')
+      premiumFilterAlert()
+      return
+    }
+    setCiudadFiltro(ciudadInput.trim())
+  }
 
   const limpiarFiltros = () => {
     setTagFiltros([])
@@ -433,7 +464,7 @@ export default function Explore() {
                 </label>
                 <select
                   value={oficioFiltro}
-                  onChange={(e) => setOficioFiltro(e.target.value)}
+                  onChange={handleOficioChange}
                   className="w-full bg-zinc-900 text-zinc-100 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/40 border border-white/8"
                 >
                   <option value="">Todos los roles</option>

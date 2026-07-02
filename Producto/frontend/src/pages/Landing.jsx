@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MapPin, ArrowLeft, Sparkles, Music, CalendarDays, Mic2, Users2, Ticket, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -304,8 +304,17 @@ const VIEW_FROM_INDEX = ['noticias', 'tocatas', 'como']
 // ── Página principal ──────────────────────────────────────────
 
 export default function Landing() {
-  const { user }        = useAuth()
+  const { user, token } = useAuth()
+  const navigate        = useNavigate()
   const [view, setView] = useState('home')
+
+  const handleExploreClick = () => {
+    if (user && token) {
+      navigate('/explore')
+    } else {
+      navigate('/auth')
+    }
+  }
 
   const { data: noticiasData } = useQuery({
     queryKey: ['landing-noticias'],
@@ -421,28 +430,15 @@ export default function Landing() {
               </p>
 
               {/* CTAs */}
-              {user ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/8 border border-white/12 text-sm text-white/60 backdrop-blur-sm">
-                    <Sparkles size={13} className="text-purple-400" />
-                    Hola de nuevo,{' '}
-                    <span className="text-white font-bold">{user.nombre?.split(' ')[0]}</span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap justify-center">
-                    <WhiteBtn to="/explore" className="px-7 py-3.5">Explorar músicos</WhiteBtn>
-                    <Link to="/profile" className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors">
-                      Mi perfil
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 flex-wrap justify-center">
-                  <WhiteBtn to="/auth" className="px-7 py-3.5">Crear mi perfil gratis</WhiteBtn>
-                  <Link to="/auth?mode=login" className="px-7 py-3.5 rounded-full border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors">
-                    Iniciar sesión
-                  </Link>
-                </div>
-              )}
+              <button
+                onClick={handleExploreClick}
+                className="px-7 py-3.5 rounded-full font-semibold transition-colors"
+                style={{ backgroundColor: '#ffffff', color: '#000000' }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e7e5e4' }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff' }}
+              >
+                Explorar perfiles
+              </button>
             </section>
 
             {/* Stats */}
@@ -502,10 +498,8 @@ export default function Landing() {
 
         {/* ════ Vista: TOCATAS ════ */}
         {view === 'tocatas' && (
-          <section className="flex-1 py-10 overflow-x-hidden">
-            <div className="max-w-5xl mx-auto px-8">
-              <TocatasBoard isHome limit={6} onBack={() => setView('home')} />
-            </div>
+          <section className="flex-1 overflow-x-hidden">
+            <TocatasBoard isHome limit={6} onBack={() => setView('home')} />
           </section>
         )}
 

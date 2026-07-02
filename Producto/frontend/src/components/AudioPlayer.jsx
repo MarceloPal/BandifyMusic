@@ -78,7 +78,19 @@ export default function AudioPlayer({ src, audioRef: externalRef, onPlay, onPaus
       {/* Progress + tiempos */}
       <div className="flex-1 min-w-0">
         <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Progreso de reproducción"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct)}
           onClick={handleSeek}
+          onKeyDown={(e) => {
+            const el = audioRef.current
+            if (!el || !duration) return
+            if (e.key === 'ArrowRight') el.currentTime = Math.min(duration, el.currentTime + 5)
+            if (e.key === 'ArrowLeft')  el.currentTime = Math.max(0, el.currentTime - 5)
+          }}
           className="relative h-1.5 bg-white/10 rounded-full cursor-pointer group"
         >
           <div

@@ -43,6 +43,8 @@ export default function AdminLayout() {
         <div
           className="fixed inset-0 bg-black/60 z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setSidebarOpen(false)}
+          role="presentation"
         />
       )}
 

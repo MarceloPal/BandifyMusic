@@ -111,20 +111,21 @@ function DemoCard({ demo, isSelected, isPlaying, onSelect, onTogglePlay, onDelet
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(demo.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(demo.id) }}
       className={`relative flex-shrink-0 w-44 rounded-2xl overflow-hidden cursor-pointer border-2 transition-all shadow-sm ${
         isSelected ? 'border-purple-500 shadow-purple-500/20 shadow-md' : 'border-transparent hover:border-zinc-600'
       }`}
     >
       {/* Cover */}
-      <div className="aspect-square bg-zinc-700 relative group">
-        {coverUrl ? (
-          <img src={coverUrl} alt={demo.nombre} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Music2 size={32} className="text-zinc-500" />
-          </div>
-        )}
+      <div className="aspect-square bg-zinc-800 relative group">
+        <img
+          src={coverUrl || '/demo-cover-default.svg'}
+          alt={demo.nombre}
+          className="w-full h-full object-cover"
+        />
 
         {/* Dark overlay + Play/Pause button (siempre visible si playing, fade-in si no) */}
         <div className={`absolute inset-0 transition-all ${isPlaying ? 'bg-black/40' : 'bg-black/0 group-hover:bg-black/40'}`}>
@@ -197,29 +198,43 @@ function labelFromRange(value, low, high, labels) {
 }
 
 function SimpleView({ stats }) {
-  const bpmLabel      = stats.bpm < 80 ? 'Lento' : stats.bpm < 110 ? 'Moderado' : stats.bpm < 140 ? 'Rápido' : 'Muy rápido'
-  const colorLabel    = labelFromRange(stats.brillo, 33, 66, ['Cálido', 'Neutro', 'Brillante'])
-  const energiaLabel  = labelFromRange(stats.energia, 33, 66, ['Suave', 'Moderada', 'Intensa'])
-  const melodiaLabel  = stats.harmonyPct > stats.percussivePct + 20
+  const bpmLabel     = stats.bpm < 80 ? 'Lento' : stats.bpm < 110 ? 'Moderado' : stats.bpm < 140 ? 'Rápido' : 'Muy rápido'
+  const energiaLabel = labelFromRange(stats.energia, 33, 66, ['Suave', 'Moderada', 'Intensa'])
+  const melodiaLabel = stats.harmonyPct > stats.percussivePct + 20
     ? 'Melódico' : stats.percussivePct > stats.harmonyPct + 20 ? 'Percusivo' : 'Balanceado'
-  const armoniaLabel  = labelFromRange(stats.riquezaArmonica, 33, 66, ['Minimalista', 'Armónico', 'Rico en notas'])
+  const armoniaLabel = labelFromRange(stats.riquezaArmonica, 33, 66, ['Minimalista', 'Armónico', 'Rico en notas'])
+
+  // Top 3 notas más presentes en el chroma
+  const topNotes = stats.chroma
+    ? [...stats.chroma.map((v, i) => ({ note: CHROMA_LABELS[i], v }))]
+        .sort((a, b) => b.v - a.v)
+        .slice(0, 3)
+        .map((n) => n.note)
+    : []
 
   const items = [
-    { label: 'Textura',   value: stats.texture.label, desc: 'Carácter general del sonido' },
-    { label: 'Color',     value: colorLabel,           desc: 'Temperatura del timbre' },
-    { label: 'Ritmo',     value: `${bpmLabel} · ${stats.bpm} BPM`, desc: 'Velocidad del pulso' },
-    { label: 'Energía',   value: energiaLabel,         desc: 'Intensidad del audio' },
-    { label: 'Melodía',   value: melodiaLabel,         desc: 'Presencia melódica vs percusiva' },
-    { label: 'Armonía',   value: armoniaLabel,         desc: 'Riqueza de notas y acordes' },
+    { label: 'Ritmo',   value: `${bpmLabel} · ${stats.bpm} BPM`, desc: 'Velocidad del pulso' },
+    { label: 'Energía', value: energiaLabel,                      desc: 'Intensidad del audio' },
+    { label: 'Melodía', value: melodiaLabel,                      desc: 'Presencia melódica vs percusiva' },
+    { label: 'Armonía', value: armoniaLabel,                      desc: 'Riqueza de notas y acordes', notes: topNotes },
   ]
 
   return (
-    <div key="simple" className="adn-fade-in grid grid-cols-2 lg:grid-cols-3 gap-3">
-      {items.map(({ label, value, desc }) => (
+    <div key="simple" className="adn-fade-in grid grid-cols-2 gap-3">
+      {items.map(({ label, value, desc, notes }) => (
         <div key={label} className="bg-zinc-800 rounded-2xl p-4 border border-white/8 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">{label}</p>
           <p className="text-zinc-100 font-bold text-lg leading-tight">{value}</p>
           <p className="text-zinc-500 text-xs mt-1">{desc}</p>
+          {notes && notes.length > 0 && (
+            <div className="flex gap-1.5 mt-2">
+              {notes.map((n) => (
+                <span key={n} className="text-[11px] font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-md">
+                  {n}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -229,11 +244,15 @@ function SimpleView({ stats }) {
 /* ─── QuickMatch card ─── */
 function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
   const { url: photoUrl } = useImageUrl(musico.foto_url ?? null)
+  const navigate = useNavigate()
   const oficio = Array.isArray(musico.oficio) ? musico.oficio : []
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpenProfile(musico)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenProfile(musico) }}
       className="flex items-center gap-3 p-3 rounded-2xl border border-white/8 bg-zinc-800 hover:border-purple-400/40 hover:bg-zinc-700/50 transition-colors group cursor-pointer"
     >
       {/* Avatar */}
@@ -248,7 +267,12 @@ function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-zinc-100 font-semibold text-sm truncate">{musico.nombre}</p>
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/u/${encodeURIComponent(musico.nombre)}`) }}
+          className="text-zinc-100 font-semibold text-sm truncate hover:text-purple-400 transition-colors text-left w-full"
+        >
+          {musico.nombre}
+        </button>
         <p className="text-zinc-500 text-xs truncate">
           {oficio[0] || musico.instrumento || musico.ciudad || '—'}
         </p>
@@ -271,10 +295,47 @@ function QuickMatchCard({ musico, onConnect, onOpenProfile }) {
   )
 }
 
+const AUDIO_MIME = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', flac: 'audio/flac', alac: 'audio/mp4' }
+
+function getAudioExt(file) {
+  const ext = (file.name.split('.').pop() || 'mp3').toLowerCase()
+  return AUDIO_MIME[ext] ? ext : 'mp3'
+}
+
+function getCoverExt(mimeType) {
+  if (mimeType.includes('png'))  return 'png'
+  if (mimeType.includes('webp')) return 'webp'
+  return 'jpg'
+}
+
+async function performUpload(token, demoNombre, file) {
+  const audioExt = getAudioExt(file)
+  const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
+  const { uploadUrl, s3Key } = await uploadRes.json()
+  await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': AUDIO_MIME[audioExt] }, body: file })
+  const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ s3Key, nombre: demoNombre.trim() || 'Demo sin nombre' }),
+  })
+  if (analyzeRes.status === 403) {
+    const errData = await analyzeRes.json().catch(() => ({}))
+    const err = new Error(errData.error || 'Límite alcanzado')
+    err.code = errData.code ?? 'FORBIDDEN'
+    throw err
+  }
+  if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
+  return analyzeRes.json()
+}
+
 export default function MiAdn() {
   const { token, user, updateUser } = useAuth()
   const queryClient                 = useQueryClient()
   const navigate                    = useNavigate()
+  const isPremium                   = user?.es_premium
 
   /* adn view toggle */
   const [simpleView, setSimpleView] = useState(
@@ -329,51 +390,16 @@ export default function MiAdn() {
   // Hide uploader when demos exist (and not actively processing)
   useEffect(() => {
     if (demos.length > 0 && !jobId) setShowUploader(false)
-  }, [demos.length]) // eslint-disable-line
+  }, [demos.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select first demo when list first loads
   useEffect(() => {
     if (!selectedDemoId && demos.length > 0) setSelectedDemoId(demos[0].id)
-  }, [demos]) // eslint-disable-line
+  }, [demos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Upload + analyze mutation ── */
   const uploadMutation = useMutation({
-    mutationFn: async (file) => {
-      // Determinar extensión real del archivo para Content-Type correcto en S3
-      const fileExt = (file.name.split('.').pop() || 'mp3').toLowerCase()
-      const AUDIO_MIME = {
-        mp3:  'audio/mpeg',
-        wav:  'audio/wav',
-        ogg:  'audio/ogg',
-        m4a:  'audio/mp4',
-        flac: 'audio/flac',
-        alac: 'audio/mp4',
-      }
-      const audioExt = AUDIO_MIME[fileExt] ? fileExt : 'mp3'
-
-      const uploadRes = await fetch(`${API_URL}/audio/upload-url?ext=${audioExt}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!uploadRes.ok) throw new Error('No se pudo obtener la URL de subida')
-      const { uploadUrl, s3Key } = await uploadRes.json()
-
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': AUDIO_MIME[audioExt] }, body: file })
-
-      const analyzeRes = await fetch(`${API_URL}/audio/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ s3Key, nombre: demoNombre.trim() || 'Demo sin nombre' }),
-      })
-
-      if (analyzeRes.status === 403) {
-        const errData = await analyzeRes.json().catch(() => ({}))
-        const err = new Error(errData.error || 'Límite alcanzado')
-        err.code = errData.code ?? 'FORBIDDEN'
-        throw err
-      }
-      if (!analyzeRes.ok) throw new Error('Error al iniciar el análisis')
-      return analyzeRes.json()
-    },
+    mutationFn: (file) => performUpload(token, demoNombre, file),
     onSuccess: (data) => {
       setJobId(data.jobId)
       if (data.demoId) setPendingDemoId(data.demoId)
@@ -424,7 +450,7 @@ export default function MiAdn() {
         })
         .catch(() => {})
     }, 1500)
-  }, [jobData?.status]) // eslint-disable-line
+  }, [jobData?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Delete demo ── */
   const handleDeleteDemo = async (demoId) => {
@@ -454,7 +480,7 @@ export default function MiAdn() {
   const handleCoverFile = async (file) => {
     if (!file || !activeCoverId) return
     try {
-      const ext = file.type.includes('png') ? 'png' : file.type.includes('webp') ? 'webp' : 'jpg'
+      const ext = getCoverExt(file.type)
       const urlRes = await fetch(
         `${API_URL}/images/upload-url?type=cover&ext=${ext}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -475,12 +501,15 @@ export default function MiAdn() {
 
   /* ── File handlers ── */
   const handleFile = (file) => {
-    if (!file) return
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError(`El archivo supera el límite de ${MAX_FILE_MB} MB. Para archivos muy grandes exporta en MP3 320 kbps.`)
-      return
+    if (!file) return;
+    const limitMB = user?.es_premium ? 100 : 60;
+    const limitBytes = limitMB * 1024 * 1024;
+
+    if (file.size > limitBytes) {
+      setFileError(`El archivo supera el límite de ${limitMB} MB de tu cuenta ${user?.es_premium ? 'Premium' : 'Básica'}. Exporta en MP3 o pásate a Premium.`);
+      return;
     }
-    setFileError('')
+    setFileError('');
     setIsHifi(file.size > HIFI_THRESHOLD)
     uploadMutation.mutate(file)
   }
@@ -634,6 +663,8 @@ export default function MiAdn() {
 
           {/* Drop zone */}
           <div
+            role="button"
+            tabIndex={0}
             className={`border-2 border-dashed rounded-2xl py-14 px-8 flex flex-col items-center justify-center cursor-pointer transition-all select-none mb-5 ${
               isDragging  ? 'border-purple-400 bg-purple-500/10'
               : isError && !isLimitError ? 'border-red-500/40 bg-red-500/10'
@@ -643,6 +674,7 @@ export default function MiAdn() {
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onClick={() => !isProcessing && fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (!isProcessing) fileInputRef.current?.click() } }}
           >
             {isError && !isLimitError ? (
               <>
@@ -697,39 +729,6 @@ export default function MiAdn() {
       {/* File size error */}
       {fileError && !isProcessing && showUploader && (
         <p className="text-red-500 text-sm mb-5 px-1">{fileError}</p>
-      )}
-
-      {/* ── Quick Match — top 3 tras análisis ── */}
-      {quickMatches.length > 0 && !isProcessing && (
-        <div className="mb-6 bg-gradient-to-br from-purple-500/15 to-violet-500/10 border border-purple-500/30 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
-              <Users size={12} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-sm">Matches de tu nuevo demo</p>
-              <p className="text-zinc-400 text-xs">Los 3 músicos más compatibles con este sonido</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {quickMatches.map((m) => (
-              <QuickMatchCard
-                key={m.id}
-                musico={m}
-                onConnect={(musico) => navigate(`/messages?with=${musico.id}&nombre=${encodeURIComponent(musico.nombre)}`)}
-                onOpenProfile={(musico) => setSelectedMusico(musico)}
-              />
-            ))}
-          </div>
-
-          <button
-            onClick={() => navigate('/explore')}
-            className="mt-4 w-full text-center text-purple-300 text-xs font-semibold hover:text-purple-200 transition-colors"
-          >
-            Ver todos los matches en Explorar →
-          </button>
-        </div>
       )}
 
       {/* ── Repertorio ── */}
@@ -856,70 +855,79 @@ export default function MiAdn() {
 
           {/* Vista Técnica */}
           {!simpleView && (
-            <div key="tecnico" className="adn-fade-in grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Parámetros principales — full width */}
-              <div className="lg:col-span-2">
-                <AnaCard title="Parámetros de audio">
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatBox label="BPM"     value={stats.bpm}     accent />
-                    <StatBox label="Brillo"  value={stats.brillo}  unit="%" />
-                    <StatBox label="Energía" value={stats.energia} unit="%" />
+            <div key="tecnico" className="adn-fade-in relative">
+              <div className={`${!isPremium ? 'blur-md pointer-events-none' : ''} grid grid-cols-1 lg:grid-cols-2 gap-4`}>
+                {/* Parámetros principales — full width */}
+                <div className="lg:col-span-2">
+                  <AnaCard title="Parámetros de audio">
+                    <div className="grid grid-cols-3 gap-3">
+                      <StatBox label="BPM"     value={stats.bpm}     accent />
+                      <StatBox label="Brillo"  value={stats.brillo}  unit="%" />
+                      <StatBox label="Energía" value={stats.energia} unit="%" />
+                    </div>
+                  </AnaCard>
+                </div>
+
+                {/* Descriptores Sonoros */}
+                <AnaCard title="Descriptores Sonoros">
+                  <div className="flex flex-col gap-4">
+                    <DescriptorBar
+                      label="Densidad Rítmica"
+                      value={stats.densidadRitmica}
+                      color="#f97316"
+                      description="BPM y presencia percusiva — qué tan 'pulsante' es el sonido"
+                    />
+                    <DescriptorBar
+                      label="Brillo Espectral"
+                      value={stats.brilloEspectral}
+                      color="#06b6d4"
+                      description="Contenido de altas frecuencias — agresividad y ataque del timbre"
+                    />
+                    <DescriptorBar
+                      label="Riqueza Armónica"
+                      value={stats.riquezaArmonica}
+                      color="#7c3aed"
+                      description="Componente melódico y diversidad de notas (HPSS + Chroma)"
+                    />
+                  </div>
+                  <div className="mt-4 flex items-center gap-1.5">
+                    {TextureIcon && <TextureIcon size={13} className="text-zinc-500 flex-shrink-0" />}
+                    <p className="text-zinc-500 text-xs">
+                      Textura general: <span className="font-medium text-zinc-300">{stats.texture.label}</span>
+                    </p>
                   </div>
                 </AnaCard>
-              </div>
 
-              {/* Descriptores Sonoros */}
-              <AnaCard title="Descriptores Sonoros">
-                <div className="flex flex-col gap-4">
-                  <DescriptorBar
-                    label="Densidad Rítmica"
-                    value={stats.densidadRitmica}
-                    color="#f97316"
-                    description="BPM y presencia percusiva — qué tan 'pulsante' es el sonido"
-                  />
-                  <DescriptorBar
-                    label="Brillo Espectral"
-                    value={stats.brilloEspectral}
-                    color="#06b6d4"
-                    description="Contenido de altas frecuencias — agresividad y ataque del timbre"
-                  />
-                  <DescriptorBar
-                    label="Riqueza Armónica"
-                    value={stats.riquezaArmonica}
-                    color="#7c3aed"
-                    description="Componente melódico y diversidad de notas (HPSS + Chroma)"
-                  />
-                </div>
-                <div className="mt-4 flex items-center gap-1.5">
-                  {TextureIcon && <TextureIcon size={13} className="text-zinc-500 flex-shrink-0" />}
-                  <p className="text-zinc-500 text-xs">
-                    Textura general: <span className="font-medium text-zinc-300">{stats.texture.label}</span>
-                  </p>
-                </div>
-              </AnaCard>
-
-              {/* HPSS */}
-              <AnaCard title="Presencia rítmica vs. melódica (HPSS)">
-                <div className="flex flex-col gap-3">
-                  <HpsBar label="Melódico / Armónico" pct={stats.harmonyPct}    color="#7c3aed" />
-                  <HpsBar label="Rítmico / Percusivo"  pct={stats.percussivePct} color="#f97316" />
-                </div>
-                <p className="text-zinc-500 text-xs mt-3">
-                  {stats.fromServer
-                    ? 'Separación armónica/percusiva calculada por Librosa (HPSS) en el servidor.'
-                    : 'Aproximación a partir del contenido de Chroma STFT.'}
-                </p>
-              </AnaCard>
-
-              {/* Chroma — full width abajo */}
-              <div className="lg:col-span-2">
-                <AnaCard title="Distribución de notas musicales">
-                  <ChromaChart chroma={stats.chroma} />
+                {/* HPSS */}
+                <AnaCard title="Presencia rítmica vs. melódica (HPSS)">
+                  <div className="flex flex-col gap-3">
+                    <HpsBar label="Melódico / Armónico" pct={stats.harmonyPct}    color="#7c3aed" />
+                    <HpsBar label="Rítmico / Percusivo"  pct={stats.percussivePct} color="#f97316" />
+                  </div>
                   <p className="text-zinc-500 text-xs mt-3">
-                    Intensidad de cada nota en el rango cromático completo (Chroma STFT).
+                    {stats.fromServer
+                      ? 'Separación armónica/percusiva calculada por Librosa (HPSS) en el servidor.'
+                      : 'Aproximación a partir del contenido de Chroma STFT.'}
                   </p>
                 </AnaCard>
+
+                {/* Chroma — full width abajo */}
+                <div className="lg:col-span-2">
+                  <AnaCard title="Distribución de notas musicales">
+                    <ChromaChart chroma={stats.chroma} />
+                    <p className="text-zinc-500 text-xs mt-3">
+                      Intensidad de cada nota en el rango cromático completo (Chroma STFT).
+                    </p>
+                  </AnaCard>
+                </div>
               </div>
+              {!isPremium && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/70 p-6 text-center">
+                  <p className="text-sm font-semibold text-zinc-100 max-w-md">
+                    Actualiza a Premium para desbloquear la Tonalidad, BPM exacto y métricas de Energía
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

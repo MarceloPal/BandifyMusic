@@ -4,6 +4,7 @@
  */
 
 // `Infinity` se renombra a `InfinityIcon` para no pisar el global Infinity de JS.
+import { useNavigate } from 'react-router-dom'
 import { Sparkles, X, Zap, Infinity as InfinityIcon, Star } from 'lucide-react'
 
 // Usamos `Icon` capitalizado directamente como key del objeto:
@@ -16,17 +17,22 @@ const BENEFITS = [
 ]
 
 export default function PremiumModal({ onClose }) {
+  const navigate = useNavigate()
+
   return (
     <>
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        role="presentation"
       >
         {/* Card */}
         <div
           className="bg-zinc-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {/* Close */}
           <button
@@ -37,7 +43,7 @@ export default function PremiumModal({ onClose }) {
           </button>
 
           {/* Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-5">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-purple-500 flex items-center justify-center mx-auto mb-5">
             <Sparkles size={28} className="text-white" />
           </div>
 
@@ -52,10 +58,10 @@ export default function PremiumModal({ onClose }) {
 
           {/* Benefits */}
           <div className="flex flex-col gap-3 mb-7">
-            {BENEFITS.map(({ Icon, text }) => (
+            {BENEFITS.map(({ text, Icon }) => (
               <div key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center flex-shrink-0">
-                  <Icon size={14} className="text-yellow-600" />
+                <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center flex-shrink-0">
+                  <Icon size={14} className="text-purple-600" />
                 </div>
                 <p className="text-zinc-200 text-sm">{text}</p>
               </div>
@@ -64,10 +70,10 @@ export default function PremiumModal({ onClose }) {
 
           {/* CTA */}
           <button
-            className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-3.5 rounded-full text-sm hover:opacity-90 transition-opacity shadow-md"
+            className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-3.5 rounded-full text-sm hover:bg-purple-500 transition-colors shadow-md"
             onClick={() => {
-              // TODO: navegar a página de pago / contacto
               onClose()
+              navigate('/planes')
             }}
           >
             ¡Quiero ser Premium! ✨

@@ -103,6 +103,15 @@ async function runMigrations() {
     )`,
     // Imagen opcional en notificaciones (anuncios admin con foto)
     'ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS imagen_url TEXT',
+    // Tabla de tickets de soporte al cliente
+    `CREATE TABLE IF NOT EXISTS soporte_tickets (
+      id            SERIAL PRIMARY KEY,
+      usuario_id    UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+      email         VARCHAR(255) NOT NULL,
+      asunto        VARCHAR(255),
+      mensaje       TEXT NOT NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`,
     // ── ROLLBACK: Épica 2 Carpetas de Proyectos (cancelada) ──
     // Estos DROPs revierten DBs que ya tenían la feature creada. Son idempotentes
     // (IF EXISTS) → no-op en DBs nuevas que nunca crearon estas tablas.
@@ -116,6 +125,13 @@ async function runMigrations() {
     // NUMERIC(10,7) → ~1cm de precisión, suficiente para ubicar un venue
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7)',
     'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7)',
+    // Estado del evento: 'activo' | 'cancelado' (soft-delete, mantiene historial)
+    "ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'activo'",
+    // Hora del evento (HH:MM)
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS hora          TEXT',
+    // Restricción de edad del evento y tipos de entrada con precio por tier
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS edad_minima   TEXT',
+    'ALTER TABLE tocatas ADD COLUMN IF NOT EXISTS tipos_entrada JSONB',
     // Fix FK constraints: reemplazar sin CASCADE por con CASCADE en jobs y audio_jobs
     // (necesario para poder eliminar usuarios desde el panel de admin)
     `DO $$
@@ -184,6 +200,24 @@ async function runMigrations() {
          ALTER TABLE tocatas DROP CONSTRAINT tocatas_organizador_id_fkey;
          ALTER TABLE tocatas ADD CONSTRAINT tocatas_organizador_id_fkey
            FOREIGN KEY (organizador_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+       END IF;
+     END $$`,
+    // Candado final: unicidad del nombre de usuario a nivel de base de datos.
+    // El bloque busca por tabla+columna+tipo para ser idempotente independientemente
+    // del nombre que PostgreSQL le haya asignado a la constraint en cada instancia.
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM   information_schema.table_constraints  tc
+         JOIN   information_schema.constraint_column_usage ccu
+                ON  tc.constraint_name = ccu.constraint_name
+                AND tc.table_schema    = ccu.table_schema
+         WHERE  tc.constraint_type = 'UNIQUE'
+           AND  tc.table_name      = 'usuarios'
+           AND  ccu.column_name    = 'nombre'
+       ) THEN
+         ALTER TABLE usuarios ADD CONSTRAINT usuarios_nombre_key UNIQUE (nombre);
        END IF;
      END $$`,
   ];

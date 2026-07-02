@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Music, ArrowLeft, CheckCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../utils/helpers'
 import SoftAurora from '../components/SoftAurora'
+import PasswordField from '../components/PasswordField'
 
 /**
  * Vistas posibles:
@@ -23,10 +25,15 @@ export default function Auth() {
     ? 'login'
     : 'register'
 
-  const [view, setView]   = useState(initialView)
-  const [error, setError] = useState('')
-  const navigate          = useNavigate()
-  const { token, user, login } = useAuth()
+  const [view, setView]               = useState(initialView)
+  const [error, setError]             = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regConfirm, setRegConfirm]   = useState('')
+  const navigate                      = useNavigate()
+  const { token, user, login }        = useAuth()
+
+  const passwordMismatch = regPassword && regConfirm && regPassword !== regConfirm
+  const regFormInvalid   = !regPassword || !regConfirm || !!passwordMismatch
 
   // ── Mutación login / registro ─────────────────────────────────────────────
   const authMutation = useMutation({
@@ -34,8 +41,8 @@ export default function Auth() {
       const isLogin  = view === 'login'
       const endpoint = isLogin ? '/auth/login' : '/auth/registro'
       const body = isLogin
-        ? { email: formData.email, password: formData.password }
-        : { nombre: formData.nombre, fecha_nacimiento: formData.fecha_nacimiento || null, email: formData.email, password: formData.password }
+        ? { identifier: formData.identifier, password: formData.password }
+        : { nombre: formData.username, fecha_nacimiento: formData.fecha_nacimiento || null, email: formData.email, password: formData.password }
 
       const res  = await fetch(`${API_URL}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
@@ -47,10 +54,14 @@ export default function Auth() {
       if (data.usuario?.role === 'admin') {
         navigate('/admin', { replace: true })
       } else {
+        if (!wasLogin) toast.success('¡Cuenta creada exitosamente!')
         navigate(wasLogin ? '/mi-adn' : '/onboarding')
       }
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => {
+      setError(err.message)
+      if (view === 'login') toast.error('Credenciales incorrectas o error de conexión.')
+    },
   })
 
   // ── Mutación forgot password ──────────────────────────────────────────────
@@ -77,7 +88,6 @@ export default function Auth() {
     onSuccess: () => {
       setView('login')
       setError('')
-      // Limpiar el token de la URL
       navigate('/auth?mode=login', { replace: true })
     },
     onError: (err) => setError(err.message),
@@ -87,15 +97,32 @@ export default function Auth() {
     e.preventDefault()
     setError('')
     const fd = Object.fromEntries(new FormData(e.target))
-    if (view === 'login' || view === 'register') authMutation.mutate(fd)
-    else if (view === 'forgot') forgotMutation.mutate(fd)
-    else if (view === 'reset')  resetMutation.mutate(fd)
+
+    if (view === 'login') {
+      authMutation.mutate(fd)
+    } else if (view === 'register') {
+      if (regPassword !== regConfirm) {
+        setError('Las contraseñas no coinciden.')
+        return
+      }
+      authMutation.mutate({ ...fd, password: regPassword })
+    } else if (view === 'forgot') {
+      forgotMutation.mutate(fd)
+    } else if (view === 'reset') {
+      resetMutation.mutate(fd)
+    }
   }
 
-  const switchTo = (v) => { setView(v); setError(''); authMutation.reset(); forgotMutation.reset(); resetMutation.reset() }
+  const switchTo = (v) => {
+    setView(v)
+    setError('')
+    setRegPassword('')
+    setRegConfirm('')
+    authMutation.reset()
+    forgotMutation.reset()
+    resetMutation.reset()
+  }
 
-  // Si ya hay sesión y NO acabamos de hacer login en esta vista, redirigir
-  // según el rol: admin → panel admin, resto → mi-adn
   if (token && !authMutation.isSuccess) {
     return <Navigate to={user?.role === 'admin' ? '/admin' : '/mi-adn'} replace />
   }
@@ -135,21 +162,51 @@ export default function Auth() {
                   <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     {view === 'register' && (
                       <>
-                        <Field name="nombre"           label="Nombre completo"    placeholder="Jane Smith" required />
+                        <Field name="username" label="Nombre de usuario" placeholder="janesmithmusic" required />
                         <Field name="fecha_nacimiento" label="Fecha de nacimiento" type="date" />
                       </>
                     )}
-                    <Field name="email"    label="Correo electrónico" placeholder="info@example.com" type="email"    required />
-                    <Field name="password" label="Contraseña"         placeholder="••••••••"          type="password" required />
+                    {view === 'login' ? (
+                      <Field name="identifier" label="Correo o nombre de usuario" placeholder="info@example.com o janesmithmusic" type="text" required />
+                    ) : (
+                      <Field name="email" label="Correo electrónico" placeholder="info@example.com" type="email" required />
+                    )}
+
+                    {view === 'register' ? (
+                      <>
+                        <PasswordField
+                          name="password"
+                          label="Contraseña"
+                          placeholder="••••••••"
+                          required
+                          value={regPassword}
+                          onChange={e => setRegPassword(e.target.value)}
+                        />
+                        <PasswordField
+                          name="confirm_password"
+                          label="Confirmar contraseña"
+                          placeholder="••••••••"
+                          required
+                          value={regConfirm}
+                          onChange={e => setRegConfirm(e.target.value)}
+                          hasError={!!passwordMismatch}
+                          errorMsg="Las contraseñas no coinciden"
+                        />
+                      </>
+                    ) : (
+                      <PasswordField name="password" label="Contraseña" placeholder="••••••••" required />
+                    )}
 
                     {error && <p className="text-red-400 text-sm">{error}</p>}
 
-                    <SubmitBtn pending={authMutation.isPending}>
+                    <SubmitBtn
+                      pending={authMutation.isPending}
+                      disabled={view === 'register' && regFormInvalid}
+                    >
                       {view === 'login' ? 'Iniciar sesión' : 'Crear mi perfil'}
                     </SubmitBtn>
                   </form>
 
-                  {/* ¿Olvidaste tu contraseña? — solo visible en login */}
                   {view === 'login' && (
                     <button
                       onClick={() => switchTo('forgot')}
@@ -200,7 +257,7 @@ export default function Auth() {
                   <h2 className="text-white font-bold text-lg mb-2">Nueva contraseña</h2>
                   <p className="text-white/50 text-sm mb-6">Elige una contraseña de al menos 8 caracteres.</p>
                   <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <Field name="password" label="Nueva contraseña" placeholder="••••••••" type="password" required />
+                    <PasswordField name="password" label="Nueva contraseña" placeholder="••••••••" required />
                     {error && <p className="text-red-400 text-sm">{error}</p>}
                     {resetMutation.isSuccess && (
                       <p className="text-green-400 text-sm">✓ Contraseña actualizada. Ahora puedes iniciar sesión.</p>
@@ -238,12 +295,17 @@ function BackLink({ onClick }) {
   )
 }
 
-function SubmitBtn({ pending, children }) {
+function SubmitBtn({ pending, disabled, children }) {
+  const isDisabled = pending || !!disabled
   return (
-    <button type="submit" disabled={pending}
-      className="w-full font-semibold py-3.5 rounded-full text-sm transition-colors disabled:opacity-50 mt-1"
+    <button
+      type="submit"
+      disabled={isDisabled}
+      className={`w-full font-semibold py-3.5 rounded-full text-sm transition-all mt-1 ${
+        isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
       style={{ backgroundColor: '#ffffff', color: '#000000' }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e7e5e4' }}
+      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.backgroundColor = '#e7e5e4' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff' }}
     >
       {pending ? 'Cargando...' : children}
@@ -260,3 +322,4 @@ function Field({ name, label, placeholder, type = 'text', required = false }) {
     </div>
   )
 }
+

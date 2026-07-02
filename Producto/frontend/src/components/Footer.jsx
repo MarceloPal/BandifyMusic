@@ -13,7 +13,7 @@ const NAV_COLUMNS = [
     title: 'Comunidad',
     links: [
       { label: 'Sobre nosotros', to: '/' },
-      { label: 'Soporte',        to: '/' },
+      { label: 'Soporte',        to: '/soporte' },
     ],
   },
   {
