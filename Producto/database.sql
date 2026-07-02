@@ -3,8 +3,6 @@
 -- Script ordenado con:
 -- 14 tablas
 -- Claves primarias y foráneas
--- Procedimientos almacenados (P.A.)
--- 5 datos de prueba
 -- PostgreSQL
 -- =====================================================
 
@@ -16,17 +14,19 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- =====================================================
 CREATE TABLE usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre VARCHAR(100) NOT NULL,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     instrumento VARCHAR(100),
     ciudad VARCHAR(100),
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     estilo_detectado TEXT,
     tags_musicales JSONB,
     fecha_nacimiento DATE,
     es_premium BOOLEAN DEFAULT FALSE,
-    role VARCHAR(20) DEFAULT 'usuario'
+    email_secundario TEXT,
+    role VARCHAR(20) DEFAULT 'usuario' CHECK (role IN ('usuario', 'admin')),
+    es_verificado BOOLEAN DEFAULT FALSE
 );
 
 -- =====================================================
@@ -34,19 +34,23 @@ CREATE TABLE usuarios (
 -- =====================================================
 CREATE TABLE perfiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
     audio_vector VECTOR(27),
     s3_key VARCHAR(255),
-    updated_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     audio_metadata JSONB,
-    user_tags JSONB DEFAULT '[]',
-    oficio JSONB DEFAULT '[]',
+    user_tags JSONB DEFAULT '[]'::jsonb,
+    oficio JSONB DEFAULT '[]'::jsonb,
     experiencia VARCHAR(50),
     bio TEXT,
     foto_url TEXT,
     es_premium BOOLEAN DEFAULT FALSE,
     instagram_url TEXT,
-    spotify_url TEXT
+    spotify_url TEXT,
+    discord_username TEXT,
+    discord_url TEXT,
+    card_settings JSONB,
+    banner_url TEXT
 );
 
 -- =====================================================
@@ -54,12 +58,12 @@ CREATE TABLE perfiles (
 -- =====================================================
 CREATE TABLE demos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID NOT NULL,
     nombre VARCHAR(255),
     s3_key TEXT NOT NULL,
     cover_url TEXT,
     audio_metadata JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     formato_original TEXT,
     peso_original_mb DOUBLE PRECISION,
     audio_vector JSONB,
@@ -71,12 +75,12 @@ CREATE TABLE demos (
 -- =====================================================
 CREATE TABLE jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
     s3_key VARCHAR(255) NOT NULL,
     status VARCHAR(20) DEFAULT 'processing',
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     ia_job_id TEXT,
-    demo_id UUID REFERENCES demos(id)
+    demo_id UUID
 );
 
 -- =====================================================
@@ -84,13 +88,13 @@ CREATE TABLE jobs (
 -- =====================================================
 CREATE TABLE audio_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
     s3_key TEXT NOT NULL,
     status TEXT DEFAULT 'processing',
     audio_vector VECTOR(27),
     error_message TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     audio_metadata JSONB
 );
 
@@ -99,11 +103,11 @@ CREATE TABLE audio_jobs (
 -- =====================================================
 CREATE TABLE mensajes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    de_id UUID REFERENCES usuarios(id),
-    para_id UUID REFERENCES usuarios(id),
+    de_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+    para_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
     contenido TEXT NOT NULL,
     leido BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -115,8 +119,8 @@ CREATE TABLE noticias (
     contenido TEXT NOT NULL,
     imagen_url TEXT,
     fuente VARCHAR(100) DEFAULT 'Bandify',
-    autor_id UUID REFERENCES usuarios(id),
-    created_at TIMESTAMP DEFAULT NOW()
+    autor_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -124,13 +128,13 @@ CREATE TABLE noticias (
 -- =====================================================
 CREATE TABLE notificaciones (
     id SERIAL PRIMARY KEY,
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
     titulo VARCHAR(255) NOT NULL,
     descripcion TEXT NOT NULL,
     tipo VARCHAR(50) DEFAULT 'sistema',
     leida BOOLEAN DEFAULT FALSE,
     link TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     imagen_url TEXT
 );
 
@@ -139,11 +143,11 @@ CREATE TABLE notificaciones (
 -- =====================================================
 CREATE TABLE password_resets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id),
-    token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    used BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW()
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used BOOLEAN DEFAULT FALSE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
 -- =====================================================
@@ -151,12 +155,12 @@ CREATE TABLE password_resets (
 -- =====================================================
 CREATE TABLE reportes (
     id SERIAL PRIMARY KEY,
-    emisor_id UUID REFERENCES usuarios(id),
+    emisor_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
     tipo_contenido VARCHAR(50) NOT NULL,
     contenido_id UUID NOT NULL,
     motivo TEXT NOT NULL,
     estado VARCHAR(20) DEFAULT 'pendiente',
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -164,11 +168,11 @@ CREATE TABLE reportes (
 -- =====================================================
 CREATE TABLE soporte_tickets (
     id SERIAL PRIMARY KEY,
-    usuario_id UUID REFERENCES usuarios(id),
+    usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
     email VARCHAR(255) NOT NULL,
     asunto VARCHAR(255),
     mensaje TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -176,7 +180,7 @@ CREATE TABLE soporte_tickets (
 -- =====================================================
 CREATE TABLE tocatas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organizador_id UUID REFERENCES usuarios(id),
+    organizador_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
     nombre VARCHAR(200) NOT NULL,
     descripcion TEXT,
     fecha DATE,
@@ -185,11 +189,15 @@ CREATE TABLE tocatas (
     genero VARCHAR(100),
     lat NUMERIC(9,6),
     lng NUMERIC(9,6),
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     afiche_url TEXT,
     contacto_email TEXT,
     precio NUMERIC(10,2),
-    cantidad_disponible INTEGER
+    cantidad_disponible INTEGER,
+    hora TEXT,
+    edad_minima TEXT,
+    tipos_entrada JSONB,
+    estado TEXT DEFAULT 'activo' NOT NULL
 );
 
 -- =====================================================
@@ -197,10 +205,10 @@ CREATE TABLE tocatas (
 -- =====================================================
 CREATE TABLE tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID REFERENCES tocatas(id),
-    buyer_id UUID REFERENCES usuarios(id),
-    price_clp INTEGER NOT NULL CHECK(price_clp >= 0),
-    purchased_at TIMESTAMP DEFAULT NOW()
+    event_id UUID NOT NULL,
+    buyer_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    price_clp INTEGER NOT NULL CHECK (price_clp >= 0),
+    purchased_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
 -- =====================================================
@@ -208,26 +216,21 @@ CREATE TABLE tickets (
 -- =====================================================
 CREATE TABLE admin_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    admin_id UUID REFERENCES usuarios(id),
+    admin_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     accion VARCHAR(100) NOT NULL,
     entidad_tipo VARCHAR(50) NOT NULL,
     entidad_id UUID,
     detalles JSONB,
     ip_address VARCHAR(45),
     user_agent TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- =====================================================
--- TABLA: tickets_extra
--- =====================================================
-CREATE TABLE tickets_extra (
-    id SERIAL PRIMARY KEY,
-    usuario_id UUID REFERENCES usuarios(id),
-    descripcion TEXT,
-    estado VARCHAR(50) DEFAULT 'abierto',
-    created_at TIMESTAMP DEFAULT NOW()
-);
+-- Índices adicionales para admin_logs (Optimización)
+CREATE INDEX idx_admin_logs_accion ON admin_logs(accion);
+CREATE INDEX idx_admin_logs_admin_id ON admin_logs(admin_id);
+CREATE INDEX idx_admin_logs_created_at ON admin_logs(created_at DESC);
+CREATE INDEX idx_admin_logs_entidad ON admin_logs(entidad_tipo, entidad_id);
 
 -- =====================================================
 -- PROCEDIMIENTOS ALMACENADOS (P.A.)
@@ -378,13 +381,6 @@ SELECT
 id,
 'audio/job.mp3',
 'completed'
-FROM usuarios
-LIMIT 5;
-
-INSERT INTO tickets_extra(usuario_id, descripcion)
-SELECT
-id,
-'Solicitud extra de soporte'
 FROM usuarios
 LIMIT 5;
 
