@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { AuthProvider } from '../context/AuthContext'
 import PublicarTocata from './PublicarTocata'
@@ -20,6 +20,23 @@ function renderPublicarTocata() {
       <MemoryRouter>
         <AuthProvider>
           <PublicarTocata />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+}
+
+function renderPublicarTocataEdit(tocataId = 'tocata-9') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/tocatas/editar/${tocataId}`]}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/tocatas/editar/:id" element={<PublicarTocata />} />
+          </Routes>
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
@@ -126,5 +143,84 @@ describe('PublicarTocata — happy path', () => {
     expect(await screen.findAllByRole('alert')).not.toHaveLength(0)
     expect(global.fetch).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})
+
+const TOCATA_EXISTENTE = {
+  id: 'tocata-9', nombre: 'Festival Indie Rock', fecha: '2026-09-15', hora: '20:00:00',
+  ciudad: 'Valparaíso', direccion: 'Plaza Victoria', descripcion: 'Un festival único.',
+  genero: 'Indie, Rock', afiche_url: null,
+  contacto_email: 'contacto@festival.com', edad_minima: '+18',
+  tipos_entrada: [{ tipo: 'General', precio: 8000, cantidad: 200 }],
+}
+
+describe('PublicarTocata — modo edición', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem('token', 'tok-123')
+    localStorage.setItem('user', JSON.stringify({ id: 'user-1', nombre: 'Ana', email: 'ana@test.cl' }))
+    mockNavigate.mockClear()
+  })
+
+  it('precarga el formulario con los datos de la tocata existente', async () => {
+    global.fetch = vi.fn((url) => {
+      if (url.includes('/tocatas/tocata-9')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(TOCATA_EXISTENTE) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+
+    const { container } = renderPublicarTocataEdit()
+
+    expect(await screen.findByText('Editar tocata')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(container.querySelector('#nombre').value).toBe('Festival Indie Rock')
+    })
+    expect(container.querySelector('#fecha').value).toBe('2026-09-15')
+    expect(container.querySelector('#hora').value).toBe('20:00')
+    expect(container.querySelector('#ciudad').value).toBe('Valparaíso')
+    expect(container.querySelector('#direccion').value).toBe('Plaza Victoria')
+    expect(container.querySelector('#contacto').value).toBe('contacto@festival.com')
+
+    // Ya venía con tipos_entrada → precarga como evento pagado
+    expect(screen.getByText('Venta de entradas').closest('button')).toHaveClass('border-purple-500/70')
+    expect(container.querySelector('input[type="number"]').value).toBe('200')
+
+    expect(screen.getByText('Guardar cambios')).toBeInTheDocument()
+  })
+
+  it('guarda los cambios de una tocata existente (PATCH, no POST)', async () => {
+    global.fetch = vi.fn((url, options = {}) => {
+      if (url.includes('/tocatas/tocata-9') && (options.method || 'GET') === 'GET') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(TOCATA_EXISTENTE) })
+      }
+      if (url.includes('/tocatas/tocata-9') && options.method === 'PATCH') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 'tocata-9' }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+
+    const { container } = renderPublicarTocataEdit()
+    await waitFor(() => {
+      expect(container.querySelector('#nombre').value).toBe('Festival Indie Rock')
+    })
+
+    fireEvent.change(container.querySelector('#nombre'), { target: { value: 'Festival Indie Rock 2026' } })
+    fireEvent.click(container.querySelector('button[type="submit"]'))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/gestion')
+    })
+
+    const patchCall = global.fetch.mock.calls.find(
+      ([url, opts]) => url.includes('/tocatas/tocata-9') && opts?.method === 'PATCH'
+    )
+    expect(patchCall).toBeTruthy()
+    const body = JSON.parse(patchCall[1].body)
+    expect(body.nombre).toBe('Festival Indie Rock 2026')
+    expect(body.tipos_entrada).toEqual([{ tipo: 'General', precio: 8000, cantidad: 200 }])
+
+    // No debe haber creado una tocata nueva
+    expect(global.fetch.mock.calls.some(([u, o]) => u.endsWith('/tocatas') && o?.method === 'POST')).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { AuthProvider } from '../context/AuthContext'
 import Profile from './Profile'
@@ -144,5 +144,78 @@ describe('Profile — happy path (perfil propio)', () => {
       expect.stringContaining('/images/upload-url?type=avatar&ext=png'),
       expect.objectContaining({ headers: { Authorization: 'Bearer tok-123' } })
     )
+  })
+})
+
+const PERFIL_PUBLICO = {
+  id: 'user-2', nombre: 'Carla Ríos', email: 'carla@test.cl',
+  ciudad: 'Valparaíso', oficio: ['Bajista'], user_tags: ['Jazz'],
+  bio: 'Bajista de jazz buscando banda.', s3_key: null, foto_url: null,
+  banner_url: null, audio_vector: null, es_premium: false,
+  instagram_url: null, spotify_url: null, discord_url: null,
+}
+
+function renderProfilePublico(username = 'carla_rios') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/u/${username}`]}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/u/:username" element={<Profile />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+}
+
+describe('Profile — perfil público (visitando a otro músico)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('muestra el perfil público y ofrece iniciar sesión para contactar (visitante sin cuenta)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(PERFIL_PUBLICO) })
+
+    renderProfilePublico()
+
+    expect(await screen.findByText('Carla Ríos')).toBeInTheDocument()
+    expect(screen.getByText('#Bajista')).toBeInTheDocument()
+    expect(screen.getByText('Valparaíso')).toBeInTheDocument()
+
+    // Sin sesión: no puede editar ni enviar mensaje directo
+    expect(screen.queryByText('Editar perfil')).not.toBeInTheDocument()
+    expect(screen.getByText('Inicia sesión para contactar')).toBeInTheDocument()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/usuarios/publico/carla_rios'),
+    )
+  })
+
+  it('muestra "Enviar mensaje" en vez del login cuando el visitante ya tiene sesión', async () => {
+    localStorage.setItem('token', 'tok-visitante')
+    localStorage.setItem('user', JSON.stringify({ id: 'visitor-1', nombre: 'Visitante' }))
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(PERFIL_PUBLICO) })
+
+    renderProfilePublico()
+
+    expect(await screen.findByText('Carla Ríos')).toBeInTheDocument()
+    // "Enviar mensaje" aparece tanto en el CTA del hero como en el widget
+    // de Acciones de la sidebar — ambos son válidos, basta con que exista.
+    expect(screen.getAllByText('Enviar mensaje').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Inicia sesión para contactar')).not.toBeInTheDocument()
+    expect(screen.queryByText('Editar perfil')).not.toBeInTheDocument()
+  })
+
+  it('muestra "Usuario no encontrado" si el perfil público no existe', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: () => Promise.resolve({}) })
+
+    renderProfilePublico('no-existe')
+
+    expect(await screen.findByText('Usuario no encontrado')).toBeInTheDocument()
+    expect(screen.getByText(/no-existe/)).toBeInTheDocument()
   })
 })
