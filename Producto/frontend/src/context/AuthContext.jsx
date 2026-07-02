@@ -14,6 +14,7 @@ const sanitizeUser = (raw) => {
     id:             typeof raw.id === 'string'             ? raw.id             : null,
     nombre:         typeof raw.nombre === 'string'         ? raw.nombre         : '',
     email:          typeof raw.email === 'string'          ? raw.email          : '',
+    role:           typeof raw.role === 'string'            ? raw.role           : 'user',
     es_premium:     Boolean(raw.es_premium),
     ciudad:         typeof raw.ciudad === 'string'         ? raw.ciudad         : null,
     user_tags:      Array.isArray(raw.user_tags)           ? raw.user_tags      : [],
