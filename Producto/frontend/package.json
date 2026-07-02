@@ -9,26 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:jest": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:lighthouse": "cross-env CHROME_PATH=\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" node node_modules/lighthouse/cli/index.js http://localhost:5173/explore --output=html --output-path=./lighthouse-report.html --only-categories=performance,accessibility --chrome-flags=--headless",
     "coverage": "vitest run --coverage"
-  },
-  "jest": {
-    "testEnvironment": "jest-environment-jsdom",
-    "testMatch": [
-      "**/tests/**/*.test.{js,jsx}"
-    ],
-    "transform": {
-      "^.+\\.[jt]sx?$": "babel-jest"
-    },
-    "moduleNameMapper": {
-      "\\.(css|less|scss|sass)$": "<rootDir>/tests/__mocks__/styleMock.cjs",
-      "\\.(jpg|jpeg|png|gif|svg|webp)$": "<rootDir>/tests/__mocks__/fileMock.cjs"
-    },
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setupTests.cjs"
-    ],
-    "clearMocks": true
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -48,9 +30,6 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/preset-env": "^7.29.7",
-    "@babel/preset-react": "^7.29.7",
     "@eslint/js": "^9.39.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -58,14 +37,11 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.9",
-    "babel-jest": "^30.4.1",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "jest": "^30.4.2",
-    "jest-environment-jsdom": "^30.4.1",
     "jsdom": "^29.1.1",
     "lighthouse": "^13.4.0",
     "vite": "^8.0.4",

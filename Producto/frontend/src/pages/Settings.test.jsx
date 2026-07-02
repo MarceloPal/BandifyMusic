@@ -79,10 +79,10 @@ describe('Settings', () => {
     switches.forEach((sw) => expect(sw).toHaveAttribute('aria-checked', 'true'))
   })
 
-  it('cambia al panel de Seguridad y muestra la zona de peligro', () => {
+  it('cambia al panel de Seguridad y muestra la zona de eliminar cuenta', () => {
     renderSettings()
     fireEvent.click(screen.getByText('Seguridad'))
-    expect(screen.getByText('Zona de peligro')).toBeInTheDocument()
+    expect(screen.getByText('Eliminar cuenta')).toBeInTheDocument()
     expect(screen.getByText('Eliminar mi cuenta')).toBeInTheDocument()
   })
 
@@ -90,8 +90,17 @@ describe('Settings', () => {
     renderSettings()
     fireEvent.click(screen.getByText('Seguridad'))
     fireEvent.click(screen.getByText('Eliminar mi cuenta'))
-    expect(screen.getByText(/Esta acción eliminará todos tus datos permanentemente/)).toBeInTheDocument()
-    expect(screen.getByText('Sí, eliminar cuenta')).toBeInTheDocument()
+    // Paso 1: confirmación inicial, requiere escribir ELIMINAR
+    expect(screen.getByText('Confirmación Inicial')).toBeInTheDocument()
+    const continuarBtn = screen.getByText('Continuar')
+    expect(continuarBtn).toBeDisabled()
+    fireEvent.change(screen.getByPlaceholderText('ELIMINAR'), { target: { value: 'ELIMINAR' } })
+    expect(continuarBtn).toBeEnabled()
+
+    // Paso 2: confirmación final
+    fireEvent.click(continuarBtn)
+    expect(screen.getByText('¿Estás absolutamente seguro?')).toBeInTheDocument()
+    expect(screen.getByText('Sí, eliminar definitivamente')).toBeInTheDocument()
   })
 
   it('cambia al panel de Contraseña y redirige al hacer clic en Restablecer', () => {

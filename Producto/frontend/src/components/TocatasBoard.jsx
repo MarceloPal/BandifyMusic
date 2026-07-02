@@ -163,7 +163,6 @@ function HeroSlider({ tocatas }) {
         <div className="absolute bottom-4 right-6 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <button
-              稳定={i}
               key={i}
               onClick={() => goTo(i)}
               className={`rounded-full transition-all duration-300 ${

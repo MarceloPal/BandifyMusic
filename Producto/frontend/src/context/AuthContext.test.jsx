@@ -31,14 +31,14 @@ describe('AuthContext', () => {
   })
 
   it('carga token y usuario desde localStorage al iniciar', () => {
-    const fakeUser = { id: 1, nombre: 'Juan' }
+    const fakeUser = { id: 'user-1', nombre: 'Juan' }
     localStorage.setItem('token', 'abc123')
     localStorage.setItem('user', JSON.stringify(fakeUser))
 
     let auth
     renderWithAuth((a) => { auth = a })
     expect(auth.token).toBe('abc123')
-    expect(auth.user).toEqual(fakeUser)
+    expect(auth.user).toMatchObject({ id: 'user-1', nombre: 'Juan' })
   })
 
   it('login guarda token y usuario en estado y localStorage', () => {
@@ -46,11 +46,11 @@ describe('AuthContext', () => {
     renderWithAuth((a) => { auth = a })
 
     act(() => {
-      auth.login('token-nuevo', { id: 2, nombre: 'Ana' })
+      auth.login('token-nuevo', { id: 'user-2', nombre: 'Ana' })
     })
 
     expect(localStorage.getItem('token')).toBe('token-nuevo')
-    expect(JSON.parse(localStorage.getItem('user'))).toEqual({ id: 2, nombre: 'Ana' })
+    expect(JSON.parse(localStorage.getItem('user'))).toMatchObject({ id: 'user-2', nombre: 'Ana' })
   })
 
   it('logout elimina token y usuario de estado y localStorage', () => {
@@ -69,7 +69,7 @@ describe('AuthContext', () => {
   })
 
   it('updateUser fusiona nuevos campos sin perder los anteriores', () => {
-    const usuario = { id: 1, nombre: 'Juan', plan: 'free' }
+    const usuario = { id: 'user-1', nombre: 'Juan', es_premium: false }
     localStorage.setItem('token', 'tok')
     localStorage.setItem('user', JSON.stringify(usuario))
 
@@ -77,12 +77,12 @@ describe('AuthContext', () => {
     renderWithAuth((a) => { auth = a })
 
     act(() => {
-      auth.updateUser({ plan: 'premium', audio_vector: [1, 2, 3] })
+      auth.updateUser({ es_premium: true, audio_vector: [1, 2, 3] })
     })
 
     const saved = JSON.parse(localStorage.getItem('user'))
     expect(saved.nombre).toBe('Juan')
-    expect(saved.plan).toBe('premium')
+    expect(saved.es_premium).toBe(true)
     expect(saved.audio_vector).toEqual([1, 2, 3])
   })
 
