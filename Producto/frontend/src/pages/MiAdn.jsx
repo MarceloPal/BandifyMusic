@@ -518,7 +518,10 @@ export default function MiAdn() {
 
   const isProcessing = uploadMutation.isPending || jobData?.status === 'processing'
   const isError      = jobData?.status === 'error' || uploadMutation.isError
-  const isLimitError = uploadMutation.error?.code === 'DEMO_LIMIT_REACHED'
+  const isLimitError  = uploadMutation.error?.code === 'DEMO_LIMIT_REACHED'
+  const errorMessage = jobData?.status === 'error'
+    ? (jobData.mensaje || 'No se pudo procesar el audio.')
+    : uploadMutation.error?.message
 
   /* ── ADN derivation from selected demo ── */
   const selectedDemo = useMemo(
@@ -680,6 +683,9 @@ export default function MiAdn() {
               <>
                 <XCircle size={36} className="text-red-400 mb-3" />
                 <p className="text-zinc-100 font-semibold">Hubo un error en el análisis</p>
+                {errorMessage && (
+                  <p className="text-zinc-500 text-xs mt-1.5 max-w-xs text-center">{errorMessage}</p>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleReset() }}
                   className="mt-4 px-5 py-2 bg-purple-600 text-white rounded-full text-sm font-semibold hover:bg-purple-500 transition-colors"

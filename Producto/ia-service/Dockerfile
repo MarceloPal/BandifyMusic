@@ -37,8 +37,13 @@ COPY models.py .
 
 # ─── Configuración runtime ──────────────────────────────────────────────────
 # Railway/Render inyectan $PORT en runtime; default 8000 para dev local
+# NUMBA_CACHE_DIR: librosa usa Numba (JIT) que por defecto cachea funciones
+# compiladas junto al código fuente en site-packages. Como appuser no es dueño
+# de ese directorio, la caché falla con "cannot cache function ... no locator
+# available" y aborta el análisis. Se redirige a un directorio escribible.
 ENV PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    NUMBA_CACHE_DIR=/tmp/numba_cache
 
 EXPOSE 8000
 
@@ -46,7 +51,8 @@ EXPOSE 8000
 RUN ffmpeg -version | head -1
 
 # ─── Usuario no privilegiado ────────────────────────────────────────────────
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
+    && mkdir -p /tmp/numba_cache && chown appuser:appgroup /tmp/numba_cache
 USER appuser
 
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
