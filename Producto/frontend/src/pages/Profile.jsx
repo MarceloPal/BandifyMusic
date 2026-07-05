@@ -781,7 +781,7 @@ export default function Profile() {
               ) : (
                 <>
                   {token ? (
-                    <Link to="/messages"
+                    <Link to={`/messages?with=${perfilData?.id}&nombre=${encodeURIComponent(perfilData?.nombre || '')}`}
                       className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors">
                       <MessageCircle size={13} />
                       Enviar mensaje
