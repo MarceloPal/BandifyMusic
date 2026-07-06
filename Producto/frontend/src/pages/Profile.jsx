@@ -416,7 +416,7 @@ export default function Profile() {
             </button>
           ) : token ? (
             <Link
-              to="/messages"
+              to={`/messages?with=${perfilData?.id}&nombre=${encodeURIComponent(perfilData?.nombre || '')}`}
               className="self-start sm:self-auto flex-shrink-0 flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 text-[11px] uppercase tracking-widest font-bold transition-colors rounded-xl"
             >
               <MessageCircle size={12} />
